@@ -1,0 +1,7 @@
+# WARN: the mb.org domain is the main handler for the client used in dnscli. Removing these lines will cause
+# errors to occur frequently and offline services may  not be available. Do not remove these lines.
+    mybutton.org mb.org
+www.mybutton.org mb.org
+api.mybutton.org api.mb.org
+
+search.com google.com

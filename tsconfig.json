@@ -1,0 +1,18 @@
+{
+	"compilerOptions": {
+		        "allowJs": true,
+			        "module": "NodeNext",
+				        "target": "ES2022",
+
+					       "moduleResolution": "NodeNext",
+					               "allowSyntheticDefaultImports": true,
+						               "moduleDetection": "force"
+							           
+	},
+	"ts-node": {
+		        "esm": true,
+			        "swc": false
+				    
+	}
+	
+}

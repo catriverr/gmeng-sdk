@@ -1,0 +1,26 @@
+{
+  "name": "packmgr-lib",
+  "version": "1.0.1",
+  "electron-start": "ts-node ./apps/lang/parse-args.mts",
+  "description": "",
+  "main": "./lang/parse-args.mts",
+  "type": "module",
+  "types": "./src/index.d.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/fs-extra": "^11.0.1",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node": "^20.5.8",
+    "chalk": "^5.3.0",
+    "electron": "^26.1.0",
+    "fs-extra": "^11.1.1"
+  }
+}
