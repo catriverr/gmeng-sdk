@@ -164,15 +164,13 @@ export namespace builder {
 };
 
 export namespace TSGmeng {
-
     export const colors: Array<string> = [
         "\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m"
     ];
-	export const resetcolor = "\x1b[0m";
-	export const c_unit = "\u2588";
-	export const c_outer_unit = "\u2584";
-	export const c_outer_unit_floor = "\u2580";
-
+    export const resetcolor = "\x1b[0m";
+    export const c_unit = "\u2588";
+    export const c_outer_unit = "\u2584";
+    export const c_outer_unit_floor = "\u2580";
     export interface WorldData {
         player: TSGmeng.PlayerData;
         _w: number; _h: number;
@@ -183,7 +181,6 @@ export namespace TSGmeng {
         colored: boolean; colorId: number;
         c_ent_tag: string;
     };
-
     export interface Unit {
         color: number; collidable: boolean;
         is_entity: boolean; is_player: boolean;
@@ -191,19 +188,16 @@ export namespace TSGmeng {
         entity: TSGmeng.Entity; player: TSGmeng.Player;
         special_c_unit: string;
     };
-
     export class Entity {
         entityId: number; textureId: number; colorId: number;
         textured: boolean; colored: boolean; coords: TSGmeng.coords;
         public setColor(id: number): void { this.colorId = id; };
     };
-
     export class Player extends Entity {
         textureId: number = 0; colorId: number = 1;
         textured: boolean = false; colored: boolean = true;
         c_ent_tag: string = `o`;
     };
-
     export interface coords {
         x: number; y: number;
     };
@@ -212,7 +206,6 @@ export namespace TSGmeng {
     export function add_border(wdata: TSGmeng.WorldData, rmap: string) {
         return `${tui.clr(TSGmeng.c_outer_unit.repeat(wdata._h+2), `orange`)}\n${rmap.split(`\n`).map((uln: string) => { if (uln.length < 5) return `\u001b[A\r`; return `${tui.clr(TSGmeng.c_unit, `orange`)}${uln}${tui.clr(TSGmeng.c_unit, `orange`)}` }).join(`\n`)}\n${tui.clr(TSGmeng.c_outer_unit_floor.repeat(wdata._h+2), `orange`)}`;
     };
-
     export function render_unitmap(wdata: TSGmeng.WorldData, map: Array<TSGmeng.Unit>, selected_x: number, selected_y: number, selection_size_x: number = 1, selection_size_y: number = 1, selected_color: number = 0): string {
         let highlighted_unitIds = [];
         for (let i = 0; i < selection_size_x; i++) {
@@ -227,7 +220,6 @@ export namespace TSGmeng {
             let curY = Math.floor(indx/wdata._h); let curX = indx-(curY*wdata._h);
             if (process.argv.includes(`--logs`)) console.log(curX, curY, undefined != (highlighted_unitIds.find(u=>u.x==curX&&u.y==curY)));
             final += (unit.special ? `\x1b[4${unit.special_clr}m` : ``) + TSGmeng.colors[unit.color] + ( undefined != (highlighted_unitIds.find(u=>u.x==curX&&u.y==curY)) ? (`${TSGmeng.colors[selected_color]}+`) : (unit.special ? unit.special_c_unit : TSGmeng.c_unit)) + TSGmeng.resetcolor;
-            
         });
         if (process.argv.includes(`--logs`)) console.log(highlighted_unitIds);
         return TSGmeng.add_border(wdata, final);
