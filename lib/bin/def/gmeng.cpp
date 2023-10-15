@@ -6,13 +6,16 @@ namespace Gmeng {
 	template<std::size_t _w, std::size_t _h>
 	class WorldMap {
 	  public:
-		std::size_t w = _w; std::size_t h = _h;
+		Gmeng::ModifierList modifiers = {
+			.noclip = {.value=0}
+		};
 		Objects::G_Entity entitymap[32767] = {};
+		std::size_t w = _w; std::size_t h = _h;
+		Gmeng::DisplayMap<_w, _h> display_map; 
+		std::string raw_unit_map[32767];
 		Objects::G_Player player = {};
 		Gmeng::Unit playerunit = {};
 		int entitytotal = 0;
-		Gmeng::DisplayMap<_w, _h> display_map; std::string raw_unit_map[32767];
-
 		inline void SetResolution(std::size_t w, std::size_t h) {
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
@@ -59,6 +62,13 @@ namespace Gmeng {
 			final += ("\x1B[38;2;246;128;25m"); final += (Gmeng::c_unit);
 			final = __cu + "" + final + "\n" + __cf;
 			return final;
+		};
+		inline bool has_modifier(std::string name) {
+			if (name == "noclip" && this->modifiers.noclip.value == 1) return true;
+			else return false;
+		};
+		inline void set_modifier(std::string name, int value) {
+			if (name == "noclip") this->modifiers.noclip.value = value;
 		};
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x, int y = -1) {
 			for (int i = 0; i < this->entitytotal; i++) {
@@ -112,9 +122,9 @@ namespace Gmeng {
 			if (!exists) throw std::invalid_argument("recieved invalid entityId: no such entity");
 			if (move_to_in_map > this->w*this->h) return;
 			Gmeng::Unit location_in_map = this->display_map.unitmap[move_to_in_map];
-			if (!location_in_map.collidable) return;
-			this->playerunit = this->display_map.unitmap[(height*_w)+width];
-			this->display_map.unitmap[(current_coords.y*_w)+current_coords.x] = this->playerunit;
+			if (!location_in_map.collidable && !this->has_modifier("noclip")) return;
+			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
+			this->display_map.unitmap[(current_coords.y*this->w)+current_coords.x] = this->playerunit;
 			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity};
 			this->player.coords.x = width;
 			this->player.coords.y = height;

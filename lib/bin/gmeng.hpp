@@ -20,6 +20,15 @@ namespace Gmeng {
 			bool is_entity = false; bool is_player = false; bool special = false; int special_clr = 0;
 			Objects::G_Entity entity={}; Objects::G_Player player={}; std::string special_c_unit = "";
 	};
+
+	struct modifier {
+		public:
+			int value;
+	};
+	struct ModifierList {
+		public:
+			modifier noclip = Gmeng::modifier{.value=0}; 
+	};
 	struct RendererOptions {
 		public:
 		bool countObjects; bool useTitle;

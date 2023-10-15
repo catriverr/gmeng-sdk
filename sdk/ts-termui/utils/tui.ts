@@ -92,7 +92,9 @@ export namespace tui {
     //* up-key, goes up by 1 line in the console.
     export const upk = `\u001b[A\r`
     export const dwk = `\u001b[B\r`
-
+    export const lfk = `\u001b[D`
+    export const rgk = `\u001b[C`
+    
     export type colors = `dark_red` | `red` | `black` | `cyan` | `swamp` | `yellow` | `pink` | `green` | `blue` | `tan` | `grayish` | `orange`;
 
     export const colortable: Map<tui.colors, ChalkInstance> = new Map<colors, ChalkInstance>([

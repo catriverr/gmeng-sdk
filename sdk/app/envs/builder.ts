@@ -1,11 +1,12 @@
 import chalk from "chalk";
 import tui from "../../ts-termui/utils/tui.js";
 import * as Plib from '../../../plib/src/index.js';
-import { Directory } from "../../../plib/lib/dirhandle.js";
+import { BaseCfgTemplate, Directory } from "../../../plib/lib/dirhandle.js";
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, truncate, unlinkSync, writeFileSync } from "fs";
 import { ChildProcess, spawn } from "child_process";
+import { Key, emitKeypressEvents } from "readline";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const mac_gmeng_path = path.join(__dirname, `..`, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
@@ -15,7 +16,7 @@ export namespace builder {
         console.clear();
         let WorldData: TSGmeng.WorldData = {
             player: {
-                startDX: 0, startDY: 0, 
+                startDX: 0, startDY: 0,
                 colored: true, colorId: 1,
                 c_ent_tag: `o`
             },
@@ -23,6 +24,7 @@ export namespace builder {
             description: `hello world!`
         };
         WorldData.name = await tui.show_input_screen(`enter WorldMap filename`, null, false);
+        if (existsSync(`${WorldData.name}.gm`)) return builder.show_editor(TSGmeng.parseMapData(WorldData.name), new Plib.Dirs.Directory(WorldData.name + `.gm`));
         WorldData.description = await tui.show_input_screen(`enter world description`, null, false);
         await tui.show_input_screen(`enter world size in blocks (example: 2x2)`, null, false).then(a => {
             let wsze = a.split(`x`);
@@ -54,7 +56,8 @@ export namespace builder {
     };
     export async function show_editor(worldData: TSGmeng.WorldData, mapfile: Directory<string>) {
         let WMAP_UNITS: Array<TSGmeng.Unit> = [];
-        for (let i = 0; i < worldData._w * worldData._h; i++) {
+        if (mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`) != null) WMAP_UNITS = TSGmeng.ReadMapData(worldData, mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`).content);
+        else for (let i = 0; i < worldData._w * worldData._h; i++) {
             WMAP_UNITS.push({
                 collidable: true,
                 color: 7,
@@ -67,7 +70,6 @@ export namespace builder {
                 special_c_unit: `!`
             });
         };
-        // ? TODO: if world.mpd exists in wordData.name.gm, use that instead
         // ^^ map is created, editor can now make changes
 
         let SIZEX = 1; let SIZEY = 1; let SELECTCLR = 0;
@@ -206,6 +208,30 @@ export namespace TSGmeng {
     export function add_border(wdata: TSGmeng.WorldData, rmap: string) {
         return `${tui.clr(TSGmeng.c_outer_unit.repeat(wdata._h+2), `orange`)}\n${rmap.split(`\n`).map((uln: string) => { if (uln.length < 5) return `\u001b[A\r`; return `${tui.clr(TSGmeng.c_unit, `orange`)}${uln}${tui.clr(TSGmeng.c_unit, `orange`)}` }).join(`\n`)}\n${tui.clr(TSGmeng.c_outer_unit_floor.repeat(wdata._h+2), `orange`)}`;
     };
+    export function parseMapData(fname: string): WorldData {
+        let fcontent = readFileSync(fname + `.gm`, `base64`);
+        let fdata: BaseCfgTemplate<string> = JSON.parse(Plib.Packer.CharObjects.UnpackCharObject(fcontent));
+        console.log(fdata.FILE_LIST);
+        let wData = TSGmeng.wData(fdata.FILE_LIST.find(a=>a.name=="world.dat").content, fdata.FILE_LIST.find(a=>a.name=="player.dat").content)
+        return wData;
+    };
+    export function wData(fcontent: string, pcontent: string): WorldData {
+        let pdata = pcontent.split(`\n`); let fdata = fcontent.split(`\n`);
+        console.table(pdata); console.table(fdata);
+        let data: WorldData = {
+            player: {
+                c_ent_tag: `o`,
+                colored: true, colorId: parseInt(pdata.find(a=>a.startsWith("colorId=")).substring("colorId=".length)),
+                startDX: parseInt(pdata.find(a=>a.startsWith("startDX=")).substring("startDX=".length)),
+                startDY: parseInt(pdata.find(a=>a.startsWith("startDY=")).substring("startDY=".length))    
+            },
+            _h: parseInt(fdata.find(a=>a.startsWith("width=")).substring("width=".length)),
+            _w: parseInt(fdata.find(a=>a.startsWith("height=")).substring("height=".length)),
+            name: fdata.find(a=>a.startsWith("name=")).substring("name=".length),
+            description: fdata.find(a=>a.startsWith(`description=`)).substring(`description=`.length)
+        }; 
+        return data;
+    };
     export function render_unitmap(wdata: TSGmeng.WorldData, map: Array<TSGmeng.Unit>, selected_x: number, selected_y: number, selection_size_x: number = 1, selection_size_y: number = 1, selected_color: number = 0): string {
         let highlighted_unitIds = [];
         for (let i = 0; i < selection_size_x; i++) {
@@ -282,14 +308,43 @@ export namespace TSGmeng {
         constructor(gmeng_path: string) { this.gmeng_dir = gmeng_path; };
         public async launchGame(): Promise<void> {
             return new Promise<void>((resolve, reject) => {
-                let proc__a = spawn(`${this.gmeng_dir}`)
-                proc__a.stdout.pipe(process.stdout);
-                proc__a.stderr.pipe(process.stderr);
-                proc__a.stdin.pipe(process.stdin);
+                let proc__a = spawn(`${this.gmeng_dir}`, { stdio: ['pipe', 'pipe', 'pipe'] });
+                process.stdout.write('\x1b[?25l');
                 proc__a.on(`exit`, () => {
+                    process.stdout.write('\x1b[?25h');
                     unlinkSync(process.cwd() + `/world.dat`);
                     unlinkSync(process.cwd() + `/player.dat`);
                     unlinkSync(process.cwd() + `/world.mpd`);
+		    process.exit(0);
+                    resolve();
+                });
+                proc__a.stdout.pipe(process.stdout);
+                proc__a.stderr.pipe(process.stderr);
+                process.stdin.setRawMode(true);
+                process.stdin.setEncoding('utf8');
+                proc__a.stdin.pipe(process.stdin);
+                emitKeypressEvents(process.stdin);
+                let inmenu = false;
+                process.stdin.on(`keypress`, async (ch, e: Key) => { 
+                    if (e.sequence == `\x03`) return process.exit(0); 
+                    if (inmenu) return;
+		    if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
+                    if (e.name == `f1` && e.shift && !inmenu) {
+                        inmenu = true;
+                        let cmd = await SHOW_DEVC();
+                        inmenu = false;
+                        proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                        if (cmd == (void 0)) return;
+                        proc__a.stdin.write(`[dev-c] ${cmd}` + `\n`);
+                        if (cmd != "r_update") await tui.await_keypress();
+                        return;
+                    }
+		    // movement (sent as commands through std::cin)
+		    if (e.name == `w`) proc__a.stdin.write(`[posy] i1` + `\n`);
+		    if (e.name == `a`) proc__a.stdin.write(`[posx] d1` + `\n`);
+		    if (e.name == `s`) proc__a.stdin.write(`[posy] d1` + `\n`);
+		    if (e.name == `d`) proc__a.stdin.write(`[posx] i1` + `\n`);
+                    proc__a.stdin.write(`[dev-c] r_update` + `\n`);
                 });
             });
         };
@@ -298,3 +353,29 @@ export namespace TSGmeng {
 
 
 export default builder;
+
+
+
+async function SHOW_DEVC(): Promise<string> {
+    return new Promise((resolve, reject) => {
+        process.stdout.write(tui.upk.repeat(3));
+        let input = ``; let usable = true;
+        function draw_c() {
+            process.stdout.write(tui.upk.repeat(2));
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit_floor.repeat(12)}${chalk.bgRgb(204, 36, 29)(tui.clr(`DEV-C`, `tan`))}${TSGmeng.c_outer_unit_floor.repeat(12)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit} ${tui.clr(`>`, `tan`)} ${tui.clr(input, `green`)}${` `.repeat(26-input.length)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit.repeat(29)}${TSGmeng.c_unit}`, "dark_red"));
+        }
+        draw_c();
+        process.stdin.on(`data`, (key: string) => { 
+            if (!usable) return; 
+            if (key == `\x1B`) return usable = false, resolve(void 0); 
+            if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c(); 
+            if (key == `\r`) {
+                let data = input; input = ``;
+                resolve(data); return usable = false;
+            };
+            input += key; draw_c(); 
+        });
+    });
+};
