@@ -2,6 +2,15 @@
 
 #ifdef __GMENG_INIT__
 
+std::string repeatString(const std::string& str, int times) {
+    std::string result = "";
+    for (int i = 0; i < times; i++) {
+        result += str;
+    }
+    return result;
+}
+
+
 namespace Gmeng {
 	template<std::size_t _w, std::size_t _h>
 	class WorldMap {
@@ -50,9 +59,9 @@ namespace Gmeng {
 		inline std::string draw() {
 			std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {
-				if (i % w == 0) { 
+				if (i % w == 0) {
 					if (i > 1) final += "\x1B[38;2;246;128;25m",  final += Gmeng::c_unit;
-					final += "\n\x1B[38;2;246;128;25m"; final += Gmeng::c_unit; 
+					final += "\n\x1B[38;2;246;128;25m"; final += Gmeng::c_unit;
 				};
 				final += this->raw_unit_map[i];
 			};
@@ -75,7 +84,8 @@ namespace Gmeng {
 				Objects::G_Entity entity = this->entitymap[i];
 				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
 			};
-			int goto_loc = (y != -1) ? ((y*this->w)+x) : (x); 
+			int goto_loc = (y != -1) ? ((y*this->w)+x) : (x);
+			std::cout << this->w << " " << this->h << " " << goto_loc;
 			if (goto_loc > this->w*this->h) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates");
 			if (this->display_map.unitmap[goto_loc].collidable == false) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates: the unit at the location is not collidable");
 			this->entitymap[entityId] = player;
@@ -97,8 +107,8 @@ namespace Gmeng {
 			//working on
 		};
 		inline Objects::coord GetPos(int entityId) {
-			bool exists; 
-			Objects::G_Entity entity; 
+			bool exists;
+			Objects::G_Entity entity;
 			for (int i = 0; i < this->entitytotal; i++) {
 				Objects::G_Entity ent = this->entitymap[i];
 				if (ent.entityId == entityId) { exists = true; entity = this->entitymap[i]; break; };
@@ -106,6 +116,40 @@ namespace Gmeng {
 			};
 			if (!exists) throw std::invalid_argument("no such object: cannot get location");
 			return entity.coords;
+		};
+		inline void set_curXY(int x, int y) {
+   			 std::cout << "\033[" << x+2 << ";" << y+2 << "H"; return; // extra numbers account for the border around the map.
+		};
+		inline void reset_cur() {
+			this->set_curXY(-3, this->h);
+		};
+		inline Objects::coord get_xy(int __p1) {
+			int __p1_x = __p1 / this->w;
+			int __p1_y = __p1 % this->w;
+			return { .x=__p1_x,.y=__p1_y };
+		};
+		inline std::string draw_unit(Gmeng::Unit __u) {
+			Gmeng::Unit current_unit = __u;
+			if (current_unit.is_player) {
+				std::string final = "\x1B[40m" + Gmeng::colors[current_unit.color] + current_unit.player.c_ent_tag + Gmeng::resetcolor;
+				return final;
+			};
+			if (current_unit.special) {
+				std::string final = "\x1B[4"+std::to_string(current_unit.special_clr)+"m" + Gmeng::colors[current_unit.color] + current_unit.special_c_unit + Gmeng::resetcolor;
+				return final;
+			};
+			std::string color = Gmeng::colors[current_unit.color];
+			std::string final = color + (Gmeng::c_unit) + Gmeng::resetcolor;
+			return final;
+		};
+		inline void rewrite_mapping(const std::vector<int>& positions) {
+			for (std::size_t i=0;i<positions.size();i++) {
+				int curid = positions[i];
+				Objects::coord cpos = this->get_xy(curid);
+				this->set_curXY(cpos.x, cpos.y);
+				std::cout << this->raw_unit_map[curid];
+			};
+			this->reset_cur();
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
 			int move_to_in_map = (height*this->w)+width;
@@ -118,16 +162,20 @@ namespace Gmeng {
 			};
 			entity = this->player;
 			Objects::coord current_coords = this->player.coords;
-			Gmeng::Unit current_unit = this->display_map.unitmap[(current_coords.y*_w)+current_coords.x];
+			int current_pos_in_map = (current_coords.y*this->w)+current_coords.x;
+			Gmeng::Unit current_unit = this->display_map.unitmap[(current_coords.y*this->w)+current_coords.x];
 			if (!exists) throw std::invalid_argument("recieved invalid entityId: no such entity");
 			if (move_to_in_map > this->w*this->h) return;
 			Gmeng::Unit location_in_map = this->display_map.unitmap[move_to_in_map];
 			if (!location_in_map.collidable && !this->has_modifier("noclip")) return;
-			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
+			this->raw_unit_map[(current_coords.y*this->w)+current_coords.x] = this->draw_unit(this->playerunit);
 			this->display_map.unitmap[(current_coords.y*this->w)+current_coords.x] = this->playerunit;
-			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity};
-			this->player.coords.x = width;
-			this->player.coords.y = height;
+			Gmeng::Unit oldPlayerUnit = this->playerunit;
+			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
+			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity,.special=true,.special_clr=oldPlayerUnit.color};
+			this->player.coords.x = width; this->player.coords.y = height;
+			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
+			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};
 		inline void MoveEntity(int entityId, int width, int height) {
 			int move_to_in_map = (height*this->w)+width;

@@ -325,26 +325,37 @@ export namespace TSGmeng {
                 proc__a.stdin.pipe(process.stdin);
                 emitKeypressEvents(process.stdin);
                 let inmenu = false;
+                proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                process.stdin.setMaxListeners(0);
+                process.stdout.setMaxListeners(0);
+                proc__a.stdout.setMaxListeners(0);
+                proc__a.stdin.setMaxListeners(0);
                 process.stdin.on(`keypress`, async (ch, e: Key) => { 
                     if (e.sequence == `\x03`) return process.exit(0); 
                     if (inmenu) return;
-		    if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
+		            if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
                     if (e.name == `f1` && e.shift && !inmenu) {
+                        process.stdout.cursorTo(0, 45);
                         inmenu = true;
                         let cmd = await SHOW_DEVC();
                         inmenu = false;
-                        proc__a.stdin.write(`[dev-c] r_update` + `\n`);
-                        if (cmd == (void 0)) return;
+                        if (cmd == (void 0)) return proc__a.stdin.write(`[dev-c] r_update` + `\n`);
                         proc__a.stdin.write(`[dev-c] ${cmd}` + `\n`);
                         if (cmd != "r_update") await tui.await_keypress();
+                        proc__a.stdin.write(`[dev-c] r_update` + `\n`);
                         return;
                     }
-		    // movement (sent as commands through std::cin)
-		    if (e.name == `w`) proc__a.stdin.write(`[posy] i1` + `\n`);
-		    if (e.name == `a`) proc__a.stdin.write(`[posx] d1` + `\n`);
-		    if (e.name == `s`) proc__a.stdin.write(`[posy] d1` + `\n`);
-		    if (e.name == `d`) proc__a.stdin.write(`[posx] i1` + `\n`);
-                    proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+		            // movement (sent as commands through std::cin)
+                    // does not require r_update @since 2.1:
+                    // WorldMap::rewrite_mapping() handles individual unit updates, so player movement
+                    // can be disregarded as an update event, instead treated as a screen change event
+                    // such as the dev-c ui being shown, however r_update will still recognize
+                    // player movements after being executed since the displaymap still holds values for
+                    // the player's position and coordinate data.
+		            if (e.name == `w`) proc__a.stdin.write(`[posy] i1` + `\n`);
+		            if (e.name == `a`) proc__a.stdin.write(`[posx] d1` + `\n`);
+		            if (e.name == `s`) proc__a.stdin.write(`[posy] d1` + `\n`);
+		            if (e.name == `d`) proc__a.stdin.write(`[posx] i1` + `\n`);
                 });
             });
         };
@@ -358,7 +369,7 @@ export default builder;
 
 async function SHOW_DEVC(): Promise<string> {
     return new Promise((resolve, reject) => {
-        process.stdout.write(tui.upk.repeat(3));
+        process.stdout.write(tui.upk.repeat(7));
         let input = ``; let usable = true;
         function draw_c() {
             process.stdout.write(tui.upk.repeat(2));
@@ -373,8 +384,10 @@ async function SHOW_DEVC(): Promise<string> {
             if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c(); 
             if (key == `\r`) {
                 let data = input; input = ``;
+                process.stdout.write(`\n\n\n\r`); // return to log-line
                 resolve(data); return usable = false;
             };
+            if (input.length == 25) return;
             input += key; draw_c(); 
         });
     });
