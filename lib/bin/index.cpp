@@ -27,7 +27,7 @@ int main( int argc, char** argv ) {
     // Read data from stdin
     while (true) {
         std::vector<std::string> commandList = {
-		"r_update", "echo", "p_setpos", "kb_help", "p_showDCoords", "gm_modify", "gm_quit", "kb_resetcur"
+			"r_update", "echo", "p_setpos", "kb_help", "p_showDCoords", "gm_modify", "gm_quit", "kb_resetcur"
 		};
         if (std::getline(std::cin, line)) {
 			if (startsWith(line, "[posy] ")) {

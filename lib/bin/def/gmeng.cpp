@@ -1,4 +1,8 @@
 #include <iostream>
+#include <string>
+#include <array>
+#include <cstring>
+#include <vector>
 
 #ifdef __GMENG_INIT__
 
