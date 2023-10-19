@@ -334,7 +334,7 @@ export namespace TSGmeng {
                     if (e.sequence == `\x03`) return process.exit(0); 
                     if (inmenu) return;
 		            if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
-                    if (e.name == `f1` && e.shift && !inmenu) {
+                    if (e.name == `tab` && e.shift && !inmenu) {
                         process.stdout.cursorTo(0, 45);
                         inmenu = true;
                         let cmd = await SHOW_DEVC();

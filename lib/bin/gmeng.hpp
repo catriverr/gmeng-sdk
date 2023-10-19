@@ -23,11 +23,11 @@ namespace Gmeng {
 
 	struct modifier {
 		public:
-			int value;
+			int value; std::string name;
 	};
 	struct ModifierList {
 		public:
-			modifier noclip = Gmeng::modifier{.value=0}; 
+			std::vector<modifier> values;
 	};
 	struct RendererOptions {
 		public:
@@ -58,6 +58,10 @@ inline Gmeng::Unit g_unit(int color = 0, bool collidable = false) {
 inline Gmeng::Unit g_spike(int color = 0, int bgcolor = 0, bool big = false) {
 	return Gmeng::Unit{.collidable=false,.color=color,.special=true,.special_c_unit=(big ? "X" : "x"),.special_clr=bgcolor};
 };
+inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const std::string& targetName) {
+    for (size_t i = 0; i < modifiers.size(); ++i) { if (modifiers[i].name == targetName) { return static_cast<int>(i); }; };
+    return -1;
+}
 #define __GMENG_INIT__ true
 #include "def/gmeng.cpp"
 #include "utils/envs/map.hpp"

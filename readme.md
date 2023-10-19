@@ -21,12 +21,12 @@ There are a few prebuilt executables, but it is recommended to build from source
 
 To launch the application, use:
 ```sh
-$ ./sdk/start 
+$ ./start 
 ```
 this will launch the application, that by default will load the map in the file `test.gm`, so do not change directories or remove the file.
 If you wish to launch the map builder, use:
 ```sh
-$ ./sdk/start -b
+$ ./start -b
 ```
 This will launch the map editor. If you wish to edit an already-existant file, just state the name of the file (without the .gm extension) to the editor's file name selection screen.
 If you would like to create a new map, continue the editors instructions and it will lead you to the editor.

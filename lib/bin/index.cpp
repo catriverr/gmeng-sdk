@@ -27,11 +27,24 @@ int main( int argc, char** argv ) {
     // Read data from stdin
     while (true) {
         std::vector<std::string> commandList = {
-			"r_update", "echo", "p_setpos", "kb_help", "p_showDCoords", "gm_modify", "gm_quit", "kb_resetcur"
+			"r_update", 	 "echo",	  "p_setpos", "kb_help", 
+			"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur"
 		};
         if (std::getline(std::cin, line)) {
 			if (startsWith(line, "[posy] ")) {
 				// vectoral updates ( screen updates will not reset the screen entirely, it will only change the current pixels - performance boost by sizexy / sizex % )
+				// vectoral updates are enabled by default, as it saves a lot of performance and computing time.
+				// disabling vectoral updates will slow the game down. Down to 0.7fps. Tried on the following GPUs:
+				// - GTX 1660: 0.4 fps
+				// - M1 : 4 fps
+				// - RTX 3060: 5 fps
+				// - M1 Max : 7 fps
+				// - RTX 4090: 15 fps
+				// these are not good fps rates, leave this option enabled 
+				// however if you disable it, your gameplay will be improved.
+				// DISABLING IS ABSOLUTELY NOT RECOMMENDED FOR MAPS BIGGER THAN 200x50.
+				// to disable, run the command:
+				// gm_modify force_update 1
 				std::vector<std::string> p_coordY = g_splitStr(line, " ");
 				if (p_coordY[1] == "i1") world.MovePlayer(0, world.player.coords.x, world.player.coords.y-1);
 				if (p_coordY[1] == "d1") world.MovePlayer(0, world.player.coords.x, world.player.coords.y+1);
@@ -55,7 +68,7 @@ int main( int argc, char** argv ) {
 			if (command[0] == "kb_resetcur") {
 				world.reset_cur(); continue;
 			}
-			if (command[0] == "p_showDCoords") {
+			if (command[0] == "p_coordinfo") {
 				std::cout << "dY:" << world.player.coords.y << " dX:" << world.player.coords.x <<endl;
 			}
 			if (command[0] != "echo") std::cout << Gmeng::colors[6] << "[gmeng:0/core] recieved command: " << Gmeng::colors[1] << g_joinStr(command, " ") << Gmeng::colors[6] << "." << endl;			
@@ -71,7 +84,7 @@ int main( int argc, char** argv ) {
 				std::cout << "All keybindings are controlled by GmengSDK's method: " << Gmeng::colors[1] << "TSGmeng::HandleKeyPress" << Gmeng::colors[6] << endl;
 				std::cout << "while UI elements such as dev-c are open, keybinds are disregarded. [r_setui controls the variable 'inmenu' that shows the UI data.]" << endl;
 				std::cout << "\n\n[W, A, S, D] Move entity[0](player) around / navigate entity 0." << endl;
-				std::cout << "[shift+f1] show DEV-C Developer Command-line tools" << endl;
+				std::cout << "[shift+tab] show DEV-C Developer Command-line tools" << endl;
 				std::cout << "[shift+f2] force execute r_update / force-render WorldMap\n" << endl;
 			}
 			if (command[0] == "echo") {
@@ -79,7 +92,7 @@ int main( int argc, char** argv ) {
 			}
 			if (command[0] == "gm_modify") {
 				world.set_modifier(command[1], std::stoi(command[2]));
-				std::cout << "Gmeng::WorldMap::ModifierList Gmeng::WorldMap::modifiers at index (0) / value of " << Gmeng::colors[1] << command[1] << Gmeng::colors[6] << " was changed to" << Gmeng::colors[2] << command[2] << Gmeng::colors[6] << endl;
+				std::cout << "Gmeng::WorldMap::ModifierList Gmeng::WorldMap::modifiers at index (0) / value of " << Gmeng::colors[1] << command[1] << Gmeng::colors[6] << " was changed to " << Gmeng::colors[2] << command[2] << Gmeng::colors[6] << endl;
 			}
 			if (command[0] == "gm_quit") {
 				exit(0);

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 
 #ifdef __GMENG_INIT__
 
@@ -20,11 +21,14 @@ namespace Gmeng {
 	class WorldMap {
 	  public:
 		Gmeng::ModifierList modifiers = {
-			.noclip = {.value=0}
+			.values = std::vector<Gmeng::modifier> {
+				Gmeng::modifier { .name="noclip",.value=0 },
+				Gmeng::modifier { .name="force_update",.value=0 }
+			}
 		};
 		Objects::G_Entity entitymap[32767] = {};
 		std::size_t w = _w; std::size_t h = _h;
-		Gmeng::DisplayMap<_w, _h> display_map; 
+		Gmeng::DisplayMap<_w, _h> display_map;
 		std::string raw_unit_map[32767];
 		Objects::G_Player player = {};
 		Gmeng::Unit playerunit = {};
@@ -76,12 +80,12 @@ namespace Gmeng {
 			final = __cu + "" + final + "\n" + __cf;
 			return final;
 		};
-		inline bool has_modifier(std::string name) {
-			if (name == "noclip" && this->modifiers.noclip.value == 1) return true;
-			else return false;
-		};
+		inline bool has_modifier(std::string name) {  for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
+		inline void update_modifier(Gmeng::modifier& modifier, int value) { modifier.value = value; };
 		inline void set_modifier(std::string name, int value) {
-			if (name == "noclip") this->modifiers.noclip.value = value;
+			int vi = g_find_modifier(this->modifiers.values, name);
+    			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
+    			else this->modifiers.values.emplace_back(Gmeng::modifier { .value=value, .name=name });
 		};
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x, int y = -1) {
 			for (int i = 0; i < this->entitytotal; i++) {
@@ -155,6 +159,14 @@ namespace Gmeng {
 			};
 			this->reset_cur();
 		};
+		inline void clear_screen() {
+			std::cout << "\033[2J\033[1;1H";
+		};
+		inline void rewrite_full() {
+			this->clear_screen();
+			this->update();
+			std::cout << this->draw() << std::endl;
+		};
 		inline void MovePlayer(int entityId, int width, int height) {
 			int move_to_in_map = (height*this->w)+width;
 			bool exists = false;
@@ -178,6 +190,7 @@ namespace Gmeng {
 			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
 			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity,.special=true,.special_clr=oldPlayerUnit.color};
 			this->player.coords.x = width; this->player.coords.y = height;
+			if (this->has_modifier("force_update")) { this->rewrite_full(); return; };
 			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};

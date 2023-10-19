@@ -6,7 +6,7 @@ export function main(args: string[]): void {
     console.log(`launching...`);
     if (args.includes(`-b`) || args.includes(`--builder`)) builder.mainMenu(args);
     // unpack & load
-    else TSGmeng.loadMap(`test.gm`).launchGame();
+    else TSGmeng.loadMap(`./tests/world.gm`).launchGame();
 };
 
 main(process.argv.slice(2));
