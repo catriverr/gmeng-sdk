@@ -22,8 +22,13 @@ namespace Gmeng {
 	  public:
 		Gmeng::ModifierList modifiers = {
 			.values = std::vector<Gmeng::modifier> {
-				Gmeng::modifier { .name="noclip",.value=0 },
-				Gmeng::modifier { .name="force_update",.value=0 }
+				Gmeng::modifier { .name="noclip",             .value=0 },
+				Gmeng::modifier { .name="force_update",       .value=0 },
+				Gmeng::modifier { .name="allow_plugins",      .value=1 },
+				Gmeng::modifier { .name="cast_events",        .value=1 },
+				Gmeng::modifier { .name="allow_teleporting",  .value=1 },
+				Gmeng::modifier { .name="allow_dev_commands", .value=1 },
+				Gmeng::modifier { .name="allow_writing_plog", .value=1 }
 			}
 		};
 		Objects::G_Entity entitymap[32767] = {};
