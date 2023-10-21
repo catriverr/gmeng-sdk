@@ -29,6 +29,7 @@ namespace Gmeng {
 		Objects::G_Entity entitymap[32767] = {};
 		std::size_t w = _w; std::size_t h = _h;
 		Gmeng::DisplayMap<_w, _h> display_map;
+		Gmeng::EventHandler event_handler;
 		std::string raw_unit_map[32767];
 		Objects::G_Player player = {};
 		Gmeng::Unit playerunit = {};
@@ -190,6 +191,15 @@ namespace Gmeng {
 			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
 			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity,.special=true,.special_clr=oldPlayerUnit.color};
 			this->player.coords.x = width; this->player.coords.y = height;
+			this->event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent, this->event_handler.gen_estr(
+			Gmeng::event {
+			.name="player_move",
+			.id=Gmeng::CONSTANTS::PE_Type0,
+			.params={
+				"dX=" + std::to_string(current_coords.x) + ",dY=" + std::to_string(current_coords.y), // old player
+				"dX=" + std::to_string(this->player.coords.x) + ",dY=" + std::to_string(this->player.coords.y) // new player
+			}
+			}));
 			if (this->has_modifier("force_update")) { this->rewrite_full(); return; };
 			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});

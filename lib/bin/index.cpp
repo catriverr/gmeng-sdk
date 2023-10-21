@@ -27,7 +27,7 @@ int main( int argc, char** argv ) {
     // Read data from stdin
     while (true) {
         std::vector<std::string> commandList = {
-			"r_update", 	 "echo",	  "p_setpos", "kb_help", 
+			"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus",
 			"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur"
 		};
         if (std::getline(std::cin, line)) {
@@ -79,6 +79,16 @@ int main( int argc, char** argv ) {
 				world.update();
 				std::cout << "[gmeng:0/core] entity[0](player) moved to x,y: " << rPos[0] << "," << rPos[1] << endl;
 			};
+			if (command[0] == "gm_modstatus") {
+				std::cout << " < Gmeng Modifiers status list >" << endl;
+				int i = 0; int activec = 0;
+				for ( auto mod : world.modifiers.values ) {
+					if (mod.value == 1) activec++;
+					std:cout << std::to_string(i) << " " << mod.name << " -> " << std::to_string(mod.value) << endl;
+					i++;
+				};
+				std::cout << "total -> " << std::to_string(i) << ", active -> " << std::to_string(activec) << endl;
+			};
 			if (command[0] == "kb_help") {
 				std::cout << "< Gmeng keybind list >" << endl;
 				std::cout << "All keybindings are controlled by GmengSDK's method: " << Gmeng::colors[1] << "TSGmeng::HandleKeyPress" << Gmeng::colors[6] << endl;
@@ -95,6 +105,7 @@ int main( int argc, char** argv ) {
 				std::cout << "Gmeng::WorldMap::ModifierList Gmeng::WorldMap::modifiers at index (0) / value of " << Gmeng::colors[1] << command[1] << Gmeng::colors[6] << " was changed to " << Gmeng::colors[2] << command[2] << Gmeng::colors[6] << endl;
 			}
 			if (command[0] == "gm_quit") {
+				std::cout << "[gmeng:0/core] executing { r_setui 0; gm_force return_console; gm_kill 0; }" << endl;
 				exit(0);
 			}
 			if (std::find(commandList.begin(), commandList.end(), command[0]) == commandList.end()) {

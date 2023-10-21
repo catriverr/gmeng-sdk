@@ -10,66 +10,6 @@
 #define cpps(str) ( std::string(str) )
 using namespace std;
 
-static bool endsWith(const std::string& str, const char* suffix, unsigned suffixLen)
-{
-    return str.size() >= suffixLen && 0 == str.compare(str.size()-suffixLen, suffixLen, suffix, suffixLen);
-};
-
-static bool endsWith(const std::string& str, const char* suffix)
-{
-    return endsWith(str, suffix, std::string::traits_type::length(suffix));
-};
-
-static bool startsWith(const std::string& str, const char* prefix, unsigned prefixLen)
-{
-    return str.size() >= prefixLen && 0 == str.compare(0, prefixLen, prefix, prefixLen);
-};
-
-static bool startsWith(const std::string& str, const char* prefix)
-{
-    return startsWith(str, prefix, std::string::traits_type::length(prefix));
-};
-
-std::string g_readFile(const string &fileName)
-{
-    ifstream ifs(fileName.c_str(), ios::in | ios::binary | ios::ate);
-
-    ifstream::pos_type fileSize = ifs.tellg();
-    ifs.seekg(0, ios::beg);
-
-    vector<char> bytes(fileSize);
-    ifs.read(bytes.data(), fileSize);
-
-    return std::string(bytes.data(), fileSize);
-};
-
-void g_rmChar( string &str, char* charsToRemove ) {
-   for ( unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
-      str.erase( remove(str.begin(), str.end(), charsToRemove[i]), str.end() );
-   }
-}
-
-std::string g_joinStr(std::vector<std::string> v, std::string delimiter) {
-	std::string result;
-	for ( auto i : v) { result += i + delimiter; };
-	return result;
-};
-
-std::vector<std::string> g_splitStr(std::string s, std::string delimiter) {
-    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-    std::string token;
-    std::vector<std::string> res;
-
-    while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
-        token = s.substr (pos_start, pos_end - pos_start);
-        pos_start = pos_end + delim_len;
-        res.push_back (token);
-    }
-
-    res.push_back (s.substr (pos_start));
-    return res;
-}
-
 
 namespace Gmeng {
 	struct PlayerData {

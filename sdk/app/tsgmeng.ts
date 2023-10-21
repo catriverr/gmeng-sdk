@@ -1,15 +1,17 @@
 import chalk from "chalk";
-import tui from "../../ts-termui/utils/tui.js";
-import * as Plib from '../../../plib/src/index.js';
-import { BaseCfgTemplate, Directory } from "../../../plib/lib/dirhandle.js";
+import tui from "../ts-termui/utils/tui.js";
+import * as Plib from '../../plib/src/index.js';
+import { BaseCfgTemplate, Directory } from "../../plib/lib/dirhandle.js";
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync, truncate, unlinkSync, writeFileSync } from "fs";
+import {existsSync, readFileSync, truncate, unlinkSync, writeFileSync } from "fs";
 import { ChildProcess, spawn } from "child_process";
 import { Key, emitKeypressEvents } from "readline";
+import EventEmitter from "events";
+import { Writable } from "stream";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const mac_gmeng_path = path.join(__dirname, `..`, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
+const mac_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
 
 export namespace builder {
     export async function mainMenu(args: string[]): Promise<void> {
@@ -208,6 +210,9 @@ export namespace TSGmeng {
     export function add_border(wdata: TSGmeng.WorldData, rmap: string) {
         return `${tui.clr(TSGmeng.c_outer_unit.repeat(wdata._h+2), `orange`)}\n${rmap.split(`\n`).map((uln: string) => { if (uln.length < 5) return `\u001b[A\r`; return `${tui.clr(TSGmeng.c_unit, `orange`)}${uln}${tui.clr(TSGmeng.c_unit, `orange`)}` }).join(`\n`)}\n${tui.clr(TSGmeng.c_outer_unit_floor.repeat(wdata._h+2), `orange`)}`;
     };
+    export function clr_lines(forl: number): void {
+        process.stdout.write((`\r` + (` `.repeat(process.stdout.columns)) + `\n`).repeat(forl));
+    };
     export function parseMapData(fname: string): WorldData {
         let fcontent = readFileSync(fname + `.gm`, `base64`);
         let fdata: BaseCfgTemplate<string> = JSON.parse(Plib.Packer.CharObjects.UnpackCharObject(fcontent));
@@ -304,22 +309,56 @@ export namespace TSGmeng {
     };
     
     export class Launcher {
-        private gmeng_dir: string;
-        constructor(gmeng_path: string) { this.gmeng_dir = gmeng_path; };
+        private gmeng_dir: string; public plog: Writable;
+        constructor(gmeng_path: string) { this.gmeng_dir = gmeng_path; this.plog = new Writable({
+            write(chunk, encoding, callback) {
+                process.stdout.cursorTo(0, process.stdout.rows-14);
+                if (process.argv.includes(`--dev`)) console.log(`[ts-gm0:logger]`, chunk.toString());
+                callback();
+            }
+        })};
+        private async plugin_event(name: string, ...params: any[]) {
+            let dict_events = {
+                'player_move': 'p_changepos',
+            }, ev_this = dict_events[name];
+            this.Events.cast_event(ev_this, ...params);
+        };
+        public Events = new class EventHandler {
+            private emitter: EventEmitter = new EventEmitter();
+            public async player_mv<__ehandle extends (
+                    // TODO: Controller [ev_reverse, ev_movep, p_setpos, p_modify, ...]
+                    pl_old: { dX: number, dY: number },
+                    pl_new: { dX: number, dY: number }
+                ) => any> (efunc: __ehandle): Promise<void> {
+                this.emitter.on(`p_changepos`, efunc);
+            };
+            public async cast_event(name: string, ...params: any[]): Promise<void> { this.emitter.emit(name, ...params) };
+        };
+        public gen_posXY(p1: string): Array<{dX: number, dY: number}> {
+            let params = p1.split(`!:`);
+            let obj1: Array<{dX: number, dY: number}> = [];
+            params.forEach((j: string, i: number) => {
+                // j = dX=num,dY=num
+                if (i > 1) return;
+                let _p1 = j.split(`,`); let _dX = parseInt(_p1[0].substring("dX=".length));
+                let _dY = parseInt(_p1[1].substring("dY=".length)); obj1.push({dX: _dX, dY: _dY});
+            });
+            return obj1;
+        };
+        public async app_exit() {
+                process.stdout.write('\x1b[?25h'); //show cursor
+                unlinkSync(process.cwd() + `/world.dat`);
+                unlinkSync(process.cwd() + `/player.dat`);
+                unlinkSync(process.cwd() + `/world.mpd`);
+                process.exit(0);
+        };
         public async launchGame(): Promise<void> {
             return new Promise<void>((resolve, reject) => {
                 let proc__a = spawn(`${this.gmeng_dir}`, { stdio: ['pipe', 'pipe', 'pipe'] });
                 process.stdout.write('\x1b[?25l');
-                proc__a.on(`exit`, () => {
-                    process.stdout.write('\x1b[?25h');
-                    unlinkSync(process.cwd() + `/world.dat`);
-                    unlinkSync(process.cwd() + `/player.dat`);
-                    unlinkSync(process.cwd() + `/world.mpd`);
-		    process.exit(0);
-                    resolve();
-                });
+                proc__a.on(`exit`, () => { this.app_exit(), resolve(); });
+                process.on(`exit`, () => { this.app_exit(), resolve(); });
                 proc__a.stdout.pipe(process.stdout);
-                proc__a.stderr.pipe(process.stderr);
                 process.stdin.setRawMode(true);
                 process.stdin.setEncoding('utf8');
                 proc__a.stdin.pipe(process.stdin);
@@ -330,6 +369,17 @@ export namespace TSGmeng {
                 process.stdout.setMaxListeners(0);
                 proc__a.stdout.setMaxListeners(0);
                 proc__a.stdin.setMaxListeners(0);
+                proc__a.stderr.on(`data`, (_buf0: string) => {
+                    let data = Buffer.from(_buf0).toString();
+                    this.plog.write(`${data}`);
+                    if (!data.startsWith(`[gm0:core/__EVCAST]`)) return console.error(data);
+                    let gm0: string[] = data.split(` `).slice(1);
+                    let gm0_id = parseInt(gm0[0]);
+                    let gm0_nm = gm0[1];
+                    let gm0_params = gm0.slice(2).join(` `);
+                    this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm);
+                    if (gm0_id == 8545) return this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
+                });
                 process.stdin.on(`keypress`, async (ch, e: Key) => { 
                     if (e.sequence == `\x03`) return process.exit(0); 
                     if (inmenu) return;
@@ -340,6 +390,7 @@ export namespace TSGmeng {
                         let cmd = await SHOW_DEVC();
                         inmenu = false;
                         if (cmd == (void 0)) return proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                        process.stdout.cursorTo(0, process.stdout.rows-14);
                         proc__a.stdin.write(`[dev-c] ${cmd}` + `\n`);
                         if (cmd != "r_update") await tui.await_keypress();
                         proc__a.stdin.write(`[dev-c] r_update` + `\n`);
