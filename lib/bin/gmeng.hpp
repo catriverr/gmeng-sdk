@@ -73,7 +73,7 @@ std::vector<std::string> g_splitStr(std::string s, std::string delimiter) {
 
 namespace Gmeng {
 	enum CONSTANTS {
-		C_LogEvent = 8534, LE_Type0 = 8535, LE_Type1 = 8546,
+		C_LogEvent = 8534, LE_Type0 = 8535, LE_Type1 = 8536,
 		C_PlugEvent = 8544, PE_Type0 = 8545, PE_Type1 = 8546
 	};
 	struct event {
