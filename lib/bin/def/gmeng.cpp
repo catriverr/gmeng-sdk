@@ -54,18 +54,7 @@ namespace Gmeng {
 					if (i*j == this->h*this->w) break;
 					int current_unit_id = (i * this->w) + j;
 					Gmeng::Unit current_unit = this->display_map.unitmap[current_unit_id];
-					if (current_unit.is_player) {
-						std::string final = "\x1B[40m" + Gmeng::colors[current_unit.color] + current_unit.player.c_ent_tag + Gmeng::resetcolor;
-						this->raw_unit_map[current_unit_id] = final;
-						continue;
-					};
-					if (current_unit.special) {
-						std::string final = "\x1B[4"+std::to_string(current_unit.special_clr)+"m" + Gmeng::colors[current_unit.color] + current_unit.special_c_unit + Gmeng::resetcolor;
-						this->raw_unit_map[current_unit_id] = final;
-						continue;
-					};
-					std::string color = Gmeng::colors[current_unit.color];
-					std::string final = color + (i == _w-1 ? Gmeng::c_unit : (i == 0 ? Gmeng::c_outer_unit : Gmeng::c_unit)) + Gmeng::resetcolor;
+					std::string final = this->draw_unit(current_unit);
 					this->raw_unit_map[current_unit_id] = final;
 				};
 			};
@@ -145,7 +134,7 @@ namespace Gmeng {
 		inline std::string draw_unit(Gmeng::Unit __u) {
 			Gmeng::Unit current_unit = __u;
 			if (current_unit.is_player) {
-				std::string final = "\x1B[40m" + Gmeng::colors[current_unit.color] + current_unit.player.c_ent_tag + Gmeng::resetcolor;
+				std::string final = "\x1B[4"+Gmeng::colorids[this->playerunit.color]+"m" + (this->playerunit.color == 0 ? Gmeng::colors[8] : Gmeng::colors[current_unit.color]) + current_unit.player.c_ent_tag + Gmeng::resetcolor;
 				return final;
 			};
 			if (current_unit.special) {

@@ -222,7 +222,7 @@ export namespace TSGmeng {
     };
     export function wData(fcontent: string, pcontent: string): WorldData {
         let pdata = pcontent.split(`\n`); let fdata = fcontent.split(`\n`);
-        console.table(pdata); console.table(fdata);
+        if (process.argv.includes(`-d`)) console.table(pdata), console.table(fdata);
         let data: WorldData = {
             player: {
                 c_ent_tag: `o`,
@@ -305,32 +305,44 @@ export namespace TSGmeng {
         writeFileSync(process.cwd() + `/world.mpd`, world_index.content);
         writeFileSync(process.cwd() + `/player.dat`, player_data.content);
         writeFileSync(process.cwd() + `/world.dat`, world_data.content);
-        return new Launcher(mac_gmeng_path);
+        return new Launcher(mac_gmeng_path, wfile);
     };
     
     export class Launcher {
-        private gmeng_dir: string; public plog: Writable;
-        constructor(gmeng_path: string) { this.gmeng_dir = gmeng_path; this.plog = new Writable({
+        private gmeng_dir: string; public plog: Writable; public env: string;
+        constructor(gmeng_path: string, map_file: string) { this.env = map_file; this.gmeng_dir = gmeng_path; this.plog = new Writable({
             write(chunk, encoding, callback) {
                 process.stdout.cursorTo(0, process.stdout.rows-14);
-                if (process.argv.includes(`--dev`)) console.log(`[ts-gm0:logger]`, chunk.toString());
+                if (process.argv.includes(`-d`)) console.log(`[ts-gm0:logger]`, chunk.toString());
                 callback();
             }
         })};
         private async plugin_event(name: string, ...params: any[]) {
             let dict_events = {
                 'player_move': 'p_changepos',
+                'command_ran': 'gm_command',
             }, ev_this = dict_events[name];
             this.Events.cast_event(ev_this, ...params);
         };
         public Events = new class EventHandler {
             private emitter: EventEmitter = new EventEmitter();
+            /**
+             * executed when the player moves
+             */
             public async player_mv<__ehandle extends (
                     // TODO: Controller [ev_reverse, ev_movep, p_setpos, p_modify, ...]
                     pl_old: { dX: number, dY: number },
                     pl_new: { dX: number, dY: number }
                 ) => any> (efunc: __ehandle): Promise<void> {
                 this.emitter.on(`p_changepos`, efunc);
+            };
+            /**
+             * executed when a command is run on dev-c
+             */
+            public async cmdget<__ehandle extends (
+                command_str: string
+            ) => any> (efunc: __ehandle): Promise<void> { 
+                this.emitter.on(`gm_command`, efunc);
             };
             public async cast_event(name: string, ...params: any[]): Promise<void> { this.emitter.emit(name, ...params) };
         };
@@ -377,8 +389,8 @@ export namespace TSGmeng {
                     let gm0_id = parseInt(gm0[0]);
                     let gm0_nm = gm0[1];
                     let gm0_params = gm0.slice(2).join(` `);
-                    this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm);
-                    if (gm0_id == 8545) return this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
+                    if (gm0_id == 8545) return this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm), this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
+                    else if (gm0_id == 8546) return this.plugin_event(gm0_nm, gm0_params);
                 });
                 process.stdin.on(`keypress`, async (ch, e: Key) => { 
                     if (e.sequence == `\x03`) return process.exit(0); 
@@ -390,6 +402,7 @@ export namespace TSGmeng {
                         let cmd = await SHOW_DEVC();
                         inmenu = false;
                         if (cmd == (void 0)) return proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                        if (cmd == `gm_devmode`) return process.argv.push(`-d`), proc__a.stdin.write(`[dev-c] r_update` + `\n`);
                         process.stdout.cursorTo(0, process.stdout.rows-14);
                         proc__a.stdin.write(`[dev-c] ${cmd}` + `\n`);
                         if (cmd != "r_update") await tui.await_keypress();

@@ -25,7 +25,14 @@ export class Directory<FileList extends string> {
         let imp: any = await import(`${process.cwd()}/.plib-import-cache/_${cid}_${file_writable}`); 
         return imp;
     };
-
+    
+    public readFile(file: string): string {
+        this.rl_content();
+        let json = this.get_contents_json();
+        if (json.FILE_LIST.find(a=>a?.name==file) == null) throw new RangeError(`${file} does not exist in packed file ${this.dirname}.`);
+        let data = json.FILE_LIST.find(a=>a?.name==file);
+        return data.content;
+    };
     public async writeFile(file: string, content: string, encoding: BufferEncoding = `utf-8`): Promise<void> {
         this.rl_content();
         let json = this.get_contents_json();

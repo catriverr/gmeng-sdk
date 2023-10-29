@@ -18,28 +18,28 @@ int main( int argc, char** argv ) {
 	const std::size_t _w = 1; const std::size_t _h = 1;
 	Gmeng::WorldMap<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
 	world.SetResolution(wdata._w, wdata._h);
-	world.SetPlayer(0, Objects::G_Player {.c_ent_tag = wdata.player.c_ent_tag, .colored = wdata.player.colored, .colorId=wdata.player.colorId, .entityId=0, .textured=false, .textureId=0 }, wdata.player.startDX, wdata.player.startDY);
+	world.SetPlayer(0, Objects::G_Player {.c_ent_tag = wdata.player.c_ent_tag, .colored = wdata.player.colored, .colorId=0, .entityId=0, .textured=false, .textureId=0 }, wdata.player.startDX, wdata.player.startDY);
 	world.update();
 	std::cout << world.draw() << endl;
     std::string line;
     int number;
 
     // Read data from stdin
+    std::vector<std::string> commandList = {
+		"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus",
+		"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur", "help",
+	};
     while (true) {
-        std::vector<std::string> commandList = {
-			"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus",
-			"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur"
-		};
         if (std::getline(std::cin, line)) {
 			if (startsWith(line, "[posy] ")) {
 				// vectoral updates ( screen updates will not reset the screen entirely, it will only change the current pixels - performance boost by sizexy / sizex % )
 				// vectoral updates are enabled by default, as it saves a lot of performance and computing time.
 				// disabling vectoral updates will slow the game down. Down to 0.7fps. Tried on the following GPUs:
-				// - GTX 1660: 0.4 fps
-				// - M1 : 4 fps
-				// - RTX 3060: 5 fps
-				// - M1 Max : 7 fps
-				// - RTX 4090: 15 fps
+				// - MSI GTX 1660 : 0.4 fps
+				// - Apple M1 : 4 fps
+				// - MSIRTX 3060 : 5 fps
+				// - Apple M1 Max : 7 fps
+				// - MSI RTX 4090: 15 fps
 				// these are not good fps rates, leave this option enabled 
 				// however if you disable it, your gameplay will be improved.
 				// DISABLING IS ABSOLUTELY NOT RECOMMENDED FOR MAPS BIGGER THAN 200x50.
@@ -58,6 +58,7 @@ int main( int argc, char** argv ) {
 			}
 			if (!startsWith(line, "[dev-c] ")) continue;
 			std::vector<std::string> command = g_splitStr(g_joinStr(g_splitStr(line, "[dev-c] "), ""), " ");
+
 			std::cout << Gmeng::colors[6];
 			if (command[0] == "r_update") {
 				world.update();
@@ -65,6 +66,20 @@ int main( int argc, char** argv ) {
 				std::cout << world.draw() << endl;
 				continue;
 			};
+			world.set_curXY(46, -1);
+			world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent, 
+				world.event_handler.gen_estr(
+					Gmeng::event {
+						.id=Gmeng::CONSTANTS::PE_Type1,
+						.name="command_ran",
+						.params={ g_joinStr(command, " ") }
+					})
+			);
+			if (command[0] == "help") {
+				std::cout << "Gmeng SDK Developer Console" <<endl;
+				std::cout << "list of available commands:" <<endl;
+				std::cout << g_joinStr(commandList, ", ") << endl;
+			}
 			if (command[0] == "kb_resetcur") {
 				world.reset_cur(); continue;
 			}

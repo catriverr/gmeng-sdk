@@ -73,24 +73,31 @@ std::vector<std::string> g_splitStr(std::string s, std::string delimiter) {
 
 namespace Gmeng {
 	enum CONSTANTS {
+		// C_PlugEvent is event type of 'plugin event',
+		// C_LogEvent is event type of 'log' (written to stdout by parent process)
+		// TYPES
+		// PE_Type0 is Player move event
+		// PE_Type1 is Command run event
 		C_LogEvent = 8534, LE_Type0 = 8535, LE_Type1 = 8536,
 		C_PlugEvent = 8544, PE_Type0 = 8545, PE_Type1 = 8546
 	};
 	struct event {
 		std::string name; int id;
-		std::vector<std::string> params; 
+		std::vector<std::string> params;
 	};
 	class EventHandler {
 		public:
-			inline void cast_ev(int __eid, std::string __est) {
-				if (__eid == Gmeng::CONSTANTS::C_PlugEvent) std::cerr << __est; 
-				else if (__eid == Gmeng::CONSTANTS::C_LogEvent) std::cout << __est;
+		// __etp = event type
+		// __est = event script
+			inline void cast_ev(int __etp, std::string __est) {
+				if (__etp == Gmeng::CONSTANTS::C_PlugEvent) std::cerr << __est;
+				else if (__etp == Gmeng::CONSTANTS::C_LogEvent) std::cout << __est;
 				return;
 			};
 			inline std::string gen_estr(Gmeng::event __e) {
-				return std::string ("[gm0:core/__EVCAST] " + 
-				std::to_string(__e.id) + 
-				" " + __e.name + " " + 
+				return std::string ("[gm0:core/__EVCAST] " +
+				std::to_string(__e.id) +
+				" " + __e.name + " " +
 				g_joinStr(__e.params, "!:"));
 			};
 	};
@@ -98,8 +105,9 @@ namespace Gmeng {
 		int x; int y;
 	};
 	std::string colors[] = {
-		"\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m"
+		"\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
+	std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	std::string resetcolor = "\033[0m";
 	const char c_unit[4] = "\u2588";
 	const char c_outer_unit[4] = "\u2584";
