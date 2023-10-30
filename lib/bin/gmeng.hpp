@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <iterator>
+#include <thread>
+#include <chrono>
 #include <vector>
 #include <string>
 #include "utils/textures.cpp"
@@ -30,6 +32,11 @@ static bool startsWith(const std::string& str, const char* prefix)
 {
     return startsWith(str, prefix, std::string::traits_type::length(prefix));
 };
+
+void g_setTimeout(std::function<void()> callback, int delay) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+    callback();
+}
 
 std::string g_readFile(const string &fileName)
 {
@@ -79,7 +86,7 @@ namespace Gmeng {
 		// PE_Type0 is Player move event
 		// PE_Type1 is Command run event
 		C_LogEvent = 8534, LE_Type0 = 8535, LE_Type1 = 8536,
-		C_PlugEvent = 8544, PE_Type0 = 8545, PE_Type1 = 8546
+		C_PlugEvent = 8544, PE_Type0 = 8545, PE_Type1 = 8546, PE_Type2 = 8547,
 	};
 	struct event {
 		std::string name; int id;

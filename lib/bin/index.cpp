@@ -4,7 +4,6 @@
 #include <thread>
 #include <string>
 /* files */
-#include "utils/conio.hpp"
 #include "objects.cpp"
 #include "gmeng.hpp"
 #include "utils/textures.cpp"
@@ -40,11 +39,12 @@ int main( int argc, char** argv ) {
 				// - MSIRTX 3060 : 5 fps
 				// - Apple M1 Max : 7 fps
 				// - MSI RTX 4090: 15 fps
-				// these are not good fps rates, leave this option enabled 
+				// these are not good fps rates, leave this option enabled
 				// however if you disable it, your gameplay will be improved.
 				// DISABLING IS ABSOLUTELY NOT RECOMMENDED FOR MAPS BIGGER THAN 200x50.
 				// to disable, run the command:
 				// gm_modify force_update 1
+                // on the developer console (shift+tab to open)
 				std::vector<std::string> p_coordY = g_splitStr(line, " ");
 				if (p_coordY[1] == "i1") world.MovePlayer(0, world.player.coords.x, world.player.coords.y-1);
 				if (p_coordY[1] == "d1") world.MovePlayer(0, world.player.coords.x, world.player.coords.y+1);
@@ -58,7 +58,6 @@ int main( int argc, char** argv ) {
 			}
 			if (!startsWith(line, "[dev-c] ")) continue;
 			std::vector<std::string> command = g_splitStr(g_joinStr(g_splitStr(line, "[dev-c] "), ""), " ");
-
 			std::cout << Gmeng::colors[6];
 			if (command[0] == "r_update") {
 				world.update();
@@ -67,7 +66,8 @@ int main( int argc, char** argv ) {
 				continue;
 			};
 			world.set_curXY(46, -1);
-			world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent, 
+			if (command[0] != "echo") std::cout << Gmeng::colors[6] << "[gmeng:0/core] recieved command: " << Gmeng::colors[1] << g_joinStr(command, " ") << Gmeng::colors[6] << "." << endl;
+			world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent,
 				world.event_handler.gen_estr(
 					Gmeng::event {
 						.id=Gmeng::CONSTANTS::PE_Type1,
@@ -78,7 +78,7 @@ int main( int argc, char** argv ) {
 			if (command[0] == "help") {
 				std::cout << "Gmeng SDK Developer Console" <<endl;
 				std::cout << "list of available commands:" <<endl;
-				std::cout << g_joinStr(commandList, ", ") << endl;
+				std::cout << g_joinStr(commandList, ", ")  <<endl;
 			}
 			if (command[0] == "kb_resetcur") {
 				world.reset_cur(); continue;
@@ -86,7 +86,6 @@ int main( int argc, char** argv ) {
 			if (command[0] == "p_coordinfo") {
 				std::cout << "dY:" << world.player.coords.y << " dX:" << world.player.coords.x <<endl;
 			}
-			if (command[0] != "echo") std::cout << Gmeng::colors[6] << "[gmeng:0/core] recieved command: " << Gmeng::colors[1] << g_joinStr(command, " ") << Gmeng::colors[6] << "." << endl;			
 			if (command[0] == "p_setpos") {
 				std::vector<std::string> rPos = g_splitStr(command[1], ",");
 				int x = std::stoi(rPos[0]); int y = std::stoi(rPos[1]);
@@ -116,7 +115,21 @@ int main( int argc, char** argv ) {
 				std::cout << g_splitStr(g_joinStr(command, " "), "echo ")[1] << endl;
 			}
 			if (command[0] == "gm_modify") {
+                int oldvalue = 0;
+                if (world.has_modifier(command[1])) oldvalue = g_find_modifier(world.modifiers.values, command[1]);
 				world.set_modifier(command[1], std::stoi(command[2]));
+                g_setTimeout([&]() {
+                    world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent,
+                        world.event_handler.gen_estr(Gmeng::event {
+                            .id=Gmeng::CONSTANTS::PE_Type2,
+                            .name="modifier_change",
+                            .params = {
+                               command[1], // modifier name
+                               std::to_string(oldvalue), // old value
+                               command[2] // new value
+                        }
+                    }));
+                }, 10);
 				std::cout << "Gmeng::WorldMap::ModifierList Gmeng::WorldMap::modifiers at index (0) / value of " << Gmeng::colors[1] << command[1] << Gmeng::colors[6] << " was changed to " << Gmeng::colors[2] << command[2] << Gmeng::colors[6] << endl;
 			}
 			if (command[0] == "gm_quit") {

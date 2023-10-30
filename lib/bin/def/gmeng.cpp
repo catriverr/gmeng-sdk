@@ -131,6 +131,14 @@ namespace Gmeng {
 			int __p1_y = __p1 % this->w;
 			return { .x=__p1_x,.y=__p1_y };
 		};
+        inline void draw_info() {
+            this->set_curXY(0,0);
+            std::cout << "[ pos: " << std::to_string(this->player.coords.x) << "," << std::to_string(this->player.coords.y) << " ] ";
+            this->set_curXY(1,0);
+            std::cout << "[ unit_color: " << std::to_string(this->playerunit.color) << ", " << std::to_string(this->playerunit.special_clr ? this->playerunit.special_clr : 0) << " ] ";
+            this->set_curXY(2,0);
+            std::cout << "[ env: " << std::string("$!__GMENG_WMAP ] ");
+        };
 		inline std::string draw_unit(Gmeng::Unit __u) {
 			Gmeng::Unit current_unit = __u;
 			if (current_unit.is_player) {
@@ -141,6 +149,10 @@ namespace Gmeng {
 				std::string final = "\x1B[4"+std::to_string(current_unit.special_clr)+"m" + Gmeng::colors[current_unit.color] + current_unit.special_c_unit + Gmeng::resetcolor;
 				return final;
 			};
+            if (this->has_modifier("wireframe_render")) {
+                std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
+                return final;
+            };
 			std::string color = Gmeng::colors[current_unit.color];
 			std::string final = color + (Gmeng::c_unit) + Gmeng::resetcolor;
 			return final;
@@ -152,6 +164,7 @@ namespace Gmeng {
 				this->set_curXY(cpos.x, cpos.y);
 				std::cout << this->raw_unit_map[curid];
 			};
+            if (this->has_modifier("debug_info")) this->draw_info();
 			this->reset_cur();
 		};
 		inline void clear_screen() {
@@ -161,6 +174,7 @@ namespace Gmeng {
 			this->clear_screen();
 			this->update();
 			std::cout << this->draw() << std::endl;
+            if (this->has_modifier("debug_info")) this->draw_info();
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
 			int move_to_in_map = (height*this->w)+width;
@@ -224,18 +238,7 @@ namespace Gmeng {
 			for (int j = 0; j < __r.width; j++) {
 				int current_unit_id = (i * __r.width) + j;
 				Gmeng::Unit current_unit = __r.display.unitmap[current_unit_id];
-				if (current_unit.is_player) {
-					std::string final = "\x1B[40m" + Gmeng::colors[current_unit.color] + current_unit.player.c_ent_tag + Gmeng::resetcolor;
-					wrldmp.raw_unit_map[current_unit_id] = final;
-					continue;
-				};
-				if (current_unit.special) {
-					std::string final = "\x1B[4"+std::to_string(current_unit.special_clr)+"m" + Gmeng::colors[current_unit.color] + current_unit.special_c_unit + Gmeng::resetcolor;
-					wrldmp.raw_unit_map[current_unit_id] = final;
-					continue;
-				};
-				std::string color = Gmeng::colors[current_unit.color];
-				std::string final = color + (i == _w-1 ? Gmeng::c_outer_unit_floor : (i == 0 ? Gmeng::c_outer_unit : Gmeng::c_unit)) + Gmeng::resetcolor;
+                std::string final = wrldmp.draw_unit(current_unit);
 				wrldmp.raw_unit_map[current_unit_id] = final;
 			};
 		};

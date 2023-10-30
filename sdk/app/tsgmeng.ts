@@ -33,7 +33,7 @@ export namespace builder {
             if (wsze.length < 2) return console.log(`bad argument: ${a}`), process.exit(0);
             WorldData._w = parseInt(wsze[1]); WorldData._h = parseInt(wsze[0]);
         });
-        WorldData.player.colorId = parseInt(await tui.show_input_screen(`enter player colorId (0-7)`, null, false));
+        WorldData.player.colorId = 0;
         await tui.show_input_screen(`enter player spawn position in blocks (example: 2,2)`, null, false).then(a => {
             let wsze = a.split(`,`);
             if (wsze.length < 2) return console.log(`bad argument: ${a}`), process.exit(0);
@@ -312,7 +312,6 @@ export namespace TSGmeng {
         private gmeng_dir: string; public plog: Writable; public env: string;
         constructor(gmeng_path: string, map_file: string) { this.env = map_file; this.gmeng_dir = gmeng_path; this.plog = new Writable({
             write(chunk, encoding, callback) {
-                process.stdout.cursorTo(0, process.stdout.rows-14);
                 if (process.argv.includes(`-d`)) console.log(`[ts-gm0:logger]`, chunk.toString());
                 callback();
             }
@@ -321,6 +320,7 @@ export namespace TSGmeng {
             let dict_events = {
                 'player_move': 'p_changepos',
                 'command_ran': 'gm_command',
+                'modifier_change': 'gm_modchange'
             }, ev_this = dict_events[name];
             this.Events.cast_event(ev_this, ...params);
         };
@@ -335,6 +335,16 @@ export namespace TSGmeng {
                     pl_new: { dX: number, dY: number }
                 ) => any> (efunc: __ehandle): Promise<void> {
                 this.emitter.on(`p_changepos`, efunc);
+            };
+            /**
+             * executed when a modifier is changed in-game
+             */
+            public async modifier_change<__ehandle extends (
+                    name: string, 
+                    old_value: number,
+                    new_value: number
+                ) => any> (efunc: __ehandle): Promise<void> {
+                this.emitter.on(`gm_modchange`, efunc);
             };
             /**
              * executed when a command is run on dev-c
@@ -370,7 +380,9 @@ export namespace TSGmeng {
                 process.stdout.write('\x1b[?25l');
                 proc__a.on(`exit`, () => { this.app_exit(), resolve(); });
                 process.on(`exit`, () => { this.app_exit(), resolve(); });
-                proc__a.stdout.pipe(process.stdout);
+                proc__a.stdout.on(`data`, (data: Buffer) => {
+                    process.stdout.write(Buffer.from(data).toString().replaceAll(`$!__GMENG_WMAP`, this.env));
+                });
                 process.stdin.setRawMode(true);
                 process.stdin.setEncoding('utf8');
                 proc__a.stdin.pipe(process.stdin);
@@ -383,14 +395,23 @@ export namespace TSGmeng {
                 proc__a.stdin.setMaxListeners(0);
                 proc__a.stderr.on(`data`, (_buf0: string) => {
                     let data = Buffer.from(_buf0).toString();
-                    this.plog.write(`${data}`);
-                    if (!data.startsWith(`[gm0:core/__EVCAST]`)) return console.error(data);
+                    if (!data.startsWith(`[gm0:core/__EVCAST]`)) return console.error(data + ` [ts-gm0:err]`);
                     let gm0: string[] = data.split(` `).slice(1);
                     let gm0_id = parseInt(gm0[0]);
                     let gm0_nm = gm0[1];
                     let gm0_params = gm0.slice(2).join(` `);
-                    if (gm0_id == 8545) return this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm), this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
+                    let gm0_params_spl = gm0_params.split(`!:`);
+                    gm0_params_spl.pop();
+                    if (gm0_id != 8545) { 
+                                          this.plog.write(`${data} raw_data`);
+                                          this.plog.write(`${data} plug_event of ${gm0_id}`);
+                                          this.plog.write(gm0_params_spl.length + ` params for ${gm0_id} __evcast ([${gm0_params_spl.join(`, `)}])`);
+                                          this.plog.write(gm0_id + ` -> event_id [__evcast/data:id]`)
+                                          this.plog.write(gm0_nm + ` -> event_nm [__evcast/data:name]`) 
+                                        }
+                         if (gm0_id == 8545) return this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm), this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
                     else if (gm0_id == 8546) return this.plugin_event(gm0_nm, gm0_params);
+                    else if (gm0_id == 8547) return this.plugin_event(gm0_nm, gm0_params_spl[0], parseInt(gm0_params_spl[1]), parseInt(gm0_params_spl[2]));
                 });
                 process.stdin.on(`keypress`, async (ch, e: Key) => { 
                     if (e.sequence == `\x03`) return process.exit(0); 
@@ -402,7 +423,8 @@ export namespace TSGmeng {
                         let cmd = await SHOW_DEVC();
                         inmenu = false;
                         if (cmd == (void 0)) return proc__a.stdin.write(`[dev-c] r_update` + `\n`);
-                        if (cmd == `gm_devmode`) return process.argv.push(`-d`), proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                        if (cmd == `gm_devmode 1`) return (!process.argv.includes(`-d`) ? process.argv.push(`-d`) : void 0), proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                        if (cmd == `gm_devmode 0`) return (!process.argv.includes(`-d`) ? void 0 : process.argv.pop()), proc__a.stdin.write(`[dev-c] r_update` + `\n`);
                         process.stdout.cursorTo(0, process.stdout.rows-14);
                         proc__a.stdin.write(`[dev-c] ${cmd}` + `\n`);
                         if (cmd != "r_update") await tui.await_keypress();
@@ -435,11 +457,13 @@ async function SHOW_DEVC(): Promise<string> {
     return new Promise((resolve, reject) => {
         process.stdout.write(tui.upk.repeat(7));
         let input = ``; let usable = true;
+        let line1 = `Enter command to send (gm0/core->manager)`
         function draw_c() {
-            process.stdout.write(tui.upk.repeat(2));
-            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit_floor.repeat(12)}${chalk.bgRgb(204, 36, 29)(tui.clr(`DEV-C`, `tan`))}${TSGmeng.c_outer_unit_floor.repeat(12)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
-            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit} ${tui.clr(`>`, `tan`)} ${tui.clr(input, `green`)}${` `.repeat(26-input.length)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
-            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit.repeat(29)}${TSGmeng.c_unit}`, "dark_red"));
+            process.stdout.write(tui.upk.repeat(3));
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit_floor.repeat(20)}${chalk.bgRgb(204, 36, 29)(tui.clr(`DEV-C`, `tan`))}${TSGmeng.c_outer_unit_floor.repeat(20)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}  ${chalk.underline(tui.clr(line1, `blue`))}${tui.clr(TSGmeng.c_unit.repeat(43-line1.length), `black`)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit} ${tui.clr(`>`, `tan`)} ${tui.clr(input, `green`)}${` `.repeat(42-input.length)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit.repeat(45)}${TSGmeng.c_unit}`, "dark_red"));
         }
         draw_c();
         process.stdin.on(`data`, (key: string) => { 
@@ -448,10 +472,9 @@ async function SHOW_DEVC(): Promise<string> {
             if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c(); 
             if (key == `\r`) {
                 let data = input; input = ``;
-                process.stdout.write(`\n\n\n\r`); // return to log-line
                 resolve(data); return usable = false;
             };
-            if (input.length == 25) return;
+            if (input.length == 41) return;
             input += key; draw_c(); 
         });
     });

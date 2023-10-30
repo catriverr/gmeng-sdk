@@ -40,7 +40,10 @@ export function game(selected_map: string) {
         }
     });
     buf.Events.cmdget((cmdname) => {
-        if (process.argv.includes(`-d`)) { console.log(cmdname, `: command running on gm0/manager (TSGmeng & Gmeng processes | wfile: ${buf.env}), wmap: ${buf.env}`); };
+        if (process.argv.includes(`-d`)) { buf.plog.write(cmdname + ` : command running on gm0/manager (TSGmeng & Gmeng processes | wfile: ${buf.env}), wmap: ${buf.env}`); };
+    });
+    buf.Events.modifier_change((name, old_value, new_value) => {
+        if (process.argv.includes(`-d`)) buf.plog.write(`modifier ${name} was changed from ${old_value} to ${new_value}\n[ts-gm0:logger] these logs are made to test the C_PlugEvent capture system that allows for plugins to listen for events.`);
     });
     buf.launchGame(); 
 };
