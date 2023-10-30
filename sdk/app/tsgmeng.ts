@@ -368,6 +368,7 @@ export namespace TSGmeng {
             return obj1;
         };
         public async app_exit() {
+                process.stdout.cursorTo(0, 50);
                 process.stdout.write('\x1b[?25h'); //show cursor
                 unlinkSync(process.cwd() + `/world.dat`);
                 unlinkSync(process.cwd() + `/player.dat`);

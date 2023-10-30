@@ -90,8 +90,8 @@ int main( int argc, char** argv ) {
 				std::vector<std::string> rPos = g_splitStr(command[1], ",");
 				int x = std::stoi(rPos[0]); int y = std::stoi(rPos[1]);
 				world.MovePlayer(0, y,x);
-				world.update();
-				std::cout << "[gmeng:0/core] entity[0](player) moved to x,y: " << rPos[0] << "," << rPos[1] << endl;
+				world.set_curXY(47,-1);
+				std::cout << Gmeng::colors[6] << "[gmeng:0/core] entity[0](player) moved to x,y: " << rPos[0] << "," << rPos[1] << endl;
 			};
 			if (command[0] == "gm_modstatus") {
 				std::cout << " < Gmeng Modifiers status list >" << endl;

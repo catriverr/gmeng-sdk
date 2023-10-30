@@ -174,7 +174,6 @@ namespace Gmeng {
 			this->clear_screen();
 			this->update();
 			std::cout << this->draw() << std::endl;
-            if (this->has_modifier("debug_info")) this->draw_info();
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
 			int move_to_in_map = (height*this->w)+width;
