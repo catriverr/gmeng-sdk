@@ -458,12 +458,13 @@ async function SHOW_DEVC(): Promise<string> {
     return new Promise((resolve, reject) => {
         process.stdout.write(tui.upk.repeat(7));
         let input = ``; let usable = true;
-        let line1 = `Enter command to send (gm0/core->manager)`
+        let line1 = `Enter command to send (gm0/core->manager)`;
+        let cursor = `⎽`;
         function draw_c() {
             process.stdout.write(tui.upk.repeat(3));
             process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit_floor.repeat(20)}${chalk.bgRgb(204, 36, 29)(tui.clr(`DEV-C`, `tan`))}${TSGmeng.c_outer_unit_floor.repeat(20)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
             process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}  ${chalk.underline(tui.clr(line1, `blue`))}${tui.clr(TSGmeng.c_unit.repeat(43-line1.length), `black`)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
-            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit} ${tui.clr(`>`, `tan`)} ${tui.clr(input, `green`)}${` `.repeat(42-input.length)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
+            process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit} ${tui.clr(`>`, `tan`)} ${tui.clr(input, `green`)}${tui.clr(cursor, `tan`)}${` `.repeat(41-input.length)}${TSGmeng.c_unit}`, "dark_red") + `\n`);
             process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit.repeat(45)}${TSGmeng.c_unit}`, "dark_red"));
         }
         draw_c();

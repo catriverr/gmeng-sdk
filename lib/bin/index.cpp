@@ -26,7 +26,7 @@ int main( int argc, char** argv ) {
     // Read data from stdin
     std::vector<std::string> commandList = {
 		"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus",
-		"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur", "help",
+		"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur", "help", "p_setchtag"
 	};
     while (true) {
         if (std::getline(std::cin, line)) {
@@ -86,6 +86,18 @@ int main( int argc, char** argv ) {
 			if (command[0] == "p_coordinfo") {
 				std::cout << "dY:" << world.player.coords.y << " dX:" << world.player.coords.x <<endl;
 			}
+            if (command[0] == "p_setchtag") {
+                if (command.size() < 2) { std::cout << "Gmeng::WorldMap::change_entTag(std::string __nt) : e_impossible, expected vectorLength > 1 at index@gm0/core -> auto(void 0) : ent tag can not be empty. (e_literal_expected) : input_value (std::vector<std::string> command -> buffer 0) = c_null" <<endl; continue; }
+                if (command[1].length() > 1 && command[2] != "!force") { std::cout << "Gmeng::WorldMap::change_entTag(std::string __nt) -> auto(void 0) : e_impossible -> ent tag can not be longer than 1 character (e_literal_expected) : input_value (std::vector<std::string> command -> buffer 0) = " << command[1].length() <<endl; continue; };
+                std::string newTag (command[1]);
+                std::cout << "Gmeng::WorldMap $!__GMENG_WMAP -> buffer 0 -> player (instanceof Objects::G_Player) -> c_ent_tag = " << newTag <<endl;
+                std::cout << "Gmeng::WorldMap $!__GMENG_WMAP -> buffer 0 -> player (instanceof Objects::G_Player) -> __pl(ent_tag)" <<endl;
+                std::cout << "value_change evcast from $!__GMENG_WMAP -> buffer 0 -> event_handle (instanceof Gmeng::EventHandler)" <<endl;
+                std::cout << "__param_data__ ; c_ent_tag@player (buffer 0 at player@worldmap buff0/core) -> oldValue=" << world.get_entTag() <<endl;
+                std::cout << "__param_data__ : c_ent_tag@player (buffer 1 at player@worldmap buff1/core) -> newValue=" << command[1] <<endl;
+                std::cout << "$!__GMENG_WMAP @ buffer 0 ; __p_switch_buffer( player@worldmap in get_buffer(0), c_ent_tag@player in get_buffer(1) );" <<endl;
+                world.set_entTag( newTag );
+            };
 			if (command[0] == "p_setpos") {
 				std::vector<std::string> rPos = g_splitStr(command[1], ",");
 				int x = std::stoi(rPos[0]); int y = std::stoi(rPos[1]);

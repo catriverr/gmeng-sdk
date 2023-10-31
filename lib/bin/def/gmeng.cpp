@@ -162,14 +162,22 @@ namespace Gmeng {
 				int curid = positions[i];
 				Objects::coord cpos = this->get_xy(curid);
 				this->set_curXY(cpos.x, cpos.y);
+
 				std::cout << this->raw_unit_map[curid];
 			};
             if (this->has_modifier("debug_info")) this->draw_info();
 			this->reset_cur();
 		};
 		inline void clear_screen() {
+            
 			std::cout << "\033[2J\033[1;1H";
 		};
+        inline void set_entTag(std::string __nt) {
+            this->player.c_ent_tag = __nt;
+        };
+        inline std::string get_entTag() {
+            return this->player.c_ent_tag;
+        };
 		inline void rewrite_full() {
 			this->clear_screen();
 			this->update();
