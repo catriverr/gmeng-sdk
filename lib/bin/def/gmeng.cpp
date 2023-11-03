@@ -43,7 +43,7 @@ namespace Gmeng {
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
 		};
-		inline void constructor(Unit unitmap[_w*_h]) {
+		inline void constructor(Gmeng::Unit unitmap[_w*_h]) {
 			for (int i = 0; i < (w*h); i++) {
 				this->display_map.unitmap[i] = unitmap[i];
 			};
@@ -169,7 +169,6 @@ namespace Gmeng {
 			this->reset_cur();
 		};
 		inline void clear_screen() {
-            
 			std::cout << "\033[2J\033[1;1H";
 		};
         inline void set_entTag(std::string __nt) {
