@@ -418,6 +418,29 @@ export namespace TSGmeng {
                     if (e.sequence == `\x03`) return process.exit(0); 
                     if (inmenu) return;
 		            if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
+                    if (e.name == `escape`) {
+                        inmenu = true;
+                        let selection = (await SHOW_MAINMENU());
+                        inmenu = false;
+                        switch (selection.valueOf()) {
+                            case 0:
+                                process.stdin.emit(`keypress`, ...[`\t`, {
+                                    sequence: `\x1B[Z`,
+                                    name: `tab`,
+                                    ctrl: false,
+                                    meta: false,
+                                    shift: true,
+                                    code: `[Z`
+                                }]);
+                                break;
+                            case 1:
+                                proc__a.stdin.write(`[dev-c] r_update` + `\n`);
+                                break;
+                            case 2:
+                                proc__a.stdin.write(`[dev-c] gm_quit` + `\n`);
+                                break;
+                        };
+                    };
                     if (e.name == `tab` && e.shift && !inmenu) {
                         process.stdout.cursorTo(0, 45);
                         inmenu = true;
@@ -453,6 +476,44 @@ export namespace TSGmeng {
 export default builder;
 
 
+async function SHOW_MAINMENU(): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        let selection: number = 0, mm_length: number = 4;
+        let in_focus = true;
+        let buttons: Array<Array<string | number>> = [
+            ["show dev-c console", 0],
+            ["return to game", 1],
+            ["quit game", 2],
+        ];
+        let r2 = tui.rgk.repeat(2);
+        process.stdout.write(TSGmeng.c_outer_unit_floor.repeat(35));
+        function draw_mm(sel: number = 0) {
+            if (!in_focus) return;
+            process.stdout.cursorTo(0,0); // go to 0,0
+            process.stdout.write(`${tui.dwk.repeat(mm_length-2)}`);
+            if (sel < 0) sel = buttons.length-1, selection = buttons.length-1;
+            if (sel > buttons.length-1) sel = 0, selection = 0;
+            process.stdout.write(`${r2}${tui.clr(TSGmeng.c_unit, `red`)}${tui.clr(TSGmeng.c_outer_unit_floor.repeat(14), `red`)}${chalk.bold.white.bgRedBright(`gmeng`)}${tui.clr(TSGmeng.c_outer_unit_floor.repeat(14), `red`)}${tui.clr(TSGmeng.c_unit, `red`)}\n`);
+            buttons.forEach(jb => {
+                let sl_line = `${r2}${tui.clr(TSGmeng.c_unit, "red")} ${jb[1] == selection ? tui.clr(`>`, `blue`) : tui.clr(`-`, `tan`)} ${tui.clr(jb[0].toString(), `green`)}${` `.repeat(30-jb[0].valueOf().toString().length)}${tui.clr(TSGmeng.c_unit, `red`)}\n`;
+                process.stdout.write(sl_line);
+            });
+            process.stdout.write(`${r2}${tui.clr(TSGmeng.c_unit, `red`)}${tui.clr(TSGmeng.c_outer_unit.repeat(33), `red`)}${tui.clr(TSGmeng.c_unit, `red`)}`);
+        };
+        draw_mm(selection);
+        process.stdin.on(`keypress`, (ch: string, e: Key) => {
+            if (!in_focus) return;
+            if (e.name == `down`) selection++;
+            else if (e.name == `up`) selection--;
+            if (e.sequence == `\r`) {
+                in_focus = false;
+                return resolve(selection);
+            };
+            if (e.name == `escape`) return resolve(1);
+            draw_mm(selection);
+        });
+    });
+};
 
 async function SHOW_DEVC(): Promise<string> {
     return new Promise((resolve, reject) => {

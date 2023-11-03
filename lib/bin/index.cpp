@@ -25,7 +25,7 @@ int main( int argc, char** argv ) {
 
     // Read data from stdin
     std::vector<std::string> commandList = {
-		"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus",
+		"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus", "r_traceln",
 		"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur", "help", "p_setchtag"
 	};
     while (true) {
@@ -65,7 +65,7 @@ int main( int argc, char** argv ) {
 				std::cout << world.draw() << endl;
 				continue;
 			};
-			world.set_curXY(46, -1);
+			world.set_curXY(world.h+1, -1);
 			if (command[0] != "echo") std::cout << Gmeng::colors[6] << "[gmeng:0/core] recieved command: " << Gmeng::colors[1] << g_joinStr(command, " ") << Gmeng::colors[6] << "." << endl;
 			world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent,
 				world.event_handler.gen_estr(
@@ -75,6 +75,26 @@ int main( int argc, char** argv ) {
 						.params={ g_joinStr(command, " ") }
 					})
 			);
+            if (command[0] == "r_traceln") {
+                std::vector<std::string> positions = g_splitStr(command[1], "->");
+                std::vector<std::string> pos1 = g_splitStr(positions[0], ",");
+                std::vector<std::string> pos2 = g_splitStr(positions[1], ",");
+                Objects::coord c1 = { .x=std::stoi(pos1[0]),.y=std::stoi(pos1[1]) };
+                Objects::coord c2 = { .x=std::stoi(pos2[0]),.y=std::stoi(pos2[1]) };
+                std::vector<Objects::coord> ln_coords = g_trace_trajectory(c1.x, c1.y, c2.x, c2.y);
+                for ( auto coord : ln_coords ) {
+                    world.temp_displacement(coord.x, coord.y, 
+                        Gmeng::Unit {
+                            .color=4,
+                            .collidable=true,
+                            .special=false,
+                            .is_player=false,
+                            .is_entity=false
+                    });
+                };
+                world.set_curXY(world.h+2,-1);
+                std::cout << "[gmeng:0/core] world.renderer (origin from Gmeng::UseRenderer -> buffer 0) method g_trace_trajectory() & world.temp_displacement();" <<endl;
+            };
 			if (command[0] == "help") {
 				std::cout << "Gmeng SDK Developer Console" <<endl;
 				std::cout << "list of available commands:" <<endl;
@@ -151,7 +171,7 @@ int main( int argc, char** argv ) {
 			if (std::find(commandList.begin(), commandList.end(), command[0]) == commandList.end()) {
 				std::cout << Gmeng::colors[4] << "error: " << Gmeng::colors[1] << command[0] << Gmeng::colors[4] << " is not a valid command." << Gmeng::colors[6] << endl;
 			}
-			std::cout << "[gmeng:0/core] press any key to execute: { r_update & r_setui 0 & kb_controller gmeng:1/player }" << endl;
+			std::cout << "[gmeng:0/core] press any key to execute: { r_update & r_setui 0 & kb_controller gmeng:1/player }";
         }
     }
 	return 0;

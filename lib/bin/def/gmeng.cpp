@@ -15,6 +15,42 @@ std::string repeatString(const std::string& str, int times) {
     return result;
 }
 
+std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
+    std::vector<Objects::coord> coordinates;
+
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+    int err = dx - dy;
+
+    while (x1 != x2 || y1 != y2) {
+        Objects::coord point;
+        point.x = x1;
+        point.y = y1;
+        coordinates.push_back(point);
+
+        int err2 = 2 * err;
+
+        if (err2 > -dy) {
+            err -= dy;
+            x1 += sx;
+        }
+
+        if (err2 < dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
+
+    // Include the final point (x2, y2)
+    Objects::coord point;
+    point.x = x2;
+    point.y = y2;
+    coordinates.push_back(point);
+
+    return coordinates;
+}
 
 namespace Gmeng {
 	template<std::size_t _w, std::size_t _h>
@@ -59,6 +95,12 @@ namespace Gmeng {
 				};
 			};
 		};
+        inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
+            this->set_curXY(__pX, __pY);
+            int pos_in_map = (__pY * this->w) + __pX; 
+            this->raw_unit_map[pos_in_map] = this->draw_unit(u);
+            this->rewrite_mapping({ pos_in_map });
+        };
 		inline std::string draw() {
 			std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {
@@ -162,7 +204,6 @@ namespace Gmeng {
 				int curid = positions[i];
 				Objects::coord cpos = this->get_xy(curid);
 				this->set_curXY(cpos.x, cpos.y);
-
 				std::cout << this->raw_unit_map[curid];
 			};
             if (this->has_modifier("debug_info")) this->draw_info();
