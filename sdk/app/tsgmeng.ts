@@ -414,14 +414,14 @@ export namespace TSGmeng {
                     else if (gm0_id == 8547) return this.plugin_event(gm0_nm, gm0_params_spl[0], parseInt(gm0_params_spl[1]), parseInt(gm0_params_spl[2]));
                 });
                 process.stdin.on(`keypress`, async (ch, e: Key) => {
-                    if (e.sequence == `\x03`) return process.exit(0);
+                    if (e.sequence == `\x03`) return this.app_exit();
                     if (inmenu) return;
 		            if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
                     if (e.name == `escape`) {
                         inmenu = true;
-                        let selection = (await SHOW_MAINMENU());
+                        let selection = await SHOW_MAINMENU();
                         inmenu = false;
-                        switch (selection.valueOf()) {
+                        switch (selection) {
                             case 0:
                                 process.stdin.emit(`keypress`, ...[`\t`, {
                                     sequence: `\x1B[Z`,
@@ -493,7 +493,7 @@ async function SHOW_MAINMENU(): Promise<number> {
             if (sel > buttons.length-1) sel = 0, selection = 0;
             process.stdout.write(`${r2}${tui.clr(TSGmeng.c_unit, `red`)}${tui.clr(TSGmeng.c_outer_unit_floor.repeat(14), `red`)}${chalk.bold.white.bgRedBright(`gmeng`)}${tui.clr(TSGmeng.c_outer_unit_floor.repeat(14), `red`)}${tui.clr(TSGmeng.c_unit, `red`)}\n`);
             buttons.forEach(jb => {
-                let sl_line = `${r2}${tui.clr(TSGmeng.c_unit, "red")} ${jb[1] == selection ? tui.clr(`>`, `blue`) : tui.clr(`-`, `tan`)} ${tui.clr(jb[0].toString(), `green`)}${` `.repeat(30-jb[0].valueOf().toString().length)}${tui.clr(TSGmeng.c_unit, `red`)}\n`;
+                let sl_line = `${r2}${tui.clr(TSGmeng.c_unit, "red")} ${jb[1] == selection ? tui.clr(`>`, `blue`) : tui.clr(`-`, `tan`)} ${tui.clr(jb[0].toString(), `green`)}${` `.repeat(30-jb[0].toString().length)}${tui.clr(TSGmeng.c_unit, `red`)}\n`;
                 process.stdout.write(sl_line);
             });
             process.stdout.write(`${r2}${tui.clr(TSGmeng.c_unit, `red`)}${tui.clr(TSGmeng.c_outer_unit.repeat(33), `red`)}${tui.clr(TSGmeng.c_unit, `red`)}`);
@@ -529,7 +529,7 @@ async function SHOW_DEVC(): Promise<string> {
         draw_c();
         process.stdin.on(`data`, (key: string) => {
             if (!usable) return;
-            if ([`\u001b[A`, `\u001b[B`, `\u001b[C`, `\u001b[D`].includes(key)) return;
+            if ([`\u001b[A`, `\u001b[B`, `\u001b[C`, `\u001b[D`, `\x1B[3~`].includes(key)) return;
             if (key == `\x1B`) return usable = false, resolve(void 0);
             if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c();
             if (key == `\r`) {
