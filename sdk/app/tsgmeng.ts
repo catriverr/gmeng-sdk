@@ -529,6 +529,7 @@ async function SHOW_DEVC(): Promise<string> {
         draw_c();
         process.stdin.on(`data`, (key: string) => {
             if (!usable) return;
+            if ([`\u001b[A`, `\u001b[B`, `\u001b[C`, `\u001b[D`].includes(key)) return;
             if (key == `\x1B`) return usable = false, resolve(void 0);
             if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c();
             if (key == `\r`) {
