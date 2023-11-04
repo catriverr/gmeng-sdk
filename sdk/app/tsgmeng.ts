@@ -94,7 +94,7 @@ export namespace builder {
                 case 'tab':
                     SELECTCLR ++;
                     if (SELECTCLR > 7) SELECTCLR = 0;
-                    currnt_unit.color = SELECTCLR; 
+                    currnt_unit.color = SELECTCLR;
                     break;
                 case 'right':
                     if (key.shift) SIZEX+=2;
@@ -105,7 +105,7 @@ export namespace builder {
                     SIZEX--;
                     if (SIZEX < 1) SIZEX = 1;
                     break;
-                case 'up': 
+                case 'up':
                 if (key.shift) SIZEY-=2;
 
                     SIZEY--;
@@ -119,7 +119,7 @@ export namespace builder {
                 case 'w':
                     if (key.shift) POSY-=2;
                     POSY--;
-                    break;    
+                    break;
                 case 's':
                     if (key.ctrl) {
                         mapfile.writeFile(`world.mpd`, TSGmeng.CreateMapData(worldData, WMAP_UNITS));
@@ -228,13 +228,13 @@ export namespace TSGmeng {
                 c_ent_tag: `o`,
                 colored: true, colorId: parseInt(pdata.find(a=>a.startsWith("colorId=")).substring("colorId=".length)),
                 startDX: parseInt(pdata.find(a=>a.startsWith("startDX=")).substring("startDX=".length)),
-                startDY: parseInt(pdata.find(a=>a.startsWith("startDY=")).substring("startDY=".length))    
+                startDY: parseInt(pdata.find(a=>a.startsWith("startDY=")).substring("startDY=".length))
             },
             _h: parseInt(fdata.find(a=>a.startsWith("width=")).substring("width=".length)),
             _w: parseInt(fdata.find(a=>a.startsWith("height=")).substring("height=".length)),
             name: fdata.find(a=>a.startsWith("name=")).substring("name=".length),
             description: fdata.find(a=>a.startsWith(`description=`)).substring(`description=`.length)
-        }; 
+        };
         return data;
     };
     export function render_unitmap(wdata: TSGmeng.WorldData, map: Array<TSGmeng.Unit>, selected_x: number, selected_y: number, selection_size_x: number = 1, selection_size_y: number = 1, selected_color: number = 0): string {
@@ -246,7 +246,7 @@ export namespace TSGmeng {
         };
         let final = ``;
         map.map((unit: TSGmeng.Unit, indx: number) => {
-            if (indx % wdata._h === 0) final += `\n`; 
+            if (indx % wdata._h === 0) final += `\n`;
             if (process.argv.includes(`--logs`)) console.log(`RENDERING BLOCK:`, indx);
             let curY = Math.floor(indx/wdata._h); let curX = indx-(curY*wdata._h);
             if (process.argv.includes(`--logs`)) console.log(curX, curY, undefined != (highlighted_unitIds.find(u=>u.x==curX&&u.y==curY)));
@@ -275,16 +275,16 @@ export namespace TSGmeng {
         return reswunits;
     };
     export function StringToUnit(data: string): {unit: TSGmeng.Unit, dX: number, dY: number} {
-        let ls = data.split(` `); 
+        let ls = data.split(` `);
         let unit: TSGmeng.Unit = {
             collidable: false, is_entity: false,
             color: 0, entity: null, special: false,
             is_player: false, player: null, special_clr: 0,
-            special_c_unit: '' 
+            special_c_unit: ''
         };
         let dX = 0, dY = 0;
         ls.forEach((j, i) => {
-            if ( i == 0 ) { let dt = j.split(`,`); dX = parseInt(dt[0]); dY = parseInt(dt[1]); }; 
+            if ( i == 0 ) { let dt = j.split(`,`); dX = parseInt(dt[0]); dY = parseInt(dt[1]); };
             if ( i == 1 ) { unit.color = parseInt(j); }
             if ( i == 2 ) { unit.collidable = stob(j) }
             if ( i == 3 ) { unit.is_entity  = stob(j); }
@@ -307,7 +307,6 @@ export namespace TSGmeng {
         writeFileSync(process.cwd() + `/world.dat`, world_data.content);
         return new Launcher(mac_gmeng_path, wfile);
     };
-    
     export class Launcher {
         private gmeng_dir: string; public plog: Writable; public env: string;
         constructor(gmeng_path: string, map_file: string) { this.env = map_file; this.gmeng_dir = gmeng_path; this.plog = new Writable({
@@ -340,7 +339,7 @@ export namespace TSGmeng {
              * executed when a modifier is changed in-game
              */
             public async modifier_change<__ehandle extends (
-                    name: string, 
+                    name: string,
                     old_value: number,
                     new_value: number
                 ) => any> (efunc: __ehandle): Promise<void> {
@@ -351,7 +350,7 @@ export namespace TSGmeng {
              */
             public async cmdget<__ehandle extends (
                 command_str: string
-            ) => any> (efunc: __ehandle): Promise<void> { 
+            ) => any> (efunc: __ehandle): Promise<void> {
                 this.emitter.on(`gm_command`, efunc);
             };
             public async cast_event(name: string, ...params: any[]): Promise<void> { this.emitter.emit(name, ...params) };
@@ -403,19 +402,19 @@ export namespace TSGmeng {
                     let gm0_params = gm0.slice(2).join(` `);
                     let gm0_params_spl = gm0_params.split(`!:`);
                     gm0_params_spl.pop();
-                    if (gm0_id != 8545) { 
+                    if (gm0_id != 8545) {
                                           this.plog.write(`${data} raw_data`);
                                           this.plog.write(`${data} plug_event of ${gm0_id}`);
                                           this.plog.write(gm0_params_spl.length + ` params for ${gm0_id} __evcast ([${gm0_params_spl.join(`, `)}])`);
                                           this.plog.write(gm0_id + ` -> event_id [__evcast/data:id]`)
-                                          this.plog.write(gm0_nm + ` -> event_nm [__evcast/data:name]`) 
+                                          this.plog.write(gm0_nm + ` -> event_nm [__evcast/data:name]`)
                                         }
                          if (gm0_id == 8545) return this.plog.write(this.gen_posXY(gm0_params).join(`!:`) + ` ` + gm0_id + ` ` + gm0_nm), this.plugin_event(gm0_nm, ...this.gen_posXY(gm0_params));
                     else if (gm0_id == 8546) return this.plugin_event(gm0_nm, gm0_params);
                     else if (gm0_id == 8547) return this.plugin_event(gm0_nm, gm0_params_spl[0], parseInt(gm0_params_spl[1]), parseInt(gm0_params_spl[2]));
                 });
-                process.stdin.on(`keypress`, async (ch, e: Key) => { 
-                    if (e.sequence == `\x03`) return process.exit(0); 
+                process.stdin.on(`keypress`, async (ch, e: Key) => {
+                    if (e.sequence == `\x03`) return process.exit(0);
                     if (inmenu) return;
 		            if (e.name == `f2` && e.shift) { proc__a.stdin.write(`[dev-c] r_update` + `\n`); return void 0; };
                     if (e.name == `escape`) {
@@ -529,16 +528,16 @@ async function SHOW_DEVC(): Promise<string> {
             process.stdout.write(tui.rgk.repeat(2) + tui.clr(`${TSGmeng.c_unit}${TSGmeng.c_outer_unit.repeat(45)}${TSGmeng.c_unit}`, "dark_red"));
         }
         draw_c();
-        process.stdin.on(`data`, (key: string) => { 
-            if (!usable) return; 
-            if (key == `\x1B`) return usable = false, resolve(void 0); 
-            if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c(); 
+        process.stdin.on(`data`, (key: string) => {
+            if (!usable) return;
+            if (key == `\x1B`) return usable = false, resolve(void 0);
+            if (key == `\x7F`) return (input.length > 0 ? input = input.slice(0, -1) : void 0), draw_c();
             if (key == `\r`) {
                 let data = input; input = ``;
                 resolve(data); return usable = false;
             };
             if (input.length == 41) return;
-            input += key; draw_c(); 
+            input += key; draw_c();
         });
     });
 };
