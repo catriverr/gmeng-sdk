@@ -485,7 +485,6 @@ async function SHOW_MAINMENU(): Promise<number> {
             ["quit game", 2],
         ];
         let r2 = tui.rgk.repeat(2);
-        process.stdout.write(TSGmeng.c_outer_unit_floor.repeat(35));
         function draw_mm(sel: number = 0) {
             if (!in_focus) return;
             process.stdout.cursorTo(0,0); // go to 0,0
