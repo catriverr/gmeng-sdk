@@ -17,38 +17,21 @@ std::string repeatString(const std::string& str, int times) {
 
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     std::vector<Objects::coord> coordinates;
-
-    int dx = abs(x2 - x1);
-    int dy = abs(y2 - y1);
-    int sx = (x1 < x2) ? 1 : -1;
-    int sy = (y1 < y2) ? 1 : -1;
+    int dx = abs(x2 - x1); int dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1; int sy = (y1 < y2) ? 1 : -1;
     int err = dx - dy;
-
     while (x1 != x2 || y1 != y2) {
         Objects::coord point;
-        point.x = x1;
-        point.y = y1;
+        point.x = x1; point.y = y1;
         coordinates.push_back(point);
-
         int err2 = 2 * err;
-
-        if (err2 > -dy) {
-            err -= dy;
-            x1 += sx;
-        }
-
-        if (err2 < dx) {
-            err += dx;
-            y1 += sy;
-        }
+        if (err2 > -dy) { err -= dy; x1 += sx; }
+        if (err2 < dx) { err += dx; y1 += sy; }
     }
-
     // Include the final point (x2, y2)
     Objects::coord point;
-    point.x = x2;
-    point.y = y2;
+    point.x = x2; point.y = y2;
     coordinates.push_back(point);
-
     return coordinates;
 }
 
