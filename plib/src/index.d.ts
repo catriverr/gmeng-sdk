@@ -3,15 +3,15 @@ declare module 'packmgr-lib' {
         export namespace CharObjects {
             /**
              * Creates a bitmap of the provided file. <br>
-             * 
-             * The file is split into characters with `[...text_contents]` and 
-             * mapped into the charcodes of each `c` joined with `x`. 
+             *
+             * The file is split into characters with `[...text_contents]` and
+             * mapped into the charcodes of each `c` joined with `x`.
              * __Example return value:__
              * ```
              * CreatePackedObject(`hello world!`); -> '104x101x108x108x111x32x119x111x114x108x100x33x' 
              * ```
-             * @param file File to pack. 
-             * @returns {PackedObject} Packed instance of the file object. 
+             * @param file File to pack.
+             * @returns {PackedObject} Packed instance of the file object.
              */
             export function CreatePackedObject(text: string): PackedObject;
             /**
@@ -21,7 +21,7 @@ declare module 'packmgr-lib' {
              * UnpackCharObject(`104x101x108x108x111x32x119x111x114x108x100x33x`); -> `hello world!`
              * ```
              * @param text CharObject. Usually looks like `104x101x108x108x111x32x119x111x114x108x100x33x`
-             * @returns 
+             * @returns
              */
             export function UnpackCharObject(text: string): string;
             /**
@@ -54,7 +54,7 @@ declare module 'packmgr-lib' {
             private refresh_json(json: BaseCfgTemplate<string>): void;
             private rl_content(): void;
             private get_contents_json(): BaseCfgTemplate<string>;
-            private write_json(json: any);
+            private write_json(json: any): void;
         }
         export interface BaseCfgTemplate<obj> { FILE_LIST: {name: obj, content: string}[] }
     }
