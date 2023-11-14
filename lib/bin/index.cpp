@@ -9,13 +9,16 @@
 #include "utils/textures.cpp"
 #include "utils/envs/map.hpp"
 /* index */
-// this file is currently used for testing purposes
+// this file is for the game code. Current code allows for tsgmeng & gmeng child_process connection
+// to test the engine. this may also be implemented into something of a game itself, similar to gary's mod
+// where the game engine just loads maps and modifications to use it to the fullest instead of giving out copies 
+// for the game engine, which sounds boring anyways. 
 using std::endl;
 
 int main( int argc, char** argv ) {
 	Gmeng::ModifiedWorldData wdata = Gmeng::MapParser::GetInfo("world.dat", "player.dat");
 	const std::size_t _w = 1; const std::size_t _h = 1;
-	Gmeng::WorldMap<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
+	Gmeng::CameraView<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
 	world.SetResolution(wdata._w, wdata._h);
 	world.SetPlayer(0, Objects::G_Player {.c_ent_tag = wdata.player.c_ent_tag, .colored = wdata.player.colored, .colorId=0, .entityId=0, .textured=false, .textureId=0 }, wdata.player.startDX, wdata.player.startDY);
 	world.update();
@@ -28,6 +31,14 @@ int main( int argc, char** argv ) {
 		"r_update", 	 "echo",	  "p_setpos", "kb_help", "gm_modstatus", "r_traceln",
 		"p_coordinfo",   "gm_modify", "gm_quit",  "kb_resetcur", "help", "p_setchtag"
 	};
+	/**
+    std::thread IOHandle ([&]() -> void {
+        for ( ;; ) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            world.event_handler.cast_ev(Gmeng::CONSTANTS::C_LogEvent, "iohandle not defined!!!!!!!");
+        };
+    });
+	*/
     while (true) {
         if (std::getline(std::cin, line)) {
 			if (startsWith(line, "[posy] ")) {

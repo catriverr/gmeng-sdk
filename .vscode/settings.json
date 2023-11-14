@@ -63,6 +63,9 @@
         "variant": "cpp",
         "vector": "cpp",
         "algorithm": "cpp",
-        "__memory": "cpp"
+        "__memory": "cpp",
+        "deque": "cpp",
+        "future": "cpp",
+        "queue": "cpp"
     }
 }

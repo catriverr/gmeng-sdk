@@ -37,7 +37,7 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
 
 namespace Gmeng {
 	template<std::size_t _w, std::size_t _h>
-	class WorldMap {
+	class CameraView {
 	  public:
 		Gmeng::ModifierList modifiers = {
 			.values = std::vector<Gmeng::modifier> {
@@ -80,7 +80,7 @@ namespace Gmeng {
 		};
         inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
             this->set_curXY(__pX, __pY);
-            int pos_in_map = (__pY * this->w) + __pX; 
+            int pos_in_map = (__pY * this->w) + __pX;
             this->raw_unit_map[pos_in_map] = this->draw_unit(u);
             this->rewrite_mapping({ pos_in_map });
         };
@@ -171,7 +171,7 @@ namespace Gmeng {
 				return final;
 			};
 			if (current_unit.special) {
-				std::string final = "\x1B[4"+std::to_string(current_unit.special_clr)+"m" + Gmeng::colors[current_unit.color] + current_unit.special_c_unit + Gmeng::resetcolor;
+				std::string final = "\x1B[4"+Gmeng::colorids[current_unit.color]+"m" + Gmeng::boldcolor + Gmeng::colors[current_unit.special_clr] + current_unit.special_c_unit + Gmeng::resetcolor;
 				return final;
 			};
             if (this->has_modifier("wireframe_render")) {
@@ -204,6 +204,7 @@ namespace Gmeng {
 		inline void rewrite_full() {
 			this->clear_screen();
 			this->update();
+            std::cout << repeatString("\n", 20) << endl;
 			std::cout << this->draw() << std::endl;
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
@@ -260,8 +261,8 @@ namespace Gmeng {
 		};
 	};
 	template<std::size_t _w, std::size_t _h>
-	inline WorldMap<_w, _h> UseRenderer(Gmeng::Renderer<_w, _h> __r) {
-		Gmeng::WorldMap<_w, _h> wrldmp;
+	inline CameraView<_w, _h> UseRenderer(Gmeng::G_Renderer<_w, _h> __r) {
+		Gmeng::CameraView<_w, _h> wrldmp;
 		wrldmp.w = __r.width; wrldmp.h = __r.height;
 		wrldmp.constructor(__r.display.unitmap);
 		for (int i = 0; i < __r.height; i++) {

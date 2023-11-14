@@ -1,7 +1,8 @@
 import chalk, { ChalkInstance } from "chalk";
-import rl from "readline";
+import rl, { createInterface } from "readline";
 import { readdirSync } from "fs";
-
+import robot from 'robotjs';
+import { TSGmeng } from "../../app/tsgmeng.js";
 export async function cli_find_pages(path: string, model: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
         let files = readdirSync(path).filter(i=>i.endsWith(`.ts`))
@@ -97,6 +98,7 @@ export namespace tui {
     
     export type colors = `dark_red` | `red` | `black` | `cyan` | `swamp` | `yellow` | `pink` | `green` | `blue` | `tan` | `grayish` | `orange`;
 
+    export let button_storage: Array<Function> = [];
     export const colortable: Map<tui.colors, ChalkInstance> = new Map<colors, ChalkInstance>([
         [`red`, chalk.bold.rgb(244, 73, 52)],
         [`dark_red`, chalk.bold.rgb(204, 36, 29)],
@@ -112,6 +114,20 @@ export namespace tui {
         [`orange`, chalk.bold.rgb(246, 128, 25)]
     ]);
 
+    export const colortable_bg: Map<tui.colors, ChalkInstance> = new Map<colors, ChalkInstance>([
+        [`red`, chalk.bold.bgRgb(244, 73, 52)],
+        [`dark_red`, chalk.bold.bgRgb(204, 36, 29)],
+        [`black`, chalk.bold.bgRgb(40, 40, 40)],
+        [`cyan`, chalk.bold.bgRgb(134, 180, 117)],
+        [`swamp`, chalk.bold.bgRgb(151, 150, 26)],
+        [`yellow`, chalk.bold.bgRgb(249, 188, 47)],
+        [`pink`, chalk.bold.bgRgb(211, 134, 155)],
+        [`green`, chalk.bold.bgRgb(184, 187, 38)],
+        [`blue`, chalk.bold.bgRgb(131, 165, 152)],
+        [`tan`, chalk.bold.bgRgb(224, 209, 170)],
+        [`grayish`, chalk.bold.bgRgb(167, 153, 132)],
+        [`orange`, chalk.bold.bgRgb(246, 128, 25)]
+    ]);
     export function clr(text: string, clr: tui.colors): string {
         return tui.colortable.get(clr)(text);
     };
@@ -121,7 +137,54 @@ export namespace tui {
         rl.emitKeypressEvents(process.stdin);
         process.stdin.on(`keypress`, (ch: string, key: rl.Key) => { if (key.sequence == `\x03`) process.exit(0); if (keys.includes(key?.name)) callback(key); });
     };
-
+    export function get_curXY() {
+        const screenX = robot.getMousePos().x;
+        const screenY = robot.getMousePos().y;
+        const terminalWidthInPixels = robot.getScreenSize().width;
+        const terminalHeightInPixels = robot.getScreenSize().height;
+        const terminalColumns = process.stdout.columns;
+        const terminalRows = process.stdout.rows;
+        const column = Math.floor((screenX / terminalWidthInPixels) * terminalColumns);
+        const row = Math.floor((screenY / terminalHeightInPixels) * terminalRows)-1;
+        return { row, column };
+    };
+    export async function mouse_button<Position extends {x: number, y: number}>(pos: Position, title: string, color: tui.colors, highlight_color: tui.colors, callback: Function): Promise<Function> {
+        return new Promise<Function>((resolve, reject) => {
+            process.stdout.cursorTo(pos.x, pos.y);
+            process.stdout.write(tui.colortable_bg.get(color)(title));
+            let highlighted = false;
+            let force_hi = true;
+            let disabled = false;
+            function click_highlight() { highlighted = true;  process.stdout.cursorTo(pos.x, pos.y); process.stdout.write(tui.colortable_bg.get(`orange`).underline(title));};
+            function highlight() { highlighted = true;  process.stdout.cursorTo(pos.x, pos.y); process.stdout.write(tui.colortable_bg.get(highlight_color).underline(title));};
+            function normalize() { force_hi = false; highlighted = false; process.stdout.cursorTo(pos.x, pos.y); process.stdout.write(tui.colortable_bg.get(color)(title)); };
+            let this_thread_1 = setInterval(function __js1() {
+                if (disabled) return;
+                let cur_pos = tui.get_curXY();
+                if (cur_pos.row == pos.y) {
+                    for (let i = 0; i < tui.remove_colorcodes(title).length; i++) {
+                        if (i+pos.x == cur_pos.column) highlight();
+                    };
+                } else highlighted = false;
+                if (!highlighted && !force_hi) normalize();
+            }, 75);
+            let controller = (x: number, y: number, clearIt: boolean) => {
+                if (disabled) return;
+                if (!(x == pos.x && y == pos.y)) return;
+                click_highlight();
+                setTimeout(normalize, 160);
+                if (clearIt) disabled = true, clearInterval(this_thread_1);
+                callback();
+            };
+            tui.button_storage.push(controller);
+            return resolve(controller);
+        });
+    };
+    export function run_button(x: number, y: number, disableAfterClick: boolean): void {
+        tui.button_storage.forEach(B_Controller => {
+            B_Controller(x, y, disableAfterClick);
+        });
+    };
     export async function show_menu(MenuScreen: tui.MenuScreen, selected_button: number = 0): Promise<number> {
         // I know that this code seems unorganized, but it needs to be
         // this way in order to be similar to the text displayed in the screen.

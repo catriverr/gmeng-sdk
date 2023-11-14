@@ -323,6 +323,12 @@ export namespace TSGmeng {
             }, ev_this = dict_events[name];
             this.Events.cast_event(ev_this, ...params);
         };
+        private format_stdout_buffer(data: string): string {
+            return data
+                .replaceAll(`$!__GMENG_WMAP`, this.env)
+                .replaceAll(`$!__VERSION`, `4.0`)
+                .replaceAll(`$!__BUILD`, `4.0-dev.tui:56b8c`)
+        };
         public Events = new class EventHandler {
             private emitter: EventEmitter = new EventEmitter();
             /**
@@ -381,7 +387,7 @@ export namespace TSGmeng {
                 proc__a.on(`exit`, () => { this.app_exit(), resolve(); });
                 process.on(`exit`, () => { this.app_exit(), resolve(); });
                 proc__a.stdout.on(`data`, (data: Buffer) => {
-                    process.stdout.write(Buffer.from(data).toString().replaceAll(`$!__GMENG_WMAP`, this.env));
+                    process.stdout.write(this.format_stdout_buffer(Buffer.from(data).toString()));
                 });
                 process.stdin.setRawMode(true);
                 process.stdin.setEncoding('utf8');
@@ -395,6 +401,10 @@ export namespace TSGmeng {
                 proc__a.stdin.setMaxListeners(0);
                 proc__a.stderr.on(`data`, (_buf0: string) => {
                     let data = Buffer.from(_buf0).toString();
+                    if (data.startsWith(`[gm0:core/__MOUSECLICK__]`)) {
+                        let pos = tui.get_curXY(); tui.run_button(pos.column, pos.row, false);
+                        return;
+                    };
                     if (!data.startsWith(`[gm0:core/__EVCAST]`)) return console.error(data + ` [ts-gm0:err]`);
                     let gm0: string[] = data.split(` `).slice(1);
                     let gm0_id = parseInt(gm0[0]);
