@@ -1,0 +1,15 @@
+name=g_testlvl1
+desc=test level for gmeng 4.0
+base_texture=sky.gt
+chunk_size=5,5
+
+#texture tx_1a tx_model1.gt
+#texture tx_1b tx_model2.gt
+#texture tx_0x sky.gt
+
+#model mdl_1a px=0 py=0 w=5 h=3 tx=tx_1a
+#model mdl_1b px=0 py=0 w=5 h=3 tx=tx_1b
+#model mdl_0x px=0 py=0 w=10 h=10 tx=tx_0x
+
+#chunk p1x=0 p1y=0 p2x=4 p2y=4 mdl_1a
+#chunk p1x=5 p1y=5 p2x=9 p2y=9 mdl_1b
