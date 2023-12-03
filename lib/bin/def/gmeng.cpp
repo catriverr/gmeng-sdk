@@ -7,6 +7,8 @@
 
 #ifdef __GMENG_INIT__
 
+
+
 std::string repeatString(const std::string& str, int times) {
     std::string result = "";
     for (int i = 0; i < times; i++) {
@@ -85,7 +87,10 @@ namespace Gmeng {
             this->rewrite_mapping({ pos_in_map });
         };
 		inline std::string draw() {
-			std::string final = "";
+            gm_log("Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)));
+			gm_log("Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h));
+            this->clear_screen();
+            std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {
 				if (i % w == 0) {
 					if (i > 1) final += "\x1B[38;2;246;128;25m",  final += Gmeng::c_unit;

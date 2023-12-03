@@ -1,10 +1,17 @@
+#include <chrono>
+#define __GMENG_ALLOW_LOG__ true
+
 #include <iostream>
 #include "./lib/bin/gmeng.hpp"
 #include "./lib/bin/def/renderer.cpp"
 
 using std::endl;
 
+
+
 int test_loadtexture() {
+    gm_err(0, "v_errortest -> error (this exception can be ignored)");
+    std::cout << "test_error success" << v_endl;
     Gmeng::texture test; Gmeng::CameraView<2, 2> wmap;
     test = Gmeng::LoadTexture("texture.gt");
     std::cout << "texture.gt:" << endl;
@@ -131,10 +138,32 @@ int test_renderer() {
     return 0;
 };
 
+int test_loadglvl() {
+    std::cout << "test" << std::endl;
+    Gmeng::LevelInfo lv_inf = Gmeng::parse_glvl("envs/4.0_test.glvl");
+    std::cout << "vinf" << std::endl;
+    Gmeng::Level lv_test;
+    lv_test.load_level(lv_inf);
+    std::cout << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.start) << " - " << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.end) << endl;
+    lv_test.draw_camera(0);
+    std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    lv_test.draw_camera(1);
+    std::cout << "chunk id(1) num(2) displayed ^ above ~~ works" << std::endl;
+    return 0;
+};
 
 int main() {
-    //test_loadtexture();
-    //test_placement();
+    test_loadtexture();
+    std::cout << "test_loadtexture -> status v_success" << endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    test_placement();
+    std::cout << "test_placement -> status v_success" << endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     test_renderer();
+    std::cout << "test_renderer -> status v_success" << endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    test_loadglvl();
+    std::cout << "test_loadglvl -> status v_success" << endl;
     return 0;
 };

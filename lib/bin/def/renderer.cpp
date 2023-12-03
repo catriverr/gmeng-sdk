@@ -13,34 +13,6 @@
 #ifdef __GMENG_INIT__
 #ifndef __GMENG_MODELRENDERER__INIT__
 
-static void gm_nlog(std::string msg) {
-    #ifndef __GMENG_ALLOW_LOG__
-        return;
-    #endif
-    #if __GMENG_ALLOW_LOG__ == true
-        std::cerr << msg;
-    #endif
-};
-
-static void gm_log(std::string msg, bool use_endl = true) {
-    #ifndef __GMENG_ALLOW_LOG__
-        return;
-    #endif
-    #if __GMENG_ALLOW_LOG__ == true
-        std::cerr << "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
-    #endif
-};
-
-static int g_mkid() {
-    std::random_device rd; // Random device to seed the generator
-    std::mt19937 gen(rd()); // Mersenne Twister 19937 generator
-    std::uniform_int_distribution<int> distribution(1000000, 9999999); // 7-digit range
-
-    return distribution(gen);
-}
-
-
-
 namespace Gmeng {
     namespace Renderer {
         struct drawpoint { int x; int y; };
@@ -68,17 +40,22 @@ namespace Gmeng {
         // compiles Renderer::Model objects into a Gmeng::Unit vector
         std::vector<Gmeng::Unit> draw_model(Gmeng::Renderer::Model __m) {
             std::vector<Gmeng::Unit> unitmap;
+            gm_log("job_render *draw_model -> MODEL * size: " + std::to_string(__m.width * __m.height) + " units | TEXTURE * size: " + std::to_string(__m.texture.units.size()) + " units");
             for ( int i = 0; i < __m.height; i++ ) {
                 for ( int j = 0; j < __m.width; j++ ) {
-                    int vpos = (i*__m.width)+j;
-                    unitmap.push_back(__m.texture.units[vpos]);
+                    int vpos = (i*__m.width)+j; unitmap.push_back(__m.texture.units[vpos]);
+                    gm_log("job_render *draw_model -> vp_compileUnit (from<texture>->units to<unitmap>->vector) : unit * vpos = " + std::to_string(vpos+1) + " / " + std::to_string(__m.texture.units.size()));
                 };
             };
+            gm_log("job_render (draw_model -> vp_compileUnit v_success) v_static_cast<std::vector<units>> total_size : " + std::to_string(unitmap.size()));
             return unitmap;
         };
+        /// returns size of a drawpoint (NOT FOR X,Y POSITIONS)
+        /// for coordinate sizes, use trace_1dp(msize, mapwidth)
         std::size_t getsize(drawpoint c) {
             return (c.x * c.y);
         };
+        /// returns drawpoint object as log string
         std::string conv_dp(drawpoint p) {
             return "x=" + std::to_string(p.x) + ",y=" + std::to_string(p.y);
         };
@@ -97,6 +74,7 @@ namespace Gmeng {
             } else { std::cerr << "Gmeng::Renderer::get_placement: e_obj: out of boundaries: __getsize(__p, __s, __ws);" << std::endl; };
             return vec;
         };
+        /// returns placement coordinates for a viewpoint within a map sizeof drawpointxy
         std::vector<drawpoint> get_displacement(viewpoint& view, const drawpoint& map) {
             std::vector<drawpoint> result;
 
@@ -108,7 +86,6 @@ namespace Gmeng {
             };
             return result;
         };
-
 
         Gmeng::Renderer::viewpoint c_npos = viewpoint {
             .start = drawpoint { .x=-1, .y=-1 },
@@ -128,6 +105,7 @@ namespace Gmeng {
                     this->camera.SetResolution(this->width, this->height);
                 };
                 inline void draw() {
+                    gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
                     for (int i = 0; i < this->rendered_units.size(); i++) {
                         gm_log("Gmeng::Renderer::Display preview @ v_unit:" + std::to_string(i) + " -> PREVIEW = " + this->camera.draw_unit(this->rendered_units[i]));
                         this->camera.display_map.unitmap[i] = this->rendered_units[i];
@@ -159,22 +137,23 @@ namespace Gmeng {
         std::vector<Gmeng::r_chunk> chunks; std::string description;
     };
     inline Objects::coord trace_1dp(int xy, int wmp_x) {
-        int width  = xy % wmp_x;
-        int height = xy / wmp_x;
+        int width  = xy % wmp_x; int height = xy / wmp_x;
         return Objects::coord { .x = width, .y = height };
     };
+    /// logs information about units within vp_units as vector, po_size vp_units wsizeX
     inline void log_vpu(std::vector<Gmeng::Unit>& vp_units, int wsizeX) {
         int jndx = 0;
         for (const auto& _v_unit : vp_units) { Objects::coord gp = Gmeng::trace_1dp(jndx, wsizeX); gm_nlog("vp_gtx.units @ pos "+ std::to_string(jndx) + " ("+std::to_string(gp.y)+","+std::to_string(gp.x)+"):\n\tv_color -> " + std::to_string(_v_unit.color) + "\n\tv_collision -> " + (_v_unit.collidable ? "true" : "false") + "\n\tv_special -> " + (_v_unit.special ? "true" : "false") + "\n\tv_spcolor -> " + std::to_string(_v_unit.special_clr) + "\n"); jndx++; };
         gm_nlog("\n");
     };
+    /// logs information about a viewpoint chunk
     inline void log_vpc(Gmeng::r_chunk vp_chunk) {
         gm_nlog("vp_chunk->vpc_info : r_chunk & Gmeng::r_chunk & Gmeng::Renderer::Model & Gmeng::Texture & gm_vpcontrol\n");
         gm_nlog("metadata:\n");
         gm_nlog("\tv_viewpoint -> start = " + Gmeng::Renderer::conv_dp(vp_chunk.vp.start) + " - end = " + Gmeng::Renderer::conv_dp(vp_chunk.vp.end) + "\n");
         gm_nlog("\tv_models:\n");
         for (const auto& v_mdl : vp_chunk.models) {
-            gm_nlog("\t   m_name -> " + v_mdl.name + "\n");
+            gm_nlog("\t\tm_name -> " + v_mdl.name + "\n");
             gm_nlog("\t\tm_id -> " + std::to_string(v_mdl.id) + "\n");
             gm_nlog("\t\tm_width -> " + std::to_string(v_mdl.width) + "\n");
             gm_nlog("\t\tm_height -> " + std::to_string(v_mdl.height) + "\n");
@@ -287,6 +266,7 @@ namespace Gmeng {
             // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a CameraView instance to render
             inline std::vector<Gmeng::Unit> render_chunk(Gmeng::r_chunk chunk) {
                 // write base_template skybox image to chunk (level 0 of canvas)
+                // base_template's viewpoint relative to the chunks viewpoint will be drawn as a base 'skybox' like image
                 Gmeng::texture* base_map = &this->base.lvl_template; std::vector<Gmeng::Unit> units;
                 gm_log("init OK" );
                 gm_log("base_map -> WIDTH: " + std::to_string(base_map->width) + " - HEIGHT: " + std::to_string(base_map->height) );
@@ -299,6 +279,14 @@ namespace Gmeng {
                     int vpos = (dp.y * base_map->width)+dp.x;
                     Gmeng::Unit v_unit = base_map->units[vpos];
                     units.push_back(v_unit);
+                    gm_log("job_render *render_chunk -> v_chunkwrapper vpos at("+std::to_string(vpos)+") out of vp_chunk::constl::base_template");
+                };
+                gm_nlog("job_render *render_chunk -> v_chunkwrapper compileUnits: v_success\ncl_preview:");
+                int v_compl_t = 0;
+                gm_nlog("\n\t");
+                for ( const auto& un : units ) {
+                    gm_nlog(this->display.camera.draw_unit(un) + (v_compl_t != 0 && v_compl_t % base_map->height == 0 ? "\n\t" : ""));
+                    v_compl_t++;
                 };
                 gm_log("write_drawpoint -> base_map.units OK" );
                 // compile models into std::vector<Gmeng::Unit> unitmaps and write them to x,y coordinates
@@ -325,10 +313,13 @@ namespace Gmeng {
                         gm_log("_vdp_current_addr -> " + this->display.camera.draw_unit(units[_vdp_pos]) );
                         gm_log("swap_unit: at(" + std::to_string(_vdp_pos) +") -> PREVIEW: " + this->display.camera.draw_unit(units[_vdp_pos]) + " TO unit() -> PREVIEW: " + this->display.camera.draw_unit(unit) );
                         units[_vdp_pos] = unitmap[lndx];
-                        gm_log("set_unit_at(id) OK" );
+                        gm_log("set_unit_at(id: " + std::to_string(_vdp_pos) + ") OK" );
                         lndx++;
                     };
                 };
+                gm_log("job_render *render_chunk completed, status: v_success");
+                gm_log("logs:");
+                gm_log("v_units -> size() : " + v_str(units.size()));
                 return units;
             };
             inline Gmeng::r_chunk get_chunk(int id) {
@@ -349,22 +340,21 @@ namespace Gmeng {
                 gm_log("vp_loadlevel: __glvl chunks v_size: " + std::to_string(__glvl.chunks.size()));
                 for (const auto& chunk : __glvl.chunks) {
                     Gmeng::log_vpc(chunk);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
                     if (i >= this->chunks.size()) { this->load_chunk(chunk); continue; };
                     this->chunks[i] = chunk;
                     i++;
                 };
                 this->base.height = __glvl.base.height;
                 this->base.width  = __glvl.base.width;
-                this->display.width  = __glvl.display_res[0];
-                this->display.height = __glvl.display_res[1];
+                this->display.set_resolution(__glvl.display_res[0], __glvl.display_res[1]);
                 this->base.lvl_template.collidable = __glvl.base.lvl_template.collidable;
                 this->base.lvl_template.height = __glvl.base.height;
                 this->base.lvl_template.width  = __glvl.base.width;
                 gm_log("class Model { ... } : load_level(...) -> base_template @ h+w = " + std::to_string(__glvl.base.height) + "," + std::to_string(__glvl.base.width));
                 this->base.lvl_template.name   = __glvl.base.lvl_template.name;
                 for ( const auto& _v_unit : __glvl.base.lvl_template.units ) {
-                    if (j >= this->base.lvl_template.units.size()) { this->base.lvl_template.units.push_back(_v_unit); continue; };
+                    gm_log("class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.template_units LOAD at("+v_str(j)+")");
+                    if (j >= this->base.lvl_template.units.size()) { this->base.lvl_template.units.push_back(_v_unit); j++; continue; };
                     this->base.lvl_template.units[j] = _v_unit;
                     j++;
                 };
@@ -382,10 +372,12 @@ namespace Gmeng {
                 gm_log("render_chunk end" );
                 int v_camview = 0;
                 for (const auto& v_unit : vr_unit) {
-                    if (v_camview >= this->display.rendered_units.size()) { this->display.rendered_units.push_back(v_unit); continue; };
+                    gm_log("class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.rendered_units LOAD at("+v_str(v_camview)+")");
+                    if (v_camview >= this->display.rendered_units.size()) { this->display.rendered_units.push_back(v_unit); v_camview++; continue; };
                     this->display.rendered_units[v_camview] = v_unit;
                     v_camview++;
                 };
+                this->display.set_resolution(this->display.width, this->display.height);
                 this->display.draw();
             };
     };

@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <fstream>
 #include <iterator>
@@ -7,11 +8,42 @@
 #include <string>
 #include "utils/textures.cpp"
 #include "objects.cpp"
-#include <ncurses.h>
 #include <future>
 #include <functional>
+#include <random>
+#include <map>
+#include <algorithm>
 
 #ifdef __GMENG_OBJECTINIT__
+
+#define v_str std::to_string
+
+static void gm_nlog(std::string msg) {
+    #ifndef __GMENG_ALLOW_LOG__
+        return;
+    #endif
+    #if __GMENG_ALLOW_LOG__ == true
+        std::cerr << msg;
+    #endif
+};
+
+static void gm_log(std::string msg, bool use_endl = true) {
+    #ifndef __GMENG_ALLOW_LOG__
+        return;
+    #endif
+    #if __GMENG_ALLOW_LOG__ == true
+        std::cerr << "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
+    #endif
+};
+
+static int g_mkid() {
+    std::random_device rd; // random device to seed the generator
+    std::mt19937 gen(rd()); // mersenne twister 19937 generator
+    std::uniform_int_distribution<int> distribution(1000000, 9999999); // 7-digit range
+
+    return distribution(gen);
+}
+
 #define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
 using namespace std;
@@ -169,6 +201,24 @@ namespace Gmeng {
 	};
 };
 
+#define v_intl int
+#define v_static_cast static_cast
+#define v_sizel std::size_t
+#define v_title std::string
+#define v_constl const
+#define v_endl std::endl
+#define v_nl "\n"
+#define v_rcol Gmeng::resetcolor
+static void gm_err(v_intl type, v_title err_title) {
+    switch (type) {
+        case 0: // v_gm_err case 0: continue running program
+            std::cerr << Gmeng::colors[4] << "gm:0 *error >> " << err_title << v_endl << v_rcol;
+            break;
+        case 1: // v_gm_err case 1: exception (stop execution)
+            throw std::invalid_argument(Gmeng::colors[4] + "gm:0 *error >> " + err_title + v_nl + v_rcol);
+            break;
+    };
+};
 
 inline Gmeng::Unit g_unit(int color = 0, bool collidable = false) {
 	return Gmeng::Unit{.collidable=collidable,.color=color};
@@ -183,5 +233,6 @@ inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const 
 
 #define __GMENG_INIT__ true
 #include "def/gmeng.cpp"
+#include "def/renderer.cpp"
 #include "utils/envs/map.hpp"
 #endif

@@ -84,6 +84,6 @@ namespace Gmeng {
     };
 };
 
-#define __TEXTUREMGR_INIT__ true
+#define __GMENG_TEXTUREMGR_INIT__ true
 #endif
 #endif
