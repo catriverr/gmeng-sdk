@@ -13,7 +13,7 @@
 #include <random>
 #include <map>
 #include <algorithm>
-
+#include <sstream>
 #ifdef __GMENG_OBJECTINIT__
 
 #define v_str std::to_string
@@ -35,6 +35,12 @@ static void gm_log(std::string msg, bool use_endl = true) {
         std::cerr << "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
     #endif
 };
+
+std::string _uconv_1ihx(int value) {
+    std::stringstream stream;
+    stream << "0x" << std::hex << value;
+    return stream.str();
+}
 
 static int g_mkid() {
     std::random_device rd; // random device to seed the generator
@@ -115,6 +121,8 @@ static std::vector<std::string> g_splitStr(std::string s, std::string delimiter)
 
 namespace Gmeng {
 	enum CONSTANTS {
+		/// integer values
+		vl_nomdl_id = 0x0FFFF0, vl_notxtr_id = 0x0FFFF1, vl_nochunk_id = 0x0FFFF2,
 		// C_PlugEvent is event type of 'plugin event',
         // C_InputEvent is event type of 'keyboard/mouse input'
 		// C_LogEvent is event type of 'log' (written to stdout by parent process)
@@ -231,8 +239,13 @@ inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const 
     return -1;
 }
 
-#define __GMENG_INIT__ true
+#define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
 #include "def/gmeng.cpp"
 #include "def/renderer.cpp"
 #include "utils/envs/map.hpp"
+#include "utils/termui.cpp"
+
+namespace g = Gmeng;
+namespace gm = Gmeng;
+namespace gmeng = Gmeng;
 #endif

@@ -87,8 +87,8 @@ namespace Gmeng {
             this->rewrite_mapping({ pos_in_map });
         };
 		inline std::string draw() {
-            gm_log("Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)));
-			gm_log("Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h));
+            gm_log("Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
+			gm_log("Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
             this->clear_screen();
             std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {

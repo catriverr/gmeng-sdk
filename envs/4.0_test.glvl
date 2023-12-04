@@ -1,15 +1,69 @@
+; test level 1
+;
+; metadata:
+;     AUTHOR: catriverr
+;     CREATED AT: 20 November 2023
+;     LAST MODIFIED: 4  December 2023
+;
+; for testing the libgmeng abi 4.0 glvl utility and the
+; libgmeng abi 5.0 vgm relative gmeng vectors utilities.
 name=g_testlvl1
-desc=test level for gmeng 4.0
-base_texture=sky.gt
+desc=test level for libgmeng 4.0 & 5.0 abi; testing variable names
+base_texture=g_template1 ; testing inline comments
 chunk_size=5,5
 
-#texture tx_1a tx_model1.gt
-#texture tx_1b tx_model2.gt
-#texture tx_0x sky.gt
+#texture tx_1a tx_model1 ; loads tx_model1 | does not require filename since this is a vgm texture, comes default | rainbow with dent in whiteline
+#texture tx_1b tx_model2 ; loads tx_model2 | vgm default texture | rainbow stripes
+#texture tx_0x g_template1 ; skybox texture [10x10 blue rectangle]
 
+; some pro glvl scripting knowledge:
+;
+; nr. 1 - textures can have macros (or pointers as others prefer to call it) that point to other textures' values.
+;         this was required for the vgm handlers to work but we included it as a feature in the interpreter.
+;
+; nr. 2 - vgm default texture and models have a naming system.
+;          textures are named with tx_<usespace id><space id>
+;            usespace means a group of textures, for example
+;            two rainbow textures are a usespace. they are grouped.
+;            space id means the queue number. q_id A comes before q_id B.
+;          models are named with mdl_<texture usespace><spaceid>
+;            texture usespace and spaceid are the same as the definitions.
+;
+; nr. 3 - chunks, models and textures that are either corrupt, invalid, unavailable or incomplete are assinged nullids.
+;         they are stored in the enum Gmeng::CONSTANTS::vl_nomdl_id, vl_notxtr_id, vl_nochunk_id
+;         their values' relative ids are:
+;           - vl_nomdl_id   = 0xFFFF0 (hex) | 1048560
+;           - vl_notxtr_id  = 0xFFFF1 (hex) | 1048561
+;           - vl_nochunk_id = 0xFFFF2 (hex) | 1048562
+;         these values are not interchangable though. A texture will be recognized even if it has vl_nomdl_id for its name.
+;         vl_nodml_id & vl_nochunk_id are assinged to r_chunk and Renderer::Model structs' id parameters.
+;         vl_notxtr_id is assigned to texture struct's name parameter since the texture struct does not have an id param.
+;
+; we will be implementing a model editor, texture editor and a level builder as libgmeng 6.0, but for now we will pass the .gtx, .gmdl and .glvl
+; file formats as scripting languages. However it should be mentioned that they are not easy to work with currently. However, the file format will still
+; remain editable even after libgmeng 6.0, since we believe that it comes in handy in specific times where very minor changes are needed from time to time.
+
+; models
 #model mdl_1a px=0 py=0 w=5 h=3 tx=tx_1a
-#model mdl_1b px=0 py=0 w=5 h=3 tx=tx_1b
+#model mdl_1b px=0 py=1 w=5 h=3 tx=tx_1b
 #model mdl_0x px=0 py=0 w=10 h=10 tx=tx_0x
 
+
+; chunks
 #chunk p1x=0 p1y=0 p2x=4 p2y=4 mdl_1a
 #chunk p1x=5 p1y=5 p2x=9 p2y=9 mdl_1b
+
+; syntax explanation
+; TEXTURES
+;    #texture <name> <pointer | gtx fformat>
+;    name = name of the texture | pointer = macro of another texture file | gtx fformat = any file that contains gtx texture data
+; MODELS
+;    #model <name> px=<position x> py=<position y> w=<width> h=<height> tx=<pointer to texture>
+;    name = name of the model | px&py = position data | w&h = width height modifiers | pointer to texture = texture name to be applied to model
+; CHUNKS
+;    #chunk p1x=<viewpoint start x> p1y=<viewpoint start y> p2x=<viewpoint end x> p2y=<viewpoint end y> <model_name1, model_name2, model_name3, ...>
+;    p1x&p1y = camera will draw from base_texture(p1x,p2y) | p2x&p2y = camera will stop drawing any units outside bounds of base_texture(p2x,p2y) | model list
+;
+; models are considered part of chunk data, and textures are treated more like models.
+; models are defined with their relative positions in any chunk. Their position values cannot be modified outside their definements.
+; so they are unique to each chunk. To use the same model, we recommend using textures to generate more than 1 model.

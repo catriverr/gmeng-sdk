@@ -13,7 +13,7 @@ int test_loadtexture() {
     gm_err(0, "v_errortest -> error (this exception can be ignored)");
     std::cout << "test_error success" << v_endl;
     Gmeng::texture test; Gmeng::CameraView<2, 2> wmap;
-    test = Gmeng::LoadTexture("texture.gt");
+    test = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_test1");
     std::cout << "texture.gt:" << endl;
     std::cout << "name: " << test.name << endl;
     std::cout << "width: " << test.width << endl;
@@ -46,7 +46,7 @@ int test_renderer() {
     std::cout << "begining test_renderer" << endl;
     Gmeng::Level test_level;
     std::cout << "initialization works" << endl;
-    auto gtx = Gmeng::LoadTexture("sky.gt");
+    auto gtx = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_template1");
     test_level.base.height = gtx.height;
     test_level.base.width = gtx.width;
     test_level.base.lvl_template.width = gtx.width;
@@ -74,7 +74,7 @@ int test_renderer() {
                     .height=3,
                     .position= { .x=0, .y=0 },
                     .size=25,
-                    .texture = Gmeng::LoadTexture("tx_model1.gt"),
+                    .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model1"),
                 }
             }
         }
@@ -92,7 +92,7 @@ int test_renderer() {
                 .height=3,
                 .position= { .x=0, .y=0 },
                 .size=25,
-                .texture = Gmeng::LoadTexture("tx_model2.gt")
+                .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model2")
             }
         }
     });
@@ -139,7 +139,7 @@ int test_renderer() {
 };
 
 int test_loadglvl() {
-    std::cout << "test" << std::endl;
+    std::cout << "test_loadglvl job_start" << std::endl;
     Gmeng::LevelInfo lv_inf = Gmeng::parse_glvl("envs/4.0_test.glvl");
     std::cout << "vinf" << std::endl;
     Gmeng::Level lv_test;
@@ -149,11 +149,13 @@ int test_loadglvl() {
     std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     lv_test.draw_camera(1);
-    std::cout << "chunk id(1) num(2) displayed ^ above ~~ works" << std::endl;
+    std::cout << "chunk id(1) num(2) displayed ^ above ~~ works" << std::endl << "~~ no modifiers required" << std::endl;
     return 0;
 };
 
 int main() {
+    gm::_uread_into_vgm("./envs/models");
+    std::cout << "current file: " << __FILE__ << endl;
     test_loadtexture();
     std::cout << "test_loadtexture -> status v_success" << endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
