@@ -285,7 +285,7 @@ namespace Gmeng {
         /// ------------------------------------------------------
         /// conf | all texture and model names will include vgm
         /// conf | vgm (vgm_defaults nspace) includes default textures
-        /// conf | if we are checking for a texture name to be 
+        /// conf | if we are checking for a texture name to be
         /// conf | specified, we will check for the name in vgm_defaults
         /// conf | before loading any files. Also, any filefolder can
         /// conf | be included in vgm_defaults (coming in 5.1)
@@ -304,6 +304,7 @@ namespace Gmeng {
         for ( const auto& ln : lines ) {
             /// indx equ ln_num
             if (startsWith(ln, ";")) continue;
+            std::cout << startsWith(ln, ";") << std::endl;
             std::string ln_vcomments = g_splitStr(ln, ";")[0];
             std::vector<std::string> params = g_splitStr(ln_vcomments, " ");
             gm_log(__fn + ": gl_v->line @ " + v_str(indx) + ": " + ln);
