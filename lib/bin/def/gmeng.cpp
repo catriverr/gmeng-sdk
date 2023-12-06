@@ -7,16 +7,6 @@
 
 #ifdef __GMENG_INIT__
 
-
-
-std::string repeatString(const std::string& str, int times) {
-    std::string result = "";
-    for (int i = 0; i < times; i++) {
-        result += str;
-    }
-    return result;
-}
-
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     std::vector<Objects::coord> coordinates;
     int dx = abs(x2 - x1); int dy = abs(y2 - y1);

@@ -7,27 +7,10 @@
 
 using std::endl;
 
-
-
 int test_loadtexture() {
-    gm_err(0, "v_errortest -> error (this exception can be ignored)");
-    std::cout << "test_error success" << v_endl;
     Gmeng::texture test; Gmeng::CameraView<2, 2> wmap;
     test = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_test1");
-    std::cout << "texture.gt:" << endl;
-    std::cout << "name: " << test.name << endl;
-    std::cout << "width: " << test.width << endl;
-    std::cout << "height: " << test.height << endl;
-    std::cout << "collision: " << (test.collidable ? "true" : "false") << endl;
-    std::cout << "preview:" << endl;
-
-    int lndx = 0;
-    for ( auto indx : test.units ) {
-        if ( lndx == test.width ) lndx = 0, std::cout << endl;
-        std::cout << wmap.draw_unit(indx);
-        lndx++;
-    };
-    std::cout << endl; return 0;
+    return 0;
 };
 
 int test_placement() {
@@ -35,31 +18,20 @@ int test_placement() {
     Gmeng::Renderer::drawpoint size = {4, 4};       // Size of the object
     Gmeng::Renderer::drawpoint worldSize = {10, 10};   // Size of the world map
     std::vector<Gmeng::Renderer::drawpoint> displacements = Gmeng::Renderer::get_placement(placement, size, worldSize);
-    for ( auto point : displacements ) {
-        std::cout << "x: " << point.x << " - y: " << point.y << endl;
-    };
     return 0;
 };
 
 
 int test_renderer() {
-    std::cout << "begining test_renderer" << endl;
     Gmeng::Level test_level;
-    std::cout << "initialization works" << endl;
     auto gtx = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_template1");
     test_level.base.height = gtx.height;
     test_level.base.width = gtx.width;
     test_level.base.lvl_template.width = gtx.width;
     test_level.base.lvl_template.height = gtx.height;
-    std::cout << "width&height OK - LoadTexture sky.gt OK" << endl;
-    std::cout << "level_base -> width: " << test_level.base.width << " - height: " << test_level.base.height << endl;
-    std::cout << "level_size -> total: " << test_level.base.width*test_level.base.height << endl;
     for ( int i = 0; i < gtx.height*gtx.width; i++ ) {
-        std::cout << "compiling unit " << i << endl;
-        std::cout << "preview: " << test_level.display.camera.draw_unit(gtx.units[i]) << endl;
         test_level.base.lvl_template.units.push_back(gtx.units[i]);
     };
-    std::cout << "set_base works" << endl;
     test_level.load_chunk(
         Gmeng::r_chunk {
             .vp={
@@ -96,9 +68,7 @@ int test_renderer() {
             }
         }
     });
-    std::cout << "load_chunk works" << endl;
     test_level.display.set_resolution(5, 5);
-    std::cout << "set_resolution works" << endl;
     test_level.display.viewpoint = {
         .start = {
             .x = 0,
@@ -109,10 +79,7 @@ int test_renderer() {
             .y = 5
         }
     };
-    std::cout << "viewpoint works" << endl;
     test_level.draw_camera(0);
-    std::cout << "draw_camera works" << endl;
-    std::cout << "drawing chunk [2]" << endl;
     test_level.display.viewpoint = {
         .start = {
             .x = 4,
@@ -123,18 +90,8 @@ int test_renderer() {
             .y = 9
         }
     };
-    std::cout << "sky.gt preview: " << endl;
-    int lndx = 0;
-    std::cout << " ";
-    for ( auto unit : gtx.units ) {
-        if (lndx % gtx.width == 0) std::cout << endl << " ";
-        std::cout << test_level.display.camera.draw_unit(unit);
-        lndx++;
-    };
-    std::cout << endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     test_level.draw_camera(1);
-    std::cout << "draw_camera 2 works" << endl;
     return 0;
 };
 
@@ -154,6 +111,7 @@ int test_loadglvl() {
 };
 
 int main() {
+    _gupdate_logc_intvl();
     gm::_uread_into_vgm("./envs/models");
     std::cout << "current file: " << __FILE__ << endl;
     test_loadtexture();

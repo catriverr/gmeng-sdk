@@ -15,28 +15,20 @@
 #include <algorithm>
 #include <sstream>
 #ifdef __GMENG_OBJECTINIT__
-
 #define v_str std::to_string
 
-static void gm_nlog(std::string msg) {
-    #ifndef __GMENG_ALLOW_LOG__
-        return;
-    #endif
-    #if __GMENG_ALLOW_LOG__ == true
-        std::cerr << msg;
-    #endif
-};
 
-static void gm_log(std::string msg, bool use_endl = true) {
-    #ifndef __GMENG_ALLOW_LOG__
-        return;
-    #endif
-    #if __GMENG_ALLOW_LOG__ == true
-        std::cerr << "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
-    #endif
-};
 
-std::string _uconv_1ihx(int value) {
+static std::string repeatString(const std::string& str, int times) {
+    std::string result = "";
+    for (int i = 0; i < times; i++) {
+        result += str;
+    }
+    return result;
+}
+
+
+static std::string _uconv_1ihx(int value) {
     std::stringstream stream;
     stream << "0x" << std::hex << value;
     return stream.str();
@@ -161,11 +153,13 @@ namespace Gmeng {
 	struct Coordinate {
 		int x; int y;
 	};
-	std::string colors[] = {
+    static std::stringstream logstream;
+    static std::stringstream completelog;
+	static std::string colors[] = {
 		"\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
-	std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
-	std::string resetcolor = "\033[22m\033[0m"; std::string boldcolor = "\033[1m";
+	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
+	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
 	const char c_unit[4] = "\u2588";
 	const char c_outer_unit[4] = "\u2584";
 	const char c_outer_unit_floor[4] = "\u2580";
@@ -239,11 +233,74 @@ inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const 
     return -1;
 }
 
+inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
+    std::vector<std::string> vector;
+    for (int i = 0; i < ln; i++) {
+        vector.push_back("\x0b");
+    };
+    return vector;
+};
+
+#include "utils/termui.cpp"
+
+namespace Gmeng {
+    static t_display logc = {
+        .pos = { .x=4, .y=2 },
+        .title="gm:0/logstream",
+        .v_width = 185,
+        .v_height = 40,
+        .v_cursor = 0,
+        .v_outline_color = 1,
+        .v_textcolor = 2,
+        .init=true,
+        .v_drawpoints=_ulogc_gen1dvfc(185*40)
+    };
+};
+
+static void gm_nlog(std::string msg) {
+    #ifndef __GMENG_ALLOW_LOG__
+        return;
+    #endif
+    #if __GMENG_ALLOW_LOG__ == true
+        /// std::cerr << msg;
+        /// DEPRECATED & DISABLED
+    #endif
+};
+
+static void gm_log(std::string msg, bool use_endl = true) {
+    #ifndef __GMENG_ALLOW_LOG__
+        return;
+    #endif
+    #if __GMENG_ALLOW_LOG__ == true
+        std::thread([&]() {
+        std::string __vl_log_message__ =  "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
+        Gmeng::logstream << __vl_log_message__;
+        _utext(Gmeng::logc, __vl_log_message__);
+        #if __GMENG_ALLOW_LOGC__ == true
+            _udraw_display(Gmeng::logc);
+        #endif
+        }).join();
+    #endif
+};
+
+static void _gupdate_logc_intvl() {
+    std::thread([&]() {
+        for ( ;; ) {
+            if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
+                Gmeng::completelog << Gmeng::logstream.str();
+                Gmeng::logstream.str(""); /// flush sstream
+               _uflush_display(Gmeng::logc, 10);
+            };
+            _udraw_display(Gmeng::logc);
+        }
+    }).detach();
+};
+
+
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
 #include "def/gmeng.cpp"
 #include "def/renderer.cpp"
 #include "utils/envs/map.hpp"
-#include "utils/termui.cpp"
 
 namespace g = Gmeng;
 namespace gm = Gmeng;
