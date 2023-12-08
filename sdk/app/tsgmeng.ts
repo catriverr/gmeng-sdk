@@ -326,8 +326,8 @@ export namespace TSGmeng {
         private format_stdout_buffer(data: string): string {
             return data
                 .replaceAll(`$!__GMENG_WMAP`, this.env)
-                .replaceAll(`$!__VERSION`, `4.0`)
-                .replaceAll(`$!__BUILD`, `4.0-dev.tui:56b8c`)
+                .replaceAll(`$!__VERSION`, `5.2`)
+                .replaceAll(`$!__BUILD`, `5.2-stable.player:48b5c`)
         };
         public Events = new class EventHandler {
             private emitter: EventEmitter = new EventEmitter();
