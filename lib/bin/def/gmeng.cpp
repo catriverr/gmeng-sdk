@@ -49,6 +49,7 @@ namespace Gmeng {
 		std::string raw_unit_map[32767];
 		Objects::G_Player player = {};
 		Gmeng::Unit playerunit = {};
+		bool player_init = false;
 		int entitytotal = 0;
 		inline void SetResolution(std::size_t w, std::size_t h) {
 			display_map.__h = h; display_map.__w = w;
@@ -102,15 +103,14 @@ namespace Gmeng {
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .value=value, .name=name });
 		};
-		inline void SetPlayer(int entityId, Objects::G_Player player, int x, int y = -1) {
+		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
 			for (int i = 0; i < this->entitytotal; i++) {
 				Objects::G_Entity entity = this->entitymap[i];
 				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
 			};
 			int goto_loc = (y != -1) ? ((y*this->w)+x) : (x);
-			std::cout << this->w << " " << this->h << " " << goto_loc;
-			if (goto_loc > this->w*this->h) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates");
-			if (this->display_map.unitmap[goto_loc].collidable == false) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates: the unit at the location is not collidable");
+			if (goto_loc > this->w*this->h) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates @ pos(" +v_str(x)+ "," +v_str(y)+ ") [" + v_str(goto_loc) + "/" + v_str(this->w*this->h) +" - " + (y == -1 ? "1d local" : "2d local") +"]");
+			if (!this->display_map.unitmap[goto_loc].collidable && !force) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates: the unit at location " + v_str(x) + "," + v_str(y) + " is not collidable");
 			this->entitymap[entityId] = player;
 			int pos = goto_loc;
 			this->playerunit = this->display_map.unitmap[pos];
@@ -122,6 +122,7 @@ namespace Gmeng {
 			this->player.coords.x = x; //FIX
 			this->player.coords.y = y; //FIX
 			this->entitytotal++;
+			this->player_init = true;
 		};
 		inline void AddEntity(int entityId, Objects::G_Entity entity) {
 			//working on

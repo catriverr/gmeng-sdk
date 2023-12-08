@@ -14,10 +14,15 @@
 #include <map>
 #include <algorithm>
 #include <sstream>
+#include <functional>
+#include <atomic>
 #ifdef __GMENG_OBJECTINIT__
 #define v_str std::to_string
 
-
+template<typename T>
+static uintptr_t _uget_addr(const T& obj) {
+    return (reinterpret_cast<uintptr_t>(&obj));
+};
 
 static std::string repeatString(const std::string& str, int times) {
     std::string result = "";
@@ -203,6 +208,18 @@ namespace Gmeng {
 	};
 };
 
+inline std::string _uget_thread() {
+    static std::atomic<int> counter(0);
+    thread_local int threadId = counter.fetch_add(1);
+    return std::to_string(threadId);
+};
+
+inline std::string _uthread_id(const std::thread& thread) {
+    std::thread::id threadId = thread.get_id();
+    size_t hashValue = std::hash<std::thread::id>{}(threadId);
+    return std::to_string(hashValue);
+};
+
 #define v_intl int
 #define v_static_cast static_cast
 #define v_sizel std::size_t
@@ -211,6 +228,7 @@ namespace Gmeng {
 #define v_endl std::endl
 #define v_nl "\n"
 #define v_rcol Gmeng::resetcolor
+
 static void gm_err(v_intl type, v_title err_title) {
     switch (type) {
         case 0: // v_gm_err case 0: continue running program
@@ -245,7 +263,7 @@ inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
 
 namespace Gmeng {
     static t_display logc = {
-        .pos = { .x=4, .y=2 },
+        .pos = { .x=8, .y=2 },
         .title="gm:0/logstream",
         .v_width = 185,
         .v_height = 40,
@@ -272,30 +290,45 @@ static void gm_log(std::string msg, bool use_endl = true) {
         return;
     #endif
     #if __GMENG_ALLOW_LOG__ == true
-        std::thread([&]() {
-        std::string __vl_log_message__ =  "gm:0 *logger >> " + msg + (use_endl ? "\n" : "");
+        std::string _uthread = _uget_thread();
+        std::string __vl_log_message__ =  "gm:" + _uthread + " *logger >> " + msg + (use_endl ? "\n" : "");
         Gmeng::logstream << __vl_log_message__;
         _utext(Gmeng::logc, __vl_log_message__);
         #if __GMENG_ALLOW_LOGC__ == true
-            _udraw_display(Gmeng::logc);
+            std::thread([&]() { _udraw_display(Gmeng::logc); });
         #endif
-        }).join();
     #endif
 };
 
+namespace Gmeng {
+    static std::vector<std::thread> v_threads;
+    static std::thread _ucreate_thread(std::function<void()> func) { return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back()); };
+    static void        _uclear_threads() { v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end()); };
+    static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); thread.join(); _uclear_threads(); }; };
+}
+
 static void _gupdate_logc_intvl() {
-    std::thread([&]() {
+    #if __GMENG_ALLOW_LOG__ == false
+        return;
+    #endif
+    Gmeng::_ucreate_thread([&]() {
         for ( ;; ) {
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
                 Gmeng::completelog << Gmeng::logstream.str();
                 Gmeng::logstream.str(""); /// flush sstream
                _uflush_display(Gmeng::logc, 10);
+               gm_log("t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
             };
             _udraw_display(Gmeng::logc);
+            Gmeng::_uclear_threads();
         }
-    }).detach();
+    });
 };
 
+static void _gthread_catchup() {
+    gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:0");
+    Gmeng::_ujoin_threads();
+};
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
 #include "def/gmeng.cpp"

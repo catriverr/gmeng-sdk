@@ -128,14 +128,31 @@ namespace Gmeng {
                     // refresh resolution
                     this->camera.SetResolution(this->width, this->height);
                 };
-                inline void draw() {
+                inline void plunit(Objects::G_Player pl, Objects::coord plcoords) {
+                    auto v_playerunit = this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y];
+                    std::cout << this->camera.draw_unit(v_playerunit) << " " << Gmeng::colors[pl.colorId] << pl.colorId << endl;
+                    this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y] = Gmeng::Unit {
+                        .collidable=v_playerunit.collidable,
+                        .color=v_playerunit.color,
+                        .is_player=true,
+                        .player = pl,
+                        .special_clr=pl.colorId,
+                        .special=true
+                    };
+                };
+                inline void nplunit(Objects::coord coords) {
+                    this->rendered_units[coords.y*this->camera.w + coords.x].is_player = false;
+                };
+                inline void draw(Objects::G_Player pl, Objects::coord plcoords) {
+                    this->refresh();
+                    if (!this->camera.player_init) this->camera.SetPlayer(0, pl, plcoords.y, plcoords.x, true);
+                    else this->camera.MovePlayer(0, plcoords.y, plcoords.x);
                     gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
                     for (int i = 0; i < this->rendered_units.size(); i++) {
-                        gm_log("Gmeng::Renderer::Display preview @ v_unit:" + v_str(i) + " -> PREVIEW = " + this->camera.draw_unit(this->rendered_units[i]));
+                        if (this->camera.display_map.unitmap[i].is_player) continue;
                         this->camera.display_map.unitmap[i] = this->rendered_units[i];
-                        gm_log("Gmeng::CameraView preview @ v_unit:" + v_str(i) + " -> PREVIEW = " + this->camera.draw_unit(this->camera.display_map.unitmap[i]));
-                        this->camera.raw_unit_map[i] = this->camera.draw_unit(this->rendered_units[i]);
                     };
+                    this->camera.update();
                     this->camera.clear_screen();
                     std::cout << this->camera.draw() << endl;
                 };
@@ -308,8 +325,8 @@ namespace Gmeng {
             std::string ln_vcomments = g_splitStr(ln, ";")[0];
             std::vector<std::string> params = g_splitStr(ln_vcomments, " ");
             gm_log(__fn + ": gl_v->line @ " + v_str(indx) + ": " + ln);
-                 if ( indx == 0 ) { info.name = params[0].substr(5); gm_log("glvl->name : SETNAME = " + params[0] + " -> success"); }
-            else if ( indx == 1 ) { info.description = params[0].substr(5); gm_log("glvl->desc : SETDESC = " + params[0] + " -> success"); }
+                 if ( indx == 0 ) { info.name = params[0].substr(5); gm_log("glvl->name : SETNAME = " + params[0] + " -> success\n"); }
+            else if ( indx == 1 ) { info.description = params[0].substr(5); gm_log("glvl->desc : SETDESC = " + params[0] + " -> success\n"); }
             else if ( indx == 2 ) {
                 gm_log("glvl->base.template : SETTEXTURE = " + params[0] + " -> proc.init() -> success");
                 std::string vp_name = params[0].substr(13);
@@ -374,6 +391,10 @@ namespace Gmeng {
         return info;
     };
 
+    static const Objects::G_Player v_base_player = (Objects::G_Player {
+        .colorId = 0, .c_ent_tag = "o",
+        .colored=true, .entityId=0
+   });
     class Level {
         private:
             // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a CameraView instance to render
@@ -442,7 +463,7 @@ namespace Gmeng {
                 this->chunks[id] = chunk;
             };
         public:
-            Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display;
+            Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display; Objects::G_Player player = Gmeng::v_base_player; Objects::coord plcoords = { .x=0, .y=0 };
             std::vector<Gmeng::r_chunk> chunks; std::string desc; std::string name;
             inline int load_chunk(Gmeng::r_chunk chunk) {
                 this->chunks.push_back(chunk);
@@ -473,6 +494,12 @@ namespace Gmeng {
                 };
                 this->desc = __glvl.description;
                 this->name = __glvl.name;
+                this->set_player(Objects::G_Player {
+                    .colorId=3,
+                    .colored=true,
+                    .entityId=0,
+                    .c_ent_tag="o"
+                }, 0, 0);
             };
             // draws chunk in Gmeng::Level::(std::vector<Gmeng::r_chunk>)chunks on position: chunk_id
             // to the Display::CameraView controller
@@ -491,7 +518,21 @@ namespace Gmeng {
                     v_camview++;
                 };
                 this->display.set_resolution(this->display.width, this->display.height);
-                this->display.draw();
+                this->display.draw(this->player, this->plcoords);
+            };
+            /// refreshes the current chunk display
+            inline void refresh() {
+                this->display.set_resolution(this->display.width, this->display.height);
+                this->display.draw(this->player, this->plcoords);
+            };
+            inline void set_player(Objects::G_Player p, int x, int y) {
+                if (this->display.camera.player_init) this->display.nplunit(this->plcoords);
+                this->player = p; this->plcoords = { .x=x, .y=y };
+                gm_log("r_level::set_player *inline,static -> v_success ; r_level::player (Objects::G_Player).coords = @pos(" + v_str(this->player.coords.x)+","+v_str(this->player.coords.y)+")");
+                this->move_player(x, y);
+            };
+            inline void move_player(int x, int y) {
+                this->plcoords.x=x; this->plcoords.y=y;
             };
     };
 };
