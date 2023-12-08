@@ -159,6 +159,10 @@ namespace Gmeng {
             std::cout << "[ unit_color: " << std::to_string(this->playerunit.color) << ", " << std::to_string(this->playerunit.special_clr ? this->playerunit.special_clr : 0) << " ] ";
             this->set_curXY(2,0);
             std::cout << "[ env: " << std::string("$!__GMENG_WMAP ] ");
+			this->set_curXY(3,0);
+			std::cout << "[ gmeng: " << std::string("version $!__VERSION") << " - build " << std::string("$!__BUILD") << " ]";
+			this->set_curXY(4,0);
+			std::cout << "[ last engine build: $!__BUILD | current framework: 4.0_glvl ]";
         };
 		inline std::string draw_unit(Gmeng::Unit __u) {
 			Gmeng::Unit current_unit = __u;
