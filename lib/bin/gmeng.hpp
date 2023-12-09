@@ -326,7 +326,7 @@ static void _gupdate_logc_intvl() {
 };
 
 static void _gthread_catchup() {
-    gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:0");
+    gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
     Gmeng::_ujoin_threads();
 };
 
