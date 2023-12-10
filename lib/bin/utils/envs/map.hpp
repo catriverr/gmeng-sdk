@@ -47,9 +47,9 @@ namespace Gmeng {
 			}
 			auto WPDat = Gmeng::ModifiedWorldData {
 				._w = dat._w, ._h = dat._h,
-				.player=dat.player,
 				.name=dat.name,
-				.description=dat.description
+				.description=dat.description,
+				.player=dat.player
 			};
 			return WPDat;
 		};
