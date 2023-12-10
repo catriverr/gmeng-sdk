@@ -2,18 +2,6 @@
 #define __GMENG_ALLOW_LOG__ false
 
 #include <iostream>
-#undef FDEV_SETUP_STREAM
-#define FDEV_SETUP_STREAM(p, g, f) \
-    {                              \
-        .buf = NULL,               \
-        .unget = 0,                \
-        .flags = f,                \
-        .size = 0,                 \
-        .len = 0,                  \
-        .put = p,                  \
-        .get = g,                  \
-        .udata = 0                 \
-    }
 #include "./lib/bin/gmeng.hpp"
 #include "./lib/bin/def/renderer.cpp"
 
@@ -49,13 +37,13 @@ int test_renderer() {
             },
             .models = {
                 Gmeng::Renderer::Model {
-                    .name="tx_model1",
-                    .id=235467,
                     .width=5,
                     .height=3,
+                    .size=15,
                     .position= { .x=0, .y=0 },
-                    .size=25,
+                    .name="tx_model1",
                     .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model1"),
+                    .id=235467,
                 }
             }
         }
@@ -67,13 +55,13 @@ int test_renderer() {
         },
         .models = {
             Gmeng::Renderer::Model {
-                .name="tx_model2",
-                .id=345678,
                 .width=5,
                 .height=3,
+                .size=15,
                 .position= { .x=0, .y=0 },
-                .size=25,
-                .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model2")
+                .name="tx_model2",
+                .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model2"),
+                .id=345678
             }
         }
     });
@@ -109,7 +97,12 @@ int test_loadglvl() {
     Gmeng::Level lv_test;
     lv_test.load_level(lv_inf);
     std::cout << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.start) << " - " << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.end) << endl;
-    lv_test.set_player({ .colorId=3, .colored=true, .entityId=0, .c_ent_tag="o" }, 0, 0);
+    lv_test.set_player({ 
+        .entityId=0,
+        .colorId=3,
+        .colored=true,
+        .c_ent_tag="o"
+    }, 0, 0);
     lv_test.draw_camera(0);
     std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));

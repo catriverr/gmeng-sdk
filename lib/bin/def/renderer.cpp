@@ -352,10 +352,13 @@ namespace Gmeng {
                     int _m_height             = std::stoi(params[5].substr(2));
                     Gmeng::texture _m_texture = textures[params[6].substr(3)];
                     models[_m_name] = Gmeng::Renderer::Model {
-                        .width=static_cast<std::size_t>(_m_width),.height=static_cast<std::size_t>(_m_height),
-                        .size=static_cast<std::size_t>(_m_posX*_m_posY), .texture=_m_texture,
+                        .width=static_cast<std::size_t>(_m_width),
+                        .height=static_cast<std::size_t>(_m_height),
+                        .size=static_cast<std::size_t>(_m_posX*_m_posY),
                         .position = { .x=_m_posX,.y=_m_posY },
-                        .name=_m_name,.id=g_mkid()
+                        .name=_m_name,
+                        .texture=_m_texture,
+                        .id=g_mkid()
                     };
                     gm_log("glvl->models : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
                 }
