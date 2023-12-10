@@ -6,7 +6,7 @@ import { Dirs } from '../../plib/src/index.js';
 
 export function main(args: string[]): void {
     console.log(`${chalk.bold.red(`G${chalk.blue(`m${chalk.green(`e`)}n`)}g`)} ${chalk.bold.yellow(`DevKit`)} version 3.0`);
-    if (args.includes(`-b`) || args.includes(`--builder`)) builder.mainMenu(args);
+    if (args.includes(`-b`) || args.includes(`--builder`)) builder.framework1_1(args);
     // game launcher
     else { 
         console.log(tui.clr(`>>`, `pink`), tui.clr(`select a map to load (enter id):`, `tan`));

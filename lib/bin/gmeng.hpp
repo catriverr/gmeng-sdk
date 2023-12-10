@@ -133,8 +133,8 @@ namespace Gmeng {
         C_InputEvent = 8554, IE_Type0 = 8555, IE_Type1 = 8556, IE_Type2 = 8557,
 	};
 	struct event {
-		std::string name; int id;
-		std::vector<std::string> params;
+		std::string name = ""; int id = 0;
+		std::vector<std::string> params = {};
 	};
 	class EventHandler {
 		public:
@@ -156,7 +156,7 @@ namespace Gmeng {
 			};
 	};
 	struct Coordinate {
-		int x; int y;
+		int x = 0; int y = 0;
 	};
     static std::stringstream logstream;
     static std::stringstream completelog;
@@ -170,24 +170,22 @@ namespace Gmeng {
 	const char c_outer_unit_floor[4] = "\u2580";
 	struct Unit {
 		public:
-			int color; bool collidable;
-			bool is_entity = false; bool is_player = false; bool special = false; int special_clr = 0;
-			Objects::G_Entity entity={}; Objects::G_Player player={}; std::string special_c_unit = "";
+			int color = 1; bool collidable = true; bool is_player = false; bool is_entity = false; 
+            Objects::G_Player player={}; bool transparent = false; bool special = false; int special_clr = 0;
+			Objects::G_Entity entity={}; std::string special_c_unit = "";
 	};
-
-
 	struct modifier {
 		public:
-			int value; std::string name;
+			std::string name = "v_unallocated_modifier"; int value = 0;
 	};
 	struct ModifierList {
 		public:
-			std::vector<modifier> values;
+			std::vector<modifier> values = {};
 	};
 	struct RendererOptions {
 		public:
-		bool countObjects; bool useTitle;
-		std::string title;
+		bool countObjects = false; bool useTitle = false;
+		std::string title = "";
 	};
 	template<std::size_t d_width, std::size_t d_height>
 	class DisplayMap {
@@ -241,10 +239,10 @@ static void gm_err(v_intl type, v_title err_title) {
 };
 
 inline Gmeng::Unit g_unit(int color = 0, bool collidable = false) {
-	return Gmeng::Unit{.collidable=collidable,.color=color};
+	return Gmeng::Unit{.color=color, .collidable=collidable};
 };
 inline Gmeng::Unit g_spike(int color = 0, int bgcolor = 0, bool big = false) {
-	return Gmeng::Unit{.collidable=false,.color=color,.special=true,.special_c_unit=(big ? "X" : "x"),.special_clr=bgcolor};
+	return Gmeng::Unit{.color=color,.collidable=false,.special=true,.special_clr=bgcolor,.special_c_unit=(big ? "X" : "x")};
 };
 inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const std::string& targetName) {
     for (size_t i = 0; i < modifiers.size(); ++i) { if (modifiers[i].name == targetName) { return static_cast<int>(i); }; };
@@ -264,14 +262,14 @@ inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
 namespace Gmeng {
     static t_display logc = {
         .pos = { .x=8, .y=2 },
-        .title="gm:0/logstream",
-        .v_width = 185,
-        .v_height = 40,
         .v_cursor = 0,
         .v_outline_color = 1,
-        .v_textcolor = 2,
+        .v_width = 185,
+        .v_height = 40,
         .init=true,
-        .v_drawpoints=_ulogc_gen1dvfc(185*40)
+        .v_textcolor = 2,
+        .v_drawpoints=_ulogc_gen1dvfc(185*40),
+        .title="gm:0/logstream"
     };
 };
 

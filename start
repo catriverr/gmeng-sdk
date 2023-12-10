@@ -1,1 +1,3 @@
+export gmeng_version "v5.3-dev"
+export gmeng_buildno "v5.3-dev:59ba8c"
 ./sdk/start $*

@@ -3,11 +3,26 @@
 #include <chrono>
 #include <thread>
 #include <string>
+
+#undef FDEV_SETUP_STREAM
+#define FDEV_SETUP_STREAM(p, g, f) \
+    {                              \
+        .buf = NULL,               \
+        .unget = 0,                \
+        .flags = f,                \
+        .size = 0,                 \
+        .len = 0,                  \
+        .put = p,                  \
+        .get = g,                  \
+        .udata = 0                 \
+    }
+
 /* files */
 #include "objects.cpp"
 #include "gmeng.hpp"
 #include "utils/textures.cpp"
 #include "utils/envs/map.hpp"
+
 /* index */
 // this file is for the game code. Current code allows for tsgmeng & gmeng child_process connection
 // to test the engine. this may also be implemented into something of a game itself, similar to gary's mod

@@ -12,9 +12,46 @@ import { Writable } from "stream";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const mac_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
-
+const win_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.exe`;
 export namespace builder {
-    export async function mainMenu(args: string[]): Promise<void> {
+    function lv_objname(v: "txtr" | "mdl") {};
+
+    export async function texture4_0(name: string): Promise<void> {
+
+    };
+    export async function model4_0  (name: string): Promise<void> {
+
+    };
+    /**
+    editor for the `gm4.0-glvl` gamemap framework.
+    
+    this framework is the recommended and preferred way to handle maps.
+    it uses chunking to divide a big 'skybox'-like texture's width-hight information into a display.
+    a display then renders a chunk and displays it to the screen with a CameraView instance.
+    This provides the ability to infinitely expand levels, instead of a hard-capped 300x300 top-down view limit on the `gm1.1-sdk` framework.
+
+    note - use the `TSGmeng.install_glvl()` method to set-up a .glvl file (gmeng-level)
+    from a .glcp (gmeng-level-compiler-parameters) file
+    */
+    export async function framework4_0(args: string[]): Promise<void> {
+
+    };
+    /**
+    editor for the `gm1.1-sdk` gamemap framework. 
+
+    this framework is outdated, it does not support models, textures, chunks
+    and it is deprecated. It also compiles into a single file, but is decompiled
+    into 3 different files at runtime when the player is in the world.
+
+    (player.dat - player data, color)
+
+    (world.dat - world data, width, height)
+
+    (world.mpd - unit data)
+
+    This framework handles maps (wmap.gm -> world.dat, player.dat, world.mpd) as a single top-down CameraView instance.
+    */
+    export async function framework1_1(args: string[]): Promise<void> {
         console.clear();
         let WorldData: TSGmeng.WorldData = {
             player: {
@@ -25,7 +62,7 @@ export namespace builder {
             _w: 2, _h: 2, name: `world1`,
             description: `hello world!`
         };
-        WorldData.name = await tui.show_input_screen(`enter WorldMap filename`, null, false);
+        WorldData.name = await tui.show_input_screen(`enter WorldMap filename`, null, false, null, `level framework: 1.1_gm `);
         if (existsSync(`${WorldData.name}.gm`)) return builder.show_editor(TSGmeng.parseMapData(WorldData.name), new Plib.Dirs.Directory(WorldData.name + `.gm`));
         WorldData.description = await tui.show_input_screen(`enter world description`, null, false);
         await tui.show_input_screen(`enter world size in blocks (example: 2x2)`, null, false).then(a => {

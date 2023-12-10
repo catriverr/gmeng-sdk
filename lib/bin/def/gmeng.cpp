@@ -101,7 +101,7 @@ namespace Gmeng {
 		inline void set_modifier(std::string name, int value) {
 			int vi = g_find_modifier(this->modifiers.values, name);
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
-    			else this->modifiers.values.emplace_back(Gmeng::modifier { .value=value, .name=name });
+    			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
 			for (int i = 0; i < this->entitytotal; i++) {

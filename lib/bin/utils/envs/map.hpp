@@ -10,7 +10,6 @@
 #define cpps(str) ( std::string(str) )
 using namespace std;
 
-
 namespace Gmeng {
 	struct PlayerData {
 		int startDX = 0; int startDY = 0;
@@ -47,7 +46,10 @@ namespace Gmeng {
 				if ( vname == "colorId" ) dat.player.colorId = std::stoi(vval);
 			}
 			auto WPDat = Gmeng::ModifiedWorldData {
-				._h = dat._h, ._w = dat._w, .player=dat.player, .name=dat.name, .description=dat.description
+				._w = dat._w, ._h = dat._h,
+				.player=dat.player,
+				.name=dat.name,
+				.description=dat.description
 			};
 			return WPDat;
 		};

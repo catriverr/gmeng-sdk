@@ -132,12 +132,12 @@ namespace Gmeng {
                     auto v_playerunit = this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y];
                     std::cout << this->camera.draw_unit(v_playerunit) << " " << Gmeng::colors[pl.colorId] << pl.colorId << endl;
                     this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y] = Gmeng::Unit {
-                        .collidable=v_playerunit.collidable,
                         .color=v_playerunit.color,
+                        .collidable=v_playerunit.collidable,
                         .is_player=true,
                         .player = pl,
-                        .special_clr=pl.colorId,
-                        .special=true
+                        .special=true,
+                        .special_clr=pl.colorId
                     };
                 };
                 inline void nplunit(Objects::coord coords) {
@@ -352,10 +352,10 @@ namespace Gmeng {
                     int _m_height             = std::stoi(params[5].substr(2));
                     Gmeng::texture _m_texture = textures[params[6].substr(3)];
                     models[_m_name] = Gmeng::Renderer::Model {
-                        .name=_m_name,.id=g_mkid(),
                         .width=static_cast<std::size_t>(_m_width),.height=static_cast<std::size_t>(_m_height),
+                        .size=static_cast<std::size_t>(_m_posX*_m_posY), .texture=_m_texture,
                         .position = { .x=_m_posX,.y=_m_posY },
-                        .size=static_cast<std::size_t>(_m_posX*_m_posY), .texture=_m_texture
+                        .name=_m_name,.id=g_mkid()
                     };
                     gm_log("glvl->models : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
                 }
@@ -392,8 +392,10 @@ namespace Gmeng {
     };
 
     static const Objects::G_Player v_base_player = (Objects::G_Player {
-        .colorId = 0, .c_ent_tag = "o",
-        .colored=true, .entityId=0
+        .entityId=0,
+        .colorId = 0,
+        .colored=true,
+        .c_ent_tag = "o",
    });
     class Level {
         private:
@@ -440,6 +442,7 @@ namespace Gmeng {
                     gm_log("draw_model OK: unitmap.size(): " + v_str(unitmap.size()) );
                     int lndx = 0;
                     for ( const auto& unit : unitmap ) {
+                        if (unit.transparent) { lndx++; continue; };
                         gm_log(v_str(lndx) +" <- pos_vdp: rendering_model_unit PREVIEW: " + this->display.camera.draw_unit(unit) );
                         int _vdp_pos = (displacement[lndx].y*this->display.width)+displacement[lndx].x;
                         gm_log("_vdp_pos find: " + v_str(_vdp_pos) +" OK" );
@@ -495,9 +498,9 @@ namespace Gmeng {
                 this->desc = __glvl.description;
                 this->name = __glvl.name;
                 this->set_player(Objects::G_Player {
+                    .entityId=0,
                     .colorId=3,
                     .colored=true,
-                    .entityId=0,
                     .c_ent_tag="o"
                 }, 0, 0);
             };

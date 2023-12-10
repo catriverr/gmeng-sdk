@@ -68,6 +68,7 @@ namespace Gmeng {
                 std::vector<std::string> unit_ln = g_splitStr(ln, " ");
                 Gmeng::Unit cur_unit; int l_i = 0;
                 for ( const auto& param : unit_ln ) {
+                    if (l_i == 0 && param == "__gtransparent_unit__") { cur_unit.transparent = true; break; }; // no value is pushed back since this is a parameter loop, doing so would push the current_unit value twice to the vector.
                     cur_unit.collidable = texture.collidable;
                     cur_unit.is_entity = false; cur_unit.is_player = false;
                     if ( l_i == 0 ) { cur_unit.color = std::stoi(param);       };

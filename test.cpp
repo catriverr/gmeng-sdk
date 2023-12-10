@@ -1,7 +1,19 @@
 #include <chrono>
-#define __GMENG_ALLOW_LOG__ true
+#define __GMENG_ALLOW_LOG__ false
 
 #include <iostream>
+#undef FDEV_SETUP_STREAM
+#define FDEV_SETUP_STREAM(p, g, f) \
+    {                              \
+        .buf = NULL,               \
+        .unget = 0,                \
+        .flags = f,                \
+        .size = 0,                 \
+        .len = 0,                  \
+        .put = p,                  \
+        .get = g,                  \
+        .udata = 0                 \
+    }
 #include "./lib/bin/gmeng.hpp"
 #include "./lib/bin/def/renderer.cpp"
 
