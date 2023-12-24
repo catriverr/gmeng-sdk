@@ -15,7 +15,57 @@ const mac_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.
 const win_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.exe`;
 export namespace builder {
     function lv_objname(v: "txtr" | "mdl"): string { return (v + Math.floor(Math.random()*100000).toString()); };
+    /// string sanitization protocol for all 4.0 framework names
+    function lv_sanitize(s: string) {
+        return (s)
+                .replaceAll(` `, `_`).replaceAll(`+`, `_`).replaceAll(`>`, `_`).replaceAll(`<`, `_`).replaceAll(`,`, `_`)
+                .replaceAll(`[`, `_`).replaceAll(`]`, `_`).replaceAll(`{`, `_`).replaceAll(`}`, `_`).replaceAll(`:`, `_`)
+                .replaceAll(`;`, `_`).replaceAll(`/`, `_`).replaceAll(`\\`, `_`).replaceAll(`)`, `_`).replaceAll(`(`, `_`)
+                .replaceAll(`*`, `_`).replaceAll(`&`, `_`).replaceAll(`^`, `_`).replaceAll(`!`, `_`).replaceAll(`@`, `_`)
+                .replaceAll(`$`, `_`).replaceAll(`#`, `_`).replaceAll(`?`, `_`).replaceAll(`'`, `_`).replaceAll(`"`, `_`);
+    };
 
+    /**
+     * loads a texture from a .gt file
+     */
+    export function load_texture(fname: string): TSGmeng.Texture {
+        if (!existsSync(fname)) throw RangeError(fname + " does not exist | ltxtr(file) -> error");
+        let f_indx = readFileSync(process.cwd() + "/" + fname, `utf-8`);
+        let w_h = [];
+        let name = ``;
+        let collision = true;
+        let v_units: Array<TSGmeng.Unit> = [];
+        f_indx.split(`\n`).forEach((ln, i) => {
+            if (ln.startsWith(`;`)) return;
+            if (i == 0) {
+                let values = ln.split(`,`);
+                values.forEach((param,indx) => {
+                    if (indx == 0) { name = param.substring(5); }; /// name=
+                    if (indx == 1) { w_h[0]=parseInt(param.substring(6)); }; /// width=
+                    if (indx == 2) { w_h[1]=parseInt(param.substring(7)); }; /// height=
+                    if (indx == 3) { collision=(param.substring(10) == "true"); }; /// collision=
+                }); return void 0;
+            }
+            else {
+                let str = ln, params = ln.split(` `);
+                if (str == "__gtransparent_unit__") return v_units.push({
+                    color: 7, transparent: true
+                });
+                v_units.push({
+                    color: parseInt(params[0]),
+                    special: params[1] == "true",
+                    special_clr: parseInt(params[2]),
+                    special_c_unit: params[3]
+                });
+            };
+        });
+        let texture: TSGmeng.Texture = {
+            width: w_h[0], height: w_h[1],
+            collidable: collision, name: name,
+            units: v_units
+        };
+        return texture;
+    };
     export async function texture4_0(name: string = null): Promise<TSGmeng.Texture> {
         process.stdout.write('\x1b[?25l'); // hide cursor
         console.clear();
@@ -26,42 +76,46 @@ export namespace builder {
         };
         let v_filename = ``;
         if (!name) {
-            texture.name = (await tui.show_input_menu("texture name"))
-                .replaceAll(` `, `_`).replaceAll(`+`, `_`).replaceAll(`>`, `_`).replaceAll(`<`, `_`).replaceAll(`,`, `_`)
-                .replaceAll(`[`, `_`).replaceAll(`]`, `_`).replaceAll(`{`, `_`).replaceAll(`}`, `_`).replaceAll(`:`, `_`)
-                .replaceAll(`;`, `_`).replaceAll(`/`, `_`).replaceAll(`\\`, `_`).replaceAll(`)`, `_`).replaceAll(`(`, `_`)
-                .replaceAll(`*`, `_`).replaceAll(`&`, `_`).replaceAll(`^`, `_`).replaceAll(`!`, `_`).replaceAll(`@`, `_`)
-                .replaceAll(`$`, `_`).replaceAll(`#`, `_`).replaceAll(`?`, `_`).replaceAll(`'`, `_`).replaceAll(`"`, `_`);
-                console.clear();
-            };
+            texture.name = lv_sanitize(await tui.show_input_menu("texture name"));
+            console.clear();
+        };
+        let v_continue = true;
         while (texture.name.endsWith(`.gt`)) { texture.name = texture.name.slice(0, -3); /* remove .gt suffix */ };
         v_filename = texture.name + `.gt`;
-        process.stdin.setRawMode(true);
-        let w_h = await tui.show_input_menu("texture size (HeightxWidth | def 0x0)");
-        console.clear();
-        texture.collidable = (await tui.show_input_menu("collision (true/false | def: true)")) == "true";
-        texture.height = parseInt(w_h.split("x")[0]), texture.width = parseInt(w_h.split("x")[1]);
-        for (let i = 0; i < texture.height * texture.width; i++) {
-            texture.units.push({ collidable: texture.collidable, color: 0, special: false, special_c_unit: `X`, special_clr: 1 });
+        if (existsSync(process.cwd() + "/" + v_filename)) {
+            texture = builder.load_texture(v_filename); v_continue = false;
         };
-        console.clear();
+        process.stdin.setRawMode(true);
+        if (v_continue) {
+            let w_h = await tui.show_input_menu("texture size (HeightxWidth | def 0x0)");
+            texture.height = parseInt(w_h.split("x")[0]), texture.width = parseInt(w_h.split("x")[1]);
+            for (let i = 0; i < texture.height * texture.width; i++) {
+                texture.units.push({ collidable: texture.collidable, color: 0, special: false, special_c_unit: `X`, special_clr: 1 });
+            };
+            console.clear();
+            texture.collidable = (await tui.show_input_menu("collision (true/false | def: true)")) == "true";
+            console.clear();
+        };
         console.log(tui.clr(`gmeng::texture v_txtr -> const_l create_static() ; Data :`, `orange`));
         console.log(texture);
         console.clear(); console.log(tui.clr(`gmeng::texture v_txtr ; Preview : `, `orange`));
-        
+        function __gtexture_editor() {
         let v2d_curpos = { x: 0, y: 0 };
         let cur_unit: TSGmeng.Unit = {
             color: 1, transparent: false, special: false, special_c_unit: `X`, special_clr: 0
         };
         let prev_curpos = v2d_curpos;
-        let v1d_curpos = () => { return (v2d_curpos.y*texture.height)+v2d_curpos.x; };
+        let v1d_curpos = () => { return (v2d_curpos.y*texture.width)+v2d_curpos.x; };
         function _urender1(val: TSGmeng.Unit): string { return _urender_basic_unit(val) };
         function _urender(): string { let final_ = ``; for (let i = 0; i < texture.units.length; i++) {  final_ += _urender1(texture.units[i]); }; return final_; };
         console.clear();
         function _uplace_cursor() {
             let minw  = texture.width+2; // +2 is border c_unit and coord_pointers (since /2, we do /2 to +4)
             let v_pos = Math.ceil((process.stdout.columns - minw) / 2);
+            process.stdout.cursorTo(0, process.stdout.rows-2);
+            console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()])} | id: ${v1d_curpos()}`)
             process.stdout.cursorTo(v_pos+v2d_curpos.x, 4 + v2d_curpos.y);
+            if (texture.units[v1d_curpos()].color == cur_unit.color) return process.stdout.write(TSGmeng.bgcolors[cur_unit.color] + TSGmeng.colors[0] +  "+" + TSGmeng.resetcolor);
             process.stdout.write(_urender_basic_unit(cur_unit));
         };
         let _gu_modifiers = [
@@ -153,7 +207,7 @@ export namespace builder {
             let v_rendertime = process.hrtime(v_starttime);
             console.log(tui.center_align(chalk.overline(v_cxs)));
             console.log(tui.make_line(process.stdout.columns, `cyan`));
-            console.log(tui.center_align(tui.clr(`pos: ${v2d_curpos.x},${v2d_curpos.y} | for controls press [shift+tab]`, `blue`)));
+            console.log(tui.center_align(tui.clr(`pos: ${v2d_curpos.x},${v2d_curpos.y} - ${v1d_curpos()} | for controls press [shift+tab]`, `blue`)));
             let v_drawtime = process.hrtime(v_starttime);
             const v_rendertime_ms = v_rendertime[0] * 1000 + v_rendertime[1] / 1e6;
             const v_drawtime_ms = v_drawtime[0] * 1000 + v_drawtime[1] / 1e6;
@@ -287,12 +341,14 @@ export namespace builder {
                     break;
             };
         });
+        };
+        __gtexture_editor();
         return texture;
     };
     export function txstring(texture: TSGmeng.Texture): string {
         let final = `name=${texture.name},width=${texture.width},height=${texture.height},collision=${texture.collidable}\n`;
         texture.units.forEach((unit, i) => {
-            if (unit.transparent) return final += `__gtransparent_unit__`;
+            if (unit.transparent) return final += `__gtransparent_unit__\n`;
             final += `${unit.color} ${unit.special ?? false} ${unit.special_clr ?? 0} ${unit.special_c_unit ?? "!"}\n`;
         });
         final += `; %tsgmeng::builder.texture4_0() -> auto_generated ${(new Date()).toDateString()}`;
@@ -633,7 +689,10 @@ export namespace TSGmeng {
         ls.forEach((j, i) => {
             if ( i == 0 ) { let dt = j.split(`,`); dX = parseInt(dt[0]); dY = parseInt(dt[1]); };
             if ( i == 1 ) { unit.color = parseInt(j); }
-            if ( i == 2 ) { unit.collidable = stob(j) }
+            if ( i == 2 ) { 
+                if (j == "__gtransparent_unit__") return unit.transparent = true, unit.collidable = true;
+                unit.collidable = stob(j) 
+            }
             if ( i == 3 ) { unit.is_entity  = stob(j); }
             if ( i == 4 ) { unit.is_player  = stob(j); }
             if ( i == 5 ) { unit.special = stob(j); }
