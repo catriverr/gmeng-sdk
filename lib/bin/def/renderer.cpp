@@ -34,8 +34,8 @@ namespace Gmeng {
             public:
               std::size_t width; std::size_t height; std::size_t size; drawpoint position;
               std::string name; Gmeng::texture texture; int id;
-              inline void attach_texture(Gmeng::texture __t) { this->texture = __t; };
-              inline void load_texture(std::string __tf) { this->texture = Gmeng::LoadTexture(__tf); };
+              inline void attach_texture(Gmeng::texture __t) { this->texture = __t; }; //! FIXME: width,height values remain unchanged
+              inline void load_texture(std::string __tf) { this->texture = Gmeng::LoadTexture(__tf); }; //! FIXME: width,height values remain unchanged
         };
         struct LevelBase {
             Gmeng::texture lvl_template; std::size_t width; std::size_t height;
@@ -65,12 +65,13 @@ namespace Gmeng {
         std::vector<Gmeng::Unit> draw_model(Gmeng::Renderer::Model __m) {
             std::vector<Gmeng::Unit> unitmap;
             gm_log("job_render *draw_model -> MODEL * size: " + v_str(__m.width * __m.height) + " units | TEXTURE * size: " + v_str(__m.texture.units.size()) + " units");
-            for ( int i = 0; i < __m.height; i++ ) {
-                for ( int j = 0; j < __m.width; j++ ) {
-                    int vpos = (i*__m.width)+j; unitmap.push_back(__m.texture.units[vpos]);
-                    gm_log("job_render *draw_model -> vp_compileUnit (from<texture>->units to<unitmap>->vector) : unit * vpos = " + v_str(vpos+1) + " / " + v_str(__m.texture.units.size()));
+                for ( int i = 0; i < __m.height; i++ ) {
+                    for ( int j = 0; j < __m.width; j++ ) {
+                        int vpos = (i*__m.width)+j; unitmap.push_back(__m.texture.units[vpos]);
+                        gm_log("job_render *draw_model (_vlinear_draw=true) -> vp_compileUnit (from<texture>->units to<unitmap>->vector) : unit * vpos = " + v_str(vpos+1) + " / " + v_str(__m.texture.units.size()));
+                    };
                 };
-            };
+
             gm_log("job_render (draw_model -> vp_compileUnit v_success) v_static_cast<std::vector<units>> total_size : " + v_str(unitmap.size()));
             return unitmap;
         };
@@ -84,18 +85,29 @@ namespace Gmeng {
             return "x=" + v_str(p.x) + ",y=" + v_str(p.y);
         };
         // returns placement coordinates for each coordinate of object at __p with size of __s in mapsize of __ws
-        std::vector<Gmeng::Renderer::drawpoint> get_placement(drawpoint __p, drawpoint __s, drawpoint __ws) {
+        std::vector<Gmeng::Renderer::drawpoint> get_placement(drawpoint __p, drawpoint __s, drawpoint __ws, bool _vlinear_render = false) {
             gm_log("gm::v_renderer -> get_placement : pvalues = 1: " + conv_dp(__p) + " 2: " + conv_dp(__s) + " 3: " + conv_dp(__ws));
             if (getsize(__p) > getsize(__ws) || getsize(__s) > getsize(__ws)) throw std::invalid_argument("placement parameters invalid");
             std::vector<Gmeng::Renderer::drawpoint> vec;
-            if ((__p.x + __s.x <= __ws.x) && (__p.y + __s.y <= __ws.y)) {
-                for (int i = 0; i < __s.x; ++i) {
-                    for (int j = 0; j < __s.y; ++j) {
-                        Gmeng::Renderer::drawpoint point = {.x=__p.x + i, .y=__p.y + j};
-                        vec.push_back(point);
+            if (_vlinear_render) {
+                if ((__p.x + __s.x <= __ws.x) && (__p.y + __s.y <= __ws.y)) {
+                    for (int i = 0; i < __s.x; ++i) {
+                        for (int j = 0; j < __s.y; ++j) {
+                            Gmeng::Renderer::drawpoint point = {.x=__p.x + i, .y=__p.y + j};
+                            vec.push_back(point);
+                        };
                     };
-                };
-            } else { std::cerr << "Gmeng::Renderer::get_placement: e_obj: out of boundaries: __getsize(__p, __s, __ws);" << std::endl; };
+                } else { std::cerr << "Gmeng::Renderer::get_placement: e_obj: out of boundaries: __getsize(__p, __s, __ws);" << std::endl; };
+            } else {
+                if ((__p.x + __s.x <= __ws.x) && (__p.y + __s.y <= __ws.y)) { /// horizontal render
+                    for (int j = 0; j < __s.y; ++j) {
+                        for (int i = 0; i < __s.x; ++i) {
+                            Gmeng::Renderer::drawpoint point = {.x=__p.x + i, .y=__p.y + j};
+                            vec.push_back(point);
+                        }
+                    }
+                } else { std::cerr << "Gmeng::Renderer::get_placement: e_obj: out of boundaries: __getsize(__p, __s, __ws);" << std::endl; };
+            };
             return vec;
         };
         /// returns placement coordinates for a viewpoint within a map sizeof drawpointxy
@@ -149,9 +161,13 @@ namespace Gmeng {
                     else this->camera.MovePlayer(0, plcoords.y, plcoords.x);
                     gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
                     for (int i = 0; i < this->rendered_units.size(); i++) {
-                        if (this->camera.display_map.unitmap[i].is_player) continue;
+                        if (this->camera.display_map.unitmap[i].is_player) { 
+                            this->camera.playerunit.color = this->rendered_units[i].color; /// fix for __gtransparent_unit__ background
+                            continue; 
+                        };
                         this->camera.display_map.unitmap[i] = this->rendered_units[i];
                     };
+                    
                     this->camera.update();
                     this->camera.clear_screen();
                     std::cout << this->camera.draw() << endl;
@@ -227,9 +243,9 @@ namespace Gmeng {
         public:
             std::vector<Gmeng::vd_item<v_type>> values;
             /// returns size of the dictionary
-            inline int size(bool diff) { return this->values.size()-(diff ? 1 : 0); };
+            inline int size(bool diff = 0) { return this->values.size()-(diff ? 1 : 0); };
             /// returns value at the specified index of the dictionary
-            inline v_type indx(v_intl pos) { return this->values.at(pos); };
+            inline v_type indx(v_intl pos) { return (this->values[pos]).data; };
             /// emplaces a value at the end of the dictionary
             inline void addb_l(v_type val) { this->values.push_back(vd_item<v_type> {.id=g_mkid(),.data=val}); };
             /// returns the vector of the dictionary
@@ -259,7 +275,6 @@ namespace Gmeng {
         // we wait until all textures are in vgm_defaults before we load any models
         // afterwards we loop through the vector and load them into Gmeng::vgm_defaults::vg_rdmodels
         std::vector<std::string> q_modelindx;
-        std::cout << "read into vgm" << endl;
         gm_log("_uread_into_vgm() : job_readfile *loop -> ffolder:name = " + folder);
         try {
             for (const auto& entry : fs::directory_iterator(folder)) {
@@ -321,7 +336,6 @@ namespace Gmeng {
         for ( const auto& ln : lines ) {
             /// indx equ ln_num
             if (startsWith(ln, ";")) continue;
-            std::cout << startsWith(ln, ";") << std::endl;
             std::string ln_vcomments = g_splitStr(ln, ";")[0];
             std::vector<std::string> params = g_splitStr(ln_vcomments, " ");
             gm_log(__fn + ": gl_v->line @ " + v_str(indx) + ": " + ln);
@@ -444,6 +458,7 @@ namespace Gmeng {
                     std::vector<Gmeng::Unit> unitmap = Gmeng::Renderer::draw_model(model);
                     gm_log("draw_model OK: unitmap.size(): " + v_str(unitmap.size()) );
                     int lndx = 0;
+                    int i2 = 0;
                     for ( const auto& unit : unitmap ) {
                         if (unit.transparent) { lndx++; continue; };
                         gm_log(v_str(lndx) +" <- pos_vdp: rendering_model_unit PREVIEW: " + this->display.camera.draw_unit(unit) );

@@ -21,5 +21,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "@tsconfig/node-lts-strictest-esm": "^18.12.1"
+  }
 }

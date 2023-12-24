@@ -66,6 +66,7 @@
         "__memory": "cpp",
         "deque": "cpp",
         "future": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "execution": "cpp"
     }
 }

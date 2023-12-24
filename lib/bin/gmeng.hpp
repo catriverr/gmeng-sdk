@@ -302,7 +302,7 @@ namespace Gmeng {
     static std::vector<std::thread> v_threads;
     static std::thread _ucreate_thread(std::function<void()> func) { return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back()); };
     static void        _uclear_threads() { v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end()); };
-    static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); thread.join(); _uclear_threads(); }; };
+    static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); if (thread.joinable()) thread.join(); _uclear_threads(); }; };
 }
 
 static void _gupdate_logc_intvl() {

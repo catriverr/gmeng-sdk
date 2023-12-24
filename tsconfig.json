@@ -1,18 +1,17 @@
 {
-	"compilerOptions": {
-		        "allowJs": true,
-			        "module": "NodeNext",
-				        "target": "ES2022",
-
-					       "moduleResolution": "NodeNext",
-					               "allowSyntheticDefaultImports": true,
-						               "moduleDetection": "force"
-							           
-	},
-	"ts-node": {
-		        "esm": true,
-			        "swc": false
-				    
-	}
-	
+	"$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+        "allowJs": true,
+		"module": "NodeNext",
+		"target": "ES2022",
+		"moduleResolution": "NodeNext",
+        "allowSyntheticDefaultImports": true,
+        "moduleDetection": "force",
+		"esModuleInterop": true
+    },
+    "ts-node": {
+		"compiler": "typescript",
+        "esm": true
+    }
+    
 }

@@ -132,10 +132,50 @@ export namespace tui {
         return tui.colortable.get(clr)(text);
     };
     export const undrln = (text: string) => chalk.underline(text);
-
-    export function capture<Func extends (key: rl.Key) => void>(keys: Array<string>, callback: Func) {
+    export const boldn = (text: string) => chalk.bold(text);
+    export function text_block(text: string) {
+        let width = 0;
+        for (let i = 0; i < text.split(`\n`).length; i++) {
+            let val = text.split(`\n`)[i];
+            if (val.length > width) width = val.length;
+        };
+        console.log(tui.clr(TSGmeng.c_outer_unit.repeat(width+4), `orange`));
+        text.split(`\n`).forEach(vl => { console.log(tui.clr(TSGmeng.c_unit, `orange`) + ` ` + (vl) + ` ` + tui.clr(TSGmeng.c_unit, `orange`)); });
+        console.log(tui.clr(TSGmeng.c_outer_unit_floor.repeat(width+4), `orange`));
+    };
+    export function capture<Func extends (key: rl.Key, ctrl: { closed: boolean; close: () => void } ) => void>(keys: Array<string>, callback: Func) {
+        process.stdin.setRawMode(true);
+        process.stdin.setDefaultEncoding("utf-8");
         rl.emitKeypressEvents(process.stdin);
-        process.stdin.on(`keypress`, (ch: string, key: rl.Key) => { if (key.sequence == `\x03`) process.exit(0); if (keys.includes(key?.name)) callback(key); });
+        let ofl = true;
+        process.stdin.on(`keypress`, (ch: string, key: rl.Key) => { 
+        if (!ofl) return;
+            if (key.sequence == `\x03`) process.stdout.write('\x1b[?25h'), process.exit(0); 
+            if (keys.includes(key?.name) || keys.includes("**")) callback(key, { closed: false, close() { ofl = false; } }); 
+        });
+    };
+    export function show_input_menu(title: string, predefined_input?: string): Promise<string> {
+        return new Promise<string>((resolve) => {
+            let input = predefined_input ?? ``;
+            process.stdin.setRawMode(true);
+            process.stdin.setDefaultEncoding("utf-8");
+            function drawmenu(val: boolean = false) {
+                process.stdout.cursorTo(0, 3);
+                console.log(tui.clr(`+`, `red`) + tui.clr(`-`.repeat(40), `orange`) + tui.clr(`+`, `red`));
+                console.log(tui.clr(`|`, `red`) + tui.clr(` ${title}:` + ` `.repeat(40 - `${title}:`.length - 1), val ? `green` : `cyan`) + tui.clr(`|`, `red`));
+                console.log(tui.clr(`|`, `red`) + tui.clr(`  >`, `green`), tui.clr(input + ` `.repeat(40 - input.length - 4), val ? `green` : `tan`) + tui.clr(`|`, `red`));
+                console.log((tui.clr(`+`, `red`)) + chalk.overline(tui.clr(`-`.repeat(40), `orange`)) + (tui.clr(`+`, `red`)));
+                process.stdout.write(`\x1b[A\x1b[A${tui.rgk.repeat(input.length+5)}`);
+            };
+            tui.capture(["**"], (key, ctrl) => {
+                if (key.sequence == "\r") { ctrl.close(); drawmenu(true); return resolve(input); };
+                if (key.sequence == "\x7F") { input = input.slice(0, -1); drawmenu(); };
+                if (!key || (key?.name?.length > 1 && key?.sequence != ' ')) return drawmenu();
+                input += key.sequence;
+                drawmenu();
+            });
+            drawmenu();
+        });
     };
     export function get_curXY() {
         const screenX = robot.getMousePos().x;
@@ -279,8 +319,8 @@ export namespace tui {
     export let make_box_lid = () => `+${`-`.repeat(Math.floor((process.stdout.columns)/2))}+${`-`.repeat((process.stdout.columns-4)/2)}+`;
     export let find_newlinebig = (text1: string, text2: string): number => text1.split(`\n`).length > text2.split(`\n`).length ? text1.split(`\n`).length : text2.split(`\n`).length;    
     export let create_buttons = (buttons: tui.MenuButton[]) => { let bi = 0; return `\t${buttons.sort((a, b) => a.id-b.id).map(button => { bi++; return `\t${chalk.bold.blue(`[${button.selected ? chalk.underline.blue(button.title) : chalk.white(button.title)}]`)}${bi % 6 == 0 ? `\n` : ``}` }).join('\t')}`; };
-    export let make_line = (length: number = process.stdout.columns, color: string = `blue`) => chalk.bold[color].strikethrough(`${` `.repeat(length)}`);
-    export let center_align = (text: string) => ' '.repeat(Math.floor((process.stdout.columns -1 - remove_colorcodes(text).length) / 2)) + chalk.bold.yellow(text) + ' '.repeat(Math.ceil((process.stdout.columns - remove_colorcodes(text).length) / 2));
+    export let make_line = (length: number = process.stdout.columns, color: tui.colors = `blue`) => chalk.strikethrough(tui.clr(` `.repeat(length), color));
+    export let center_align = (text: string) => ' '.repeat(Math.floor((process.stdout.columns -1 - remove_colorcodes(text).length) / 2)) + (text) + ' '.repeat(Math.ceil((process.stdout.columns - remove_colorcodes(text).length) / 2));
     export let remove_colorcodes = (text: string) => text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
     export interface MenuScreen { title: string; description?: string; buttons: tui.MenuButton[] };
     export class ConsolePage { public id: number; public name: string; public async run(controller: tui.NamespaceController): Promise<number> { return 0; }; };

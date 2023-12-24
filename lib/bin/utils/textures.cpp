@@ -30,6 +30,9 @@ namespace Gmeng {
         if (!file.is_open()) { std::cerr << Gmeng::colors[4] << "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " << __fname << ": e_file_unavailable"; };
         std::vector<std::string> lines; std::string line;
         while (std::getline(file, line)) { lines.push_back(line); };
+        Gmeng::_ucreate_thread([&]() {
+            for (const auto& ln : lines) gm_log(ln);
+        });
         file.close(); int i = 0;
         for ( const auto& ln : lines ) {
             // break if all units have been rendered

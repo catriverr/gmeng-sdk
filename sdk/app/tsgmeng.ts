@@ -14,13 +14,310 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const mac_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
 const win_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.exe`;
 export namespace builder {
-    function lv_objname(v: "txtr" | "mdl") {};
+    function lv_objname(v: "txtr" | "mdl"): string { return (v + Math.floor(Math.random()*100000).toString()); };
 
-    export async function texture4_0(name: string): Promise<void> {
-
+    export async function texture4_0(name: string = null): Promise<TSGmeng.Texture> {
+        process.stdout.write('\x1b[?25l'); // hide cursor
+        console.clear();
+        /// v! important - transparent units
+        let vt_name = name ?? lv_objname("txtr");
+        let texture: TSGmeng.Texture = {
+            height: 0, width: 0, name: vt_name, units: [], collidable: true,
+        };
+        let v_filename = ``;
+        if (!name) {
+            texture.name = (await tui.show_input_menu("texture name"))
+                .replaceAll(` `, `_`).replaceAll(`+`, `_`).replaceAll(`>`, `_`).replaceAll(`<`, `_`).replaceAll(`,`, `_`)
+                .replaceAll(`[`, `_`).replaceAll(`]`, `_`).replaceAll(`{`, `_`).replaceAll(`}`, `_`).replaceAll(`:`, `_`)
+                .replaceAll(`;`, `_`).replaceAll(`/`, `_`).replaceAll(`\\`, `_`).replaceAll(`)`, `_`).replaceAll(`(`, `_`)
+                .replaceAll(`*`, `_`).replaceAll(`&`, `_`).replaceAll(`^`, `_`).replaceAll(`!`, `_`).replaceAll(`@`, `_`)
+                .replaceAll(`$`, `_`).replaceAll(`#`, `_`).replaceAll(`?`, `_`).replaceAll(`'`, `_`).replaceAll(`"`, `_`);
+                console.clear();
+            };
+        while (texture.name.endsWith(`.gt`)) { texture.name = texture.name.slice(0, -3); /* remove .gt suffix */ };
+        v_filename = texture.name + `.gt`;
+        process.stdin.setRawMode(true);
+        let w_h = await tui.show_input_menu("texture size (HeightxWidth | def 0x0)");
+        console.clear();
+        texture.collidable = (await tui.show_input_menu("collision (true/false | def: true)")) == "true";
+        texture.height = parseInt(w_h.split("x")[0]), texture.width = parseInt(w_h.split("x")[1]);
+        for (let i = 0; i < texture.height * texture.width; i++) {
+            texture.units.push({ collidable: texture.collidable, color: 0, special: false, special_c_unit: `X`, special_clr: 1 });
+        };
+        console.clear();
+        console.log(tui.clr(`gmeng::texture v_txtr -> const_l create_static() ; Data :`, `orange`));
+        console.log(texture);
+        console.clear(); console.log(tui.clr(`gmeng::texture v_txtr ; Preview : `, `orange`));
+        
+        let v2d_curpos = { x: 0, y: 0 };
+        let cur_unit: TSGmeng.Unit = {
+            color: 1, transparent: false, special: false, special_c_unit: `X`, special_clr: 0
+        };
+        let prev_curpos = v2d_curpos;
+        let v1d_curpos = () => { return (v2d_curpos.y*texture.height)+v2d_curpos.x; };
+        function _urender1(val: TSGmeng.Unit): string { return _urender_basic_unit(val) };
+        function _urender(): string { let final_ = ``; for (let i = 0; i < texture.units.length; i++) {  final_ += _urender1(texture.units[i]); }; return final_; };
+        console.clear();
+        function _uplace_cursor() {
+            let minw  = texture.width+2; // +2 is border c_unit and coord_pointers (since /2, we do /2 to +4)
+            let v_pos = Math.ceil((process.stdout.columns - minw) / 2);
+            process.stdout.cursorTo(v_pos+v2d_curpos.x, 4 + v2d_curpos.y);
+            process.stdout.write(_urender_basic_unit(cur_unit));
+        };
+        let _gu_modifiers = [
+            {name: `color`, selected: false},
+            {name: `transparent`, selected: false},
+            {name: `special`, selected: false},
+            {name: `special_clr`, selected: false},
+            {name: `special_c_unit`, selected: false}
+        ];
+        let _gu_selected = 0;
+        function __gdraw(active: boolean = false) {
+            process.stdout.cursorTo(0, 4);
+            console.log(tui.make_line(50, active ? `blue` : `grayish`)); 
+            console.log(tui.clr(`brush:`, active ? `blue` : `grayish`));
+            _gu_modifiers.forEach((c, i) => {
+                if (i == _gu_selected) c.selected = true;
+                c.selected ? 
+                console.log(`-> ${tui.clr(c.name, `orange`)} -> ${tui.clr(cur_unit[c.name] + ` `, `green`)}${c.name == `color` || c.name == `special_clr` ? ` ${TSGmeng.colors[cur_unit[c.name]] + TSGmeng.c_unit.repeat(2) + TSGmeng.resetcolor} ` : ``}`) : 
+                console.log(`-- ${tui.clr(c.name, `yellow`)} -> ${tui.clr(cur_unit[c.name] + ` ` ?? `<null>      `, `swamp`)} `);
+                c.selected = false; /// so that when it changes we dont have to trace the previous selection
+            });
+            console.log(tui.clr(`[tab]       to switch selection`, `grayish`));
+            console.log(tui.clr(`[enter]     to increase/switch value`, `grayish`));
+            console.log(tui.clr(`[backspace] to reduce value (only for integers)`, `grayish`));
+            console.log(tui.clr(`[space]     to set value (only for strings)`, `grayish`));
+            console.log(tui.clr(`[esc]       to close this menu`, `grayish`));
+            console.log(tui.make_line(50, active ? `blue` : `grayish`));
+        };
+        async function _unit_modifier_menu() {
+            return new Promise<void>((resolve, reject) => {
+                _udraw_editor(); /// to clear any other menu that might have been displayed beforehand
+                __gdraw(true);
+                tui.capture([`tab`, `return`, `backspace`, `space`, `escape`], (key, ctrl) => {
+                    if (key.name == `escape`) { ctrl.close(); resolve(); return; };
+                    if (key.name == `tab`) { _gu_selected++; if (_gu_selected == _gu_modifiers.length ) _gu_selected = 0; };
+                    if (key.name == `return`) {
+                        let cur_v = cur_unit[_gu_modifiers[_gu_selected].name];
+                        if (typeof(cur_v) == "number") cur_unit[_gu_modifiers[_gu_selected].name]++;
+                        if (typeof(cur_v) == "boolean") cur_unit[_gu_modifiers[_gu_selected].name] = !cur_unit[_gu_modifiers[_gu_selected].name];
+                        if (cur_unit[_gu_modifiers[_gu_selected].name] > 7) cur_unit[_gu_modifiers[_gu_selected].name] = 0;
+                    };
+                    if (key.name == `backspace`) {
+                        let cur_v = cur_unit[_gu_modifiers[_gu_selected].name];
+                        if (typeof(cur_v) == "number") cur_unit[_gu_modifiers[_gu_selected].name]--;
+                        if (typeof(cur_v) == "boolean") cur_unit[_gu_modifiers[_gu_selected].name] = !cur_unit[_gu_modifiers[_gu_selected].name];
+                        if (cur_unit[_gu_modifiers[_gu_selected].name] < 0) cur_unit[_gu_modifiers[_gu_selected].name] = 7;
+                    };
+                    __gdraw(true);
+                });
+            });
+        };
+        let _udrawl = (): string[] => {
+            let final = [];
+            let ln = ``;
+            texture.units.forEach((u, i) => {
+                if (i == 0) { ln += _urender1(u); return; };
+                if (i == texture.units.length - 1) { ln += _urender1(u); final.push(ln); return; };
+                if (i % texture.width == 0) final.push(ln), ln = ``;
+                ln += _urender1(u);
+            });
+            return final;
+        };
+        function _udraw_editor(specification: tui.colors[] = null) {
+            let v_starttime = process.hrtime();
+            process.stdout.cursorTo(0, 0);
+            console.log(tui.center_align(tui.clr(`${texture.name} - ${texture.height}x${texture.width} | ${texture.height} rows, ${texture.width} columns`, `orange`)));
+            process.stdout.cursorTo(0, 0);
+            console.log(tui.clr(`gmeng texture editor`, `dark_red`), tui.clr(`framework: 4.0_glvl`, `red`));
+            console.log(tui.make_line(process.stdout.columns, `cyan`));
+            /// x coordinate writing
+            let v_cxs = (` `);
+            for (let i = 0; i < texture.width; i++) { v_cxs += (i % 10 == 0 ? chalk.bold.white.underline(((i / 10 != 0) ? (i / 10) : i / 10).toString()[((i / 10 != 0) ? (i / 10) : i / 10).toString().length > 1 ? 1 : 0]) : chalk.dim((i > 10 ? (i % 10) : i).toString())); }; v_cxs += (` `);
+            console.log(tui.center_align(chalk.overline(v_cxs)));
+            if (!specification) {
+                (border(_udrawl(), texture.width)).split(`\n`).forEach((ln: string, indx: number) => {
+                    if (indx == 0 || indx == (texture.height+1)) return console.log(tui.center_align(ln));
+                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
+                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                    console.log(tui.center_align((v_lnidx) + ln + v2_lnidx));
+                }); 
+            } else {
+                (border(_udrawl(), texture.width)).split(`\n`).forEach((ln: string, indx: number) => {
+                    if (indx == 0 || indx == (texture.height+1)) return console.log(tui.center_align(ln));
+                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
+                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                    console.log(tui.center_align((v_lnidx) + (specification[indx] ? tui.clr(tui.remove_colorcodes(ln), specification[indx]) : ln) + v2_lnidx));
+                });
+            };
+            let v_rendertime = process.hrtime(v_starttime);
+            console.log(tui.center_align(chalk.overline(v_cxs)));
+            console.log(tui.make_line(process.stdout.columns, `cyan`));
+            console.log(tui.center_align(tui.clr(`pos: ${v2d_curpos.x},${v2d_curpos.y} | for controls press [shift+tab]`, `blue`)));
+            let v_drawtime = process.hrtime(v_starttime);
+            const v_rendertime_ms = v_rendertime[0] * 1000 + v_rendertime[1] / 1e6;
+            const v_drawtime_ms = v_drawtime[0] * 1000 + v_drawtime[1] / 1e6;
+            _uplace_cursor();
+            process.stdout.cursorTo(0, 5 + texture.height);
+            process.stdout.write(tui.clr(`render: ${tui.clr(v_rendertime_ms.toString() + `ms`, `yellow`)} | draw: ${tui.clr(v_drawtime_ms.toString() + `ms`, `yellow`)} | fps: ${tui.clr(Math.floor(1000 / v_drawtime_ms).toString(), `yellow`)}`, `dark_red`))
+        };
+        _udraw_editor();
+        __gdraw();
+        setTimeout(() => { _udraw_editor(); }, 5000);
+        let v_menu_paused = false;
+        let _ulast = texture;
+        let kc = (str: string, color: tui.colors = `blue`) => tui.clr(str, color);
+        tui.capture([`d`, `escape`, `tab`, `space`, `up`, `down`, `right`, `left`, `pageup`, `pagedown`, `m`, `b`, `q`], async (key, ctrl) => {
+            if (v_menu_paused) return;
+            if (key.sequence == `\x04`) {
+                let vprev = texture;
+                texture = _ulast;
+                _ulast = vprev;
+                return _udraw_editor();
+            }; 
+            _ulast = texture;
+            switch (key.name) {
+                case `q`:
+                    if (!key.ctrl) return _udraw_editor();
+                    let varr_clist: Array<tui.colors> = [];
+                    for (let i = 0; i < texture.height+2; i++) {
+                        varr_clist[i-1] = "green";
+                        varr_clist.push("swamp");
+                        _udraw_editor(varr_clist);
+                    };
+                    console.clear();
+                    console.log(`\n`.repeat(Math.floor(process.stdout.rows / 2)));
+                    console.log(tui.center_align(tui.clr(`save & quit...`, `dark_red`)));
+                    let txstr = builder.txstring(texture);
+                    writeFileSync(process.cwd() + `/${v_filename}`, txstr);
+                    console.log(`\n`.repeat(Math.floor(process.stdout.rows / 2)));
+                    process.exit(1);
+                    break;
+                case `space`:
+                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].color = cur_unit.color;
+                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special = cur_unit.special;
+                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special_clr = cur_unit.special_clr;
+                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special_c_unit = cur_unit.special_c_unit;
+                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].transparent = cur_unit.transparent;
+                    process.stdout.cursorTo(0, 3);
+                    console.log(texture.units.findIndex(v=>v.color==cur_unit.color), texture.units.find(v=>v.color==cur_unit.color));
+                    await tui.await_keypress();
+                    _udraw_editor();
+                    break;
+                case `right`:
+                    if (v2d_curpos.x + 1 > texture.width-1) { _udraw_editor(); break; };
+                    prev_curpos = v2d_curpos;
+                    if (key.shift && v2d_curpos.x + 3 <= texture.width-1) v2d_curpos.x += 2;
+                    v2d_curpos.x++;
+                    _udraw_editor();
+                    break;
+                case `left`:
+                    if (v2d_curpos.x - 1 < 0) { _udraw_editor(); break; };
+                    prev_curpos = v2d_curpos;
+                    if (key.shift && v2d_curpos.x - 3 >= 0) v2d_curpos.x -= 2;
+                    v2d_curpos.x--;
+                    _udraw_editor();
+                    break;
+                case `up`:
+                    if (v2d_curpos.y - 1 < 0) { _udraw_editor(); break; };
+                    prev_curpos = v2d_curpos;
+                    if (key.shift && v2d_curpos.y - 3 >= 0) v2d_curpos.y -= 2;
+                    v2d_curpos.y--; 
+                    _udraw_editor();
+                    break;
+                case `down`:
+                    if (v2d_curpos.y + 1 > texture.height - 1) { _udraw_editor(); break; };
+                    prev_curpos = v2d_curpos;
+                    if (key.shift && v2d_curpos.y + 3 <= texture.height-1) v2d_curpos.y += 2;
+                    v2d_curpos.y++;
+                    _udraw_editor();
+                    break;
+                case `pageup`:
+                    prev_curpos = v2d_curpos;
+                    v2d_curpos.y = 0; _udraw_editor();
+                    break;
+                case `pagedown`:
+                    prev_curpos = v2d_curpos;
+                    v2d_curpos.y = texture.height-1; _udraw_editor();
+                    break;
+                case `tab`: 
+                    if (!key.shift) { 
+                        prev_curpos = v2d_curpos;
+                        if (v2d_curpos.x == texture.width-1) v2d_curpos.x = 0;
+                        else v2d_curpos.x = texture.width-1;
+                        _udraw_editor(); break; 
+                    };
+                    __gdraw(true);
+                    process.stdout.cursorTo(0, texture.height-27);
+                    console.log(kc(`keys:`, `dark_red`));
+                    console.log(kc(`[shift+tab]  `), kc(`->`, `grayish`), kc(`show controls`, `pink`));
+                    console.log(kc(`[tab]        `), kc(`->`, `grayish`), kc(`set cursor X to max or 0`, `pink`));
+                    console.log(kc(`[space]      `), kc(`->`, `grayish`), kc(`place unit at cursor`, `pink`));
+                    console.log(kc(`[esc]        `), kc(`->`, `grayish`), kc(`exits editor`, `pink`));
+                    console.log(kc(`[shift+m]    `), kc(`->`, `grayish`), kc(`unit modifiers menu`, `pink`))
+                    console.log(kc(`[→ ← ↑ ↓]    `), kc(`->`, `grayish`), kc(`control cursor`, `pink`))
+                    console.log(kc(`[pageup]     `), kc(`->`, `grayish`), kc(`set cursor Y to 0`, `pink`))
+                    console.log(kc(`[pagedown]   `), kc(`->`, `grayish`), kc(`set cursor Y to max`, `pink`))
+                    console.log(kc(`[b]          `), kc(`->`, `grayish`), kc(`returns to last cursor position`, `pink`))
+                    console.log(tui.make_line(50, `blue`));
+                    await tui.usleep(10000);
+                    _udraw_editor(); 
+                    break;
+                case `escape`:
+                    _udraw_editor();
+                    v_filename = await tui.show_input_menu(`enter filename (_usavetx)`, v_filename);
+                    process.stdout.cursorTo(0, 7);
+                    console.log(`saving texture -> _uconv_tracer1x_txstring(${texture.name})\nv_result -> ${v_filename} _usavetx() ; ${texture.width},${texture.height} collision=${texture.collidable}`)
+                    let v_texture_string = builder.txstring(texture);
+                    writeFileSync(process.cwd() + `/${v_filename}`, v_texture_string);
+                    console.log(tui.clr(`save successful`, `green`));
+                    await tui.usleep(1000);
+                    _udraw_editor();
+                    break;
+                case `m`:
+                    if (!key.shift) { _udraw_editor(); break; };
+                    v_menu_paused = true;
+                    await _unit_modifier_menu();
+                    v_menu_paused = false;
+                    _udraw_editor();
+                    break;
+                case `b`:
+                    v2d_curpos = prev_curpos;
+                    _udraw_editor(); 
+                    break;
+            };
+        });
+        return texture;
     };
-    export async function model4_0  (name: string): Promise<void> {
-
+    export function txstring(texture: TSGmeng.Texture): string {
+        let final = `name=${texture.name},width=${texture.width},height=${texture.height},collision=${texture.collidable}\n`;
+        texture.units.forEach((unit, i) => {
+            if (unit.transparent) return final += `__gtransparent_unit__`;
+            final += `${unit.color} ${unit.special ?? false} ${unit.special_clr ?? 0} ${unit.special_c_unit ?? "!"}\n`;
+        });
+        final += `; %tsgmeng::builder.texture4_0() -> auto_generated ${(new Date()).toDateString()}`;
+        return final;
+    };
+    export async function model4_0(name: string): Promise<TSGmeng.Model> {
+        return;
+    };
+    /**
+     * renders a basic unit (does not support special colors or c_ent_tags \ players \ entities \ etc)
+     */
+    export function _urender_basic_unit(v: TSGmeng.Unit): string {
+        if (v.special && v.special_clr != null && v.special_c_unit != null) {
+            return TSGmeng.bgcolors[v.special_clr] + v.special_c_unit + TSGmeng.resetcolor;
+        };
+        if (v.transparent) {
+            return TSGmeng.colors[4] + TSGmeng.bgcolors[7] + `#` + TSGmeng.resetcolor;
+        };
+        return TSGmeng.colors[v.color] + (TSGmeng.c_unit) + TSGmeng.resetcolor;
+    };
+    export function border(text: string[], width: number): string {
+        let final = ``;
+        final += text.map(ln => `${tui.clr(TSGmeng.c_unit, `orange`)}${ln}${tui.clr(TSGmeng.c_unit, `orange`)}`).join(`\n`)
+        return  tui.clr(`${TSGmeng.c_outer_unit.repeat(width+2)}`, `orange`) + `\n` +
+        final + `\n` + tui.clr(`${TSGmeng.c_outer_unit_floor.repeat(width+2)}`, `orange`);
     };
     /**
     editor for the `gm4.0-glvl` gamemap framework.
@@ -98,6 +395,7 @@ export namespace builder {
         if (mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`) != null) WMAP_UNITS = TSGmeng.ReadMapData(worldData, mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`).content);
         else for (let i = 0; i < worldData._w * worldData._h; i++) {
             WMAP_UNITS.push({
+                transparent: false,
                 collidable: true,
                 color: 7,
                 entity: null,
@@ -114,7 +412,7 @@ export namespace builder {
         let SIZEX = 1; let SIZEY = 1; let SELECTCLR = 0;
         let POSX = 0; let POSY = 0;
         let currnt_unit: TSGmeng.Unit = {
-            color: SELECTCLR, entity: null, is_entity: false, is_player: false,
+            color: SELECTCLR, entity: null, is_entity: false, is_player: false, transparent: false,
             collidable: false, player: null, special: false, special_clr: 0, special_c_unit: `!`,
         };
         function draw() {
@@ -191,7 +489,7 @@ export namespace builder {
                     };
                     highlighted_unitIds.map(unitCoords => {
                         WMAP_UNITS[(worldData._h*(unitCoords.y))+unitCoords.x] = {
-                            color: SELECTCLR, entity: null, is_entity: false, is_player: false,
+                            color: SELECTCLR, entity: null, is_entity: false, is_player: false, transparent: false,
                             collidable: currnt_unit.collidable, player: null, special: false, special_clr: 0, special_c_unit: `!`,
                         };
                         return void 0;
@@ -207,6 +505,9 @@ export namespace builder {
 export namespace TSGmeng {
     export const colors: Array<string> = [
         "\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m"
+    ];    
+    export const bgcolors: Array<string> = [
+        "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m"
     ];
     export const resetcolor = "\x1b[0m";
     export const c_unit = "\u2588";
@@ -222,12 +523,21 @@ export namespace TSGmeng {
         colored: boolean; colorId: number;
         c_ent_tag: string;
     };
-    export interface Unit {
-        color: number; collidable: boolean;
-        is_entity: boolean; is_player: boolean;
-        special: boolean; special_clr: number;
-        entity: TSGmeng.Entity; player: TSGmeng.Player;
-        special_c_unit: string;
+    export interface coord { x: number; y: number; };
+    export interface Model {
+        name: string; id: number; units: Array<TSGmeng.Unit>; size: number;
+        texture: TSGmeng.Texture; width: number; height: number; pos: TSGmeng.coord;
+    };
+    export interface Texture {
+        name: string; units: Array<TSGmeng.Unit>;
+        width: number; height: number; collidable: boolean;
+    };
+    export class Unit {
+        color: number; collidable?: boolean = true; transparent?: boolean = false;
+        is_entity?: boolean; is_player?: boolean;
+        special?: boolean; special_clr?: number;
+        entity?: TSGmeng.Entity; player?: TSGmeng.Player;
+        special_c_unit?: string;
     };
     export class Entity {
         entityId: number; textureId: number; colorId: number;
@@ -314,7 +624,7 @@ export namespace TSGmeng {
     export function StringToUnit(data: string): {unit: TSGmeng.Unit, dX: number, dY: number} {
         let ls = data.split(` `);
         let unit: TSGmeng.Unit = {
-            collidable: false, is_entity: false,
+            collidable: false, is_entity: false, transparent: false,
             color: 0, entity: null, special: false,
             is_player: false, player: null, special_clr: 0,
             special_c_unit: ''
@@ -420,7 +730,7 @@ export namespace TSGmeng {
         public async launchGame(): Promise<void> {
             return new Promise<void>((resolve, reject) => {
                 let proc__a = spawn(`${this.gmeng_dir}`, { stdio: ['pipe', 'pipe', 'pipe'] });
-                process.stdout.write('\x1b[?25l');
+                process.stdout.write('\x1b[?25l'); // hide cursor
                 proc__a.on(`exit`, () => { this.app_exit(), resolve(); });
                 process.on(`exit`, () => { this.app_exit(), resolve(); });
                 proc__a.stdout.on(`data`, (data: Buffer) => {

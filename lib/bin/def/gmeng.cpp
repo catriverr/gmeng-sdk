@@ -166,6 +166,9 @@ namespace Gmeng {
         };
 		inline std::string draw_unit(Gmeng::Unit __u) {
 			Gmeng::Unit current_unit = __u;
+			if (current_unit.transparent) {
+				return Gmeng::colors[7] + Gmeng::c_unit + Gmeng::resetcolor;
+			};
 			if (current_unit.is_player) {
 				std::string final = "\x1B[4"+Gmeng::colorids[this->playerunit.color]+"m" + (this->playerunit.color == 0 ? Gmeng::colors[8] : Gmeng::colors[current_unit.color]) + current_unit.player.c_ent_tag + Gmeng::resetcolor;
 				return final;
