@@ -97,7 +97,7 @@ export namespace tui {
     export const rgk = `\u001b[C`
     
     export type colors = `dark_red` | `red` | `black` | `cyan` | `swamp` | `yellow` | `pink` | `green` | `blue` | `tan` | `grayish` | `orange`;
-
+    export const color_names: colors[] = [`dark_red`, `red`, /*`black`,*/ `cyan`, /*`swamp`,*/ `yellow`, `pink`, `green`, `blue`, `tan`, `grayish`, `orange`];
     export let button_storage: Array<Function> = [];
     export const colortable: Map<tui.colors, ChalkInstance> = new Map<colors, ChalkInstance>([
         [`red`, chalk.bold.rgb(244, 73, 52)],
@@ -133,6 +133,8 @@ export namespace tui {
     };
     export const undrln = (text: string) => chalk.underline(text);
     export const boldn = (text: string) => chalk.bold(text);
+    export const show_cursor = () => process.stdout.write('\u001B[?25h\u001B[?0c');
+    export const hide_cursor = () => process.stdout.write('\u001B[?25l\u001B[?1c');
     export function text_block(text: string) {
         let width = 0;
         for (let i = 0; i < text.split(`\n`).length; i++) {
@@ -320,7 +322,7 @@ export namespace tui {
     export let find_newlinebig = (text1: string, text2: string): number => text1.split(`\n`).length > text2.split(`\n`).length ? text1.split(`\n`).length : text2.split(`\n`).length;    
     export let create_buttons = (buttons: tui.MenuButton[]) => { let bi = 0; return `\t${buttons.sort((a, b) => a.id-b.id).map(button => { bi++; return `\t${chalk.bold.blue(`[${button.selected ? chalk.underline.blue(button.title) : chalk.white(button.title)}]`)}${bi % 6 == 0 ? `\n` : ``}` }).join('\t')}`; };
     export let make_line = (length: number = process.stdout.columns, color: tui.colors = `blue`) => chalk.strikethrough(tui.clr(` `.repeat(length), color));
-    export let center_align = (text: string) => ' '.repeat(Math.floor((process.stdout.columns -1 - remove_colorcodes(text).length) / 2)) + (text) + ' '.repeat(Math.ceil((process.stdout.columns - remove_colorcodes(text).length) / 2));
+    export let center_align = (text: string) => ' '.repeat(Math.ceil((process.stdout.columns -1 - remove_colorcodes(text).length) / 2) > 0 ? Math.ceil((process.stdout.columns -1 - remove_colorcodes(text).length) / 2) : 1) + (text) + ' '.repeat(Math.ceil((process.stdout.columns - remove_colorcodes(text).length) / 2) > 0 ? Math.floor((process.stdout.columns - remove_colorcodes(text).length) / 2) : 1);
     export let remove_colorcodes = (text: string) => text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
     export interface MenuScreen { title: string; description?: string; buttons: tui.MenuButton[] };
     export class ConsolePage { public id: number; public name: string; public async run(controller: tui.NamespaceController): Promise<number> { return 0; }; };

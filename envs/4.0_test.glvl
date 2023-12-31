@@ -2,8 +2,8 @@
 ;
 ; metadata:
 ;     AUTHOR: catriverr
-;     CREATED AT: 20 November 2023
-;     LAST MODIFIED: 4  December 2023
+;     CREATED AT: 20th November 2023
+;     LAST MODIFIED: 30th December 2023
 ;
 ; for testing the libgmeng abi 4.0 glvl utility and the
 ; libgmeng abi 5.0 vgm relative gmeng vectors utilities.
@@ -12,6 +12,8 @@ desc=test level for libgmeng 4.0 & 5.0 abi; testing variable names
 base_texture=g_template1 ; testing inline comments
 chunk_size=5,5
 
+; textures
+; syn -> #texture <macro> <filename | vgm_id>
 #texture tx_1a tx_model1 ; loads tx_model1 | does not require filename since this is a vgm texture, comes default | rainbow with dent in whiteline
 #texture tx_1b tx_model2 ; loads tx_model2 | vgm default texture | rainbow stripes
 #texture tx_0x g_template1 ; skybox texture [10x10 blue rectangle]
@@ -44,12 +46,14 @@ chunk_size=5,5
 ; remain editable even after libgmeng 6.0, since we believe that it comes in handy in specific times where very minor changes are needed from time to time.
 
 ; models
+; syn -> #model <name> px=<posX> py=<posY> w=<width> h=<height> tx=<texture>
 #model mdl_1a px=0 py=0 w=5 h=3 tx=tx_1a
 #model mdl_1b px=0 py=1 w=5 h=3 tx=tx_1b
 #model mdl_0x px=0 py=0 w=10 h=10 tx=tx_0x
 
 
 ; chunks
+; syn -> #chunk p1x=<viewpointstart_x> p1y=<viewpointstart_y> p2x=<viewpointend_x> p2y=<viewpointend_y> <mdl1>,<mdl2>,<mdl3>...
 #chunk p1x=0 p1y=0 p2x=4 p2y=4 mdl_1a
 #chunk p1x=5 p1y=5 p2x=9 p2y=9 mdl_1b
 

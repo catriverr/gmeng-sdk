@@ -34,7 +34,7 @@ namespace Gmeng {
             public:
               std::size_t width; std::size_t height; std::size_t size; drawpoint position;
               std::string name; Gmeng::texture texture; int id;
-              inline void attach_texture(Gmeng::texture __t) { this->texture = __t; }; //! FIXME: width,height values remain unchanged
+              inline void attach_texture(Gmeng::texture __t) { this->texture = __t; this->width = __t.width; this->height = __t.height; };
               inline void load_texture(std::string __tf) { this->texture = Gmeng::LoadTexture(__tf); }; //! FIXME: width,height values remain unchanged
         };
         struct LevelBase {

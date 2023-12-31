@@ -4,7 +4,7 @@ import * as Plib from '../../plib/src/index.js';
 import { BaseCfgTemplate, Directory } from "../../plib/lib/dirhandle.js";
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import {existsSync, readFileSync, truncate, unlinkSync, writeFileSync } from "fs";
+import {existsSync, readFileSync, readdirSync, truncate, unlinkSync, writeFileSync } from "fs";
 import { ChildProcess, spawn } from "child_process";
 import { Key, emitKeypressEvents } from "readline";
 import EventEmitter from "events";
@@ -28,7 +28,7 @@ export namespace builder {
     /**
      * loads a texture from a .gt file
      */
-    export function load_texture(fname: string): TSGmeng.Texture {
+    export function load_texture(fname: string): TSGmeng.fw4_texture {
         if (!existsSync(fname)) throw RangeError(fname + " does not exist | ltxtr(file) -> error");
         let f_indx = readFileSync(process.cwd() + "/" + fname, `utf-8`);
         let w_h = [];
@@ -59,19 +59,19 @@ export namespace builder {
                 });
             };
         });
-        let texture: TSGmeng.Texture = {
+        let texture: TSGmeng.fw4_texture = {
             width: w_h[0], height: w_h[1],
             collidable: collision, name: name,
             units: v_units
         };
         return texture;
     };
-    export async function texture4_0(name: string = null): Promise<TSGmeng.Texture> {
+    export async function texture4_0(name: string = null): Promise<TSGmeng.fw4_texture> {
         process.stdout.write('\x1b[?25l'); // hide cursor
         console.clear();
         /// v! important - transparent units
         let vt_name = name ?? lv_objname("txtr");
-        let texture: TSGmeng.Texture = {
+        let texture: TSGmeng.fw4_texture = {
             height: 0, width: 0, name: vt_name, units: [], collidable: true,
         };
         let v_filename = ``;
@@ -345,7 +345,7 @@ export namespace builder {
         __gtexture_editor();
         return texture;
     };
-    export function txstring(texture: TSGmeng.Texture): string {
+    export function txstring(texture: TSGmeng.fw4_texture): string {
         let final = `name=${texture.name},width=${texture.width},height=${texture.height},collision=${texture.collidable}\n`;
         texture.units.forEach((unit, i) => {
             if (unit.transparent) return final += `__gtransparent_unit__\n`;
@@ -379,7 +379,7 @@ export namespace builder {
     editor for the `gm4.0-glvl` gamemap framework.
     
     this framework is the recommended and preferred way to handle maps.
-    it uses chunking to divide a big 'skybox'-like texture's width-hight information into a display.
+    it uses chunking to divide a big 'skybox'-like texture's width-height information into a display.
     a display then renders a chunk and displays it to the screen with a CameraView instance.
     This provides the ability to infinitely expand levels, instead of a hard-capped 300x300 top-down view limit on the `gm1.1-sdk` framework.
 
@@ -387,7 +387,13 @@ export namespace builder {
     from a .glcp (gmeng-level-compiler-parameters) file
     */
     export async function framework4_0(args: string[]): Promise<void> {
+        console.clear();
+        let fname = await tui.show_input_menu("enter filename");
+        fname = lv_sanitize(fname);
+        while (fname.endsWith(".gt")) { fname = fname.slice(0, -3); }; // remove extensions
+        if (existsSync(process.cwd() + "/" + fname)) {
 
+        };
     };
     /**
     editor for the `gm1.1-sdk` gamemap framework. 
@@ -558,6 +564,109 @@ export namespace builder {
     };
 };
 
+export namespace vgm_defaults {
+    export let vg_rdmodels: Map<string, TSGmeng.fw4_model> = new Map;
+    export let vg_textures: Map<string, TSGmeng.fw4_texture> = new Map;
+};
+const __vgm_err6556_contl__ = `libts-gmeng: __vgm_init__ failed: no vgm directory (./envs/models does not exist)`;
+const __vgm_err6557_unimpl_e__ = `libts-gmeng: __vgm_init__ failed: tsgmeng currently does not support .mdl files`;
+const __gm_err_unimpl_e__ = `libts-gmeng: unknown error`;
+export namespace gm_parsers {
+    export declare namespace gmeng {};
+    export function __vgm_init__() {
+        if (!existsSync(`./envs/models`)) throw new RangeError((__vgm_err6556_contl__ ?? __gm_err_unimpl_e__));
+        readdirSync(`${process.cwd()}/envs/models`).forEach((fl, indx) => {
+            if (fl.endsWith(`.gt`)) { let dv = builder.load_texture(`./envs/models/${fl}`); vgm_defaults.vg_textures.set(dv.name, dv); }
+            else throw new TypeError((__vgm_err6557_unimpl_e__ ?? __gm_err_unimpl_e__));
+        });
+    };
+};
+
+export namespace gm_parsers.fw4_0 {
+    export function __chunk__(v_str: string): { chunk: TSGmeng.fw4_chunk, model_macros: Array<string> } {
+        // #chunk p1x=<num> p1y=<num> p2x=<num> p2y=<num> <mdl1>,<mdl2>
+        let data = v_str.split(` `).slice(1); // remove keyword
+        let v_models: Array<string> = data[4].split(`,`); // macros for models (used in __glvl__)
+        let chunk: TSGmeng.fw4_chunk = {
+            vp: {
+                start: {
+                    x: parseInt(data[0].substring(4)),
+                    y: parseInt(data[1].substring(4))
+                },
+                end: {
+                    x: parseInt(data[2].substring(4)),
+                    y: parseInt(data[3].substring(4))
+                },
+            },
+            models: []
+        };
+        return { chunk, model_macros: v_models };
+    };
+    export function __txtr__(v_str: string): { txtr: TSGmeng.fw4_texture, macro: string } {
+        // #texture <macro> <filename | vgm_id>
+        let data = v_str.split(` `).slice(1); // remove keyword
+        let gtx = vgm_defaults.vg_textures.has(data[1]) ? vgm_defaults.vg_textures.get(data[1]) : builder.load_texture(data[1])
+        return {
+            macro: data[0],
+            txtr: gtx
+        };
+    };
+    export function __mdl__(v_str: string): { mdl: TSGmeng.fw4_model, macro: string, txtr_macro: string } {
+        // #model <macro> px=<num> py=<num> w=<num> h=<num> tx=<macro>
+        let data = v_str.split(` `).slice(1);
+        return {
+            mdl: {
+                position: { x: parseInt(data[1].substring(3)), y: parseInt(data[2].substring(3)) },
+                width:  parseInt(data[3].substring(2)), height: parseInt(data[4].substring(2)),
+                get size() { return this.width * this.height; },
+                texture: null, name: data[0]
+            },
+            macro: data[0],
+            txtr_macro: data[5].substring(3)
+        };
+    };
+    export function __glvl__(v_str: string): TSGmeng.fw4_levelinfo {
+        gm_parsers.__vgm_init__(); // load defaults into vgm
+        let textures: Map<string, TSGmeng.fw4_texture> = new Map;
+        let models: Map<string, TSGmeng.fw4_model> = new Map;
+        vgm_defaults.vg_rdmodels.forEach((mdl) => { models.set(mdl.name, mdl); });
+        vgm_defaults.vg_textures.forEach((txr) => { textures.set(txr.name, txr); });
+        let lvl: TSGmeng.fw4_levelinfo;
+        let lines = v_str.split(`\n`).filter(ln => !ln.startsWith(`;`) && ln.length > 1 && ln.replaceAll(` `, ``).length > 0);
+        let a_lbase: Array<string> = [];
+        let v_lbase: TSGmeng.fw4_lbase;
+        lines.forEach((ln: string, indx: number) => {
+            let line = ln.split(`;`)[0];
+            let data = line.split(` `);
+            if ([0,1,2,3].includes(indx)) return a_lbase.push(line);
+            //! FIXME: chunk_size and similar values are not initialized and set correctly
+            //! this implementation of a level loader would not work
+            if (indx == 4) { v_lbase = __lbase__(a_lbase); lvl.base = v_lbase; delete a_lbase[0], a_lbase[1], a_lbase[2], a_lbase[3]; };
+            switch (data[0]) {
+                case `#texture`:
+                    let vtx = __txtr__(line);
+                    textures.set(vtx.macro, vtx.txtr);
+                    break;
+                case `#model`:
+                    let vmdl = __mdl__(line);
+                    vmdl.mdl.texture = textures.get(vmdl.txtr_macro);
+                    models.set(vmdl.macro, vmdl.mdl);
+                    break;
+                case `#chunk`:
+                    let vchunk = __chunk__(line);
+                    vchunk.model_macros.forEach((macro) => { vchunk.chunk.models.push(models.get(macro)); });
+                    lvl.chunks.push(vchunk.chunk);
+                    break;
+            };
+        });
+        return lvl;
+    };
+    export function __lbase__(v_arr: Array<string>): TSGmeng.fw4_lbase {
+        let lbase: TSGmeng.fw4_lbase;
+        return lbase;
+    };
+};
+
 export namespace TSGmeng {
     export const colors: Array<string> = [
         "\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m"
@@ -579,12 +688,35 @@ export namespace TSGmeng {
         colored: boolean; colorId: number;
         c_ent_tag: string;
     };
+    export interface fw4_lbase {
+        lvl_template: fw4_texture; width: number; height: number;
+    };
+    export interface fw4_drawpoint { x: number; y: number; };
+    export interface fw4_viewpoint { start: fw4_drawpoint; end: fw4_drawpoint; };
+    export class fw4_model {
+        public width: number; public height: number; position: fw4_drawpoint;
+        public name: string; public id?: number = Math.floor(Math.random() * 10000000); public texture: fw4_texture;
+        private get_pointXY?(pos: number): fw4_drawpoint {
+            return { x: (pos % this.width), y: (pos / this.width) };
+        };
+        public get size() { return (this.width * this.height); };
+        public load_texture?(__tf: string): void { this.texture = builder.load_texture(__tf); };
+        public attach_texture?(__t: fw4_texture): void { this.texture = __t; };
+    };
+    export interface fw4_chunk {
+        vp: fw4_viewpoint;
+        models: Array<fw4_model>;
+    };
+    export interface fw4_levelinfo {
+        base: fw4_lbase; name: string; display_res: Array<number>;
+        chunks: Array<fw4_chunk>; description: string;
+    };
     export interface coord { x: number; y: number; };
     export interface Model {
         name: string; id: number; units: Array<TSGmeng.Unit>; size: number;
-        texture: TSGmeng.Texture; width: number; height: number; pos: TSGmeng.coord;
+        texture: TSGmeng.fw4_texture; width: number; height: number; pos: TSGmeng.coord;
     };
-    export interface Texture {
+    export interface fw4_texture {
         name: string; units: Array<TSGmeng.Unit>;
         width: number; height: number; collidable: boolean;
     };
