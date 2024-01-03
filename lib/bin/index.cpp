@@ -35,7 +35,7 @@ int main( int argc, char** argv ) {
 	const std::size_t _w = 1; const std::size_t _h = 1;
 	Gmeng::CameraView<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
 	world.SetResolution(wdata._w, wdata._h);
-	world.SetPlayer(0, Objects::G_Player {.c_ent_tag = wdata.player.c_ent_tag, .colored = wdata.player.colored, .colorId=0, .entityId=0, .textured=false, .textureId=0 }, wdata.player.startDX, wdata.player.startDY);
+	world.SetPlayer(0, Objects::G_Player { .entityId=0, .textureId=0, .colorId=0, .textured=false, .colored = wdata.player.colored, .c_ent_tag = wdata.player.c_ent_tag }, wdata.player.startDX, wdata.player.startDY);
 	world.update();
 	std::cout << world.draw() << endl;
     std::string line;
@@ -96,8 +96,8 @@ int main( int argc, char** argv ) {
 			world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent,
 				world.event_handler.gen_estr(
 					Gmeng::event {
-						.id=Gmeng::CONSTANTS::PE_Type1,
 						.name="command_ran",
+						.id=Gmeng::CONSTANTS::PE_Type1,
 						.params={ g_joinStr(command, " ") }
 					})
 			);
@@ -113,9 +113,9 @@ int main( int argc, char** argv ) {
                         Gmeng::Unit {
                             .color=4,
                             .collidable=true,
-                            .special=false,
                             .is_player=false,
-                            .is_entity=false
+                            .is_entity=false,
+                            .special=false,
                     });
                 };
                 world.set_curXY(world.h+2,-1);
@@ -179,8 +179,8 @@ int main( int argc, char** argv ) {
                 g_setTimeout([&]() {
                     world.event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent,
                         world.event_handler.gen_estr(Gmeng::event {
-                            .id=Gmeng::CONSTANTS::PE_Type2,
                             .name="modifier_change",
+                            .id=Gmeng::CONSTANTS::PE_Type2,
                             .params = {
                                command[1], // modifier name
                                std::to_string(oldvalue), // old value

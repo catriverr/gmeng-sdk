@@ -2,7 +2,7 @@ import chalk, { ChalkInstance } from "chalk";
 import rl, { createInterface } from "readline";
 import { readdirSync } from "fs";
 import robot from 'robotjs';
-import { TSGmeng } from "../../app/tsgmeng.js";
+import { TSGmeng, __gm_err65536_overlay_id_unimpl_e__, __gm_err_unimpl_e__, __vgm_err6556_contl__, absolute } from "../../app/tsgmeng.js";
 export async function cli_find_pages(path: string, model: any): Promise<void> {
     return new Promise(async (resolve, reject) => {
         let files = readdirSync(path).filter(i=>i.endsWith(`.ts`))
@@ -155,6 +155,77 @@ export namespace tui {
             if (key.sequence == `\x03`) process.stdout.write('\x1b[?25h'), process.exit(0); 
             if (keys.includes(key?.name) || keys.includes("**")) callback(key, { closed: false, close() { ofl = false; } }); 
         });
+    };
+    export interface overlay_item {
+        name: string; id: number; selected?: boolean;
+    };
+    export const display_delegates = {
+        TOP_LEFT: "┌",
+        TOP_RIGHT: "┐",
+        BOTTOM_LEFT: "└",
+        BOTTOM_RIGHT: "┘",
+        TITLE_START: "┤",
+        TITLE_END: "├",
+        LINE: "─",
+        SIDE: "│"
+    };
+    type delegate_assign_types = string | any;
+    export class OverlayController<delegate_names extends string> {
+        public callback_delegates: Map<string, Function> = new Map<string, Function>; public __overlay_id__: number = Math.floor(Math.random() * 1000000);
+        public constructor(id?: number) {
+            if (!this.__overlay_id__ && !id) throw new RangeError(__gm_err65536_overlay_id_unimpl_e__ ?? __gm_err_unimpl_e__)
+            id ? this.__overlay_id__ = id : void 0;
+            this.callback_delegates.set(`__overlay_destroy__`, () => { return void 0; });
+            this.callback_delegates.set(`destroy`, this.callback_delegates.get(`__overlay_destroy__`));
+        };
+        public run_delegate(delegate: string, ...args: any[]) {
+            this.callback_delegates.get(delegate)(...args);
+        };
+        public on(delegate: delegate_names, callback: Function) {
+            this.callback_delegates.set(delegate, callback);
+        };
+        public assign_delegate = (...args: absolute<delegate_assign_types | never | unknown | (() => (void[] | any))>[]) => this.on(args[0], args[1]);
+        public assign_macro(pointee: string, pointer: string) { this.callback_delegates.set(pointee, this.callback_delegates.get(pointer)); };
+    };
+    export function overlay(title: string, menu_items: Array<overlay_item>, pos?: {x : number, y : number}): absolute<OverlayController<
+                            "selection_change" | "item_change" | "item_select">
+                                                                              > {
+        let controller = new OverlayController();
+        controller.assign_delegate(`selection_change`, (selection: number) => {
+            let voidptr: absolute<void> = void 0;
+            return voidptr;
+        });
+        /// all macros for selection_change
+        controller.assign_macro(`item_change`,     `selection_change`);
+        controller.assign_macro(`item_select`,     `selection_change`);
+        controller.assign_macro(`selectionChange`, `selection_change`);
+        controller.assign_macro(`SelectionChange`, `selection_change`);
+        controller.assign_macro(`itemChange`,      `selection_change`);
+        controller.assign_macro(`ItemChange`,      `selection_change`);
+
+        let selected = 0;
+        function __build_overlay__() {
+            process.stdout.cursorTo(pos?.x ?? 0, pos?.y ?? 0);
+            console.log(tui.clr(display_delegates.TOP_LEFT + display_delegates.TITLE_START + tui.clr(title, `orange`) + display_delegates.TITLE_END + display_delegates.LINE.repeat(37-tui.remove_colorcodes(title).length) + display_delegates.TOP_RIGHT, `cyan`));
+            menu_items.forEach((item, indx) => {
+                process.stdout.cursorTo(pos?.x ?? 0, (pos?.y ?? 0) + indx + 1);
+                let text_t = ``;
+                let spacing = Math.floor((41 - item.name.length - 8)/2);
+                if (item.selected) {
+                    selected = indx;
+                    text_t = tui.clr(`->`, `orange`) + ` `.repeat(spacing) + tui.undrln(tui.clr(item.name, `yellow`)) + ` `.repeat(spacing) + `  `;
+                } else {
+                    text_t = tui.clr(`->`, `grayish`) + ` `.repeat(spacing) + item.name + ` `.repeat(spacing) + `  `
+                };
+                while (tui.remove_colorcodes(text_t).length < 37) text_t += `  `;
+                while (tui.remove_colorcodes(text_t).length > 37) text_t = text_t.slice(0, -1);
+                console.log(tui.clr(display_delegates.SIDE + ` ${tui.clr(text_t, `tan`)} ` + display_delegates.SIDE, `cyan`));
+            });
+            process.stdout.cursorTo(pos?.x ?? 0);
+            console.log(tui.clr(display_delegates.BOTTOM_LEFT + display_delegates.LINE.repeat(39) + display_delegates.BOTTOM_RIGHT, `cyan`));
+        };
+        __build_overlay__();
+        return controller;
     };
     export function show_input_menu(title: string, predefined_input?: string): Promise<string> {
         return new Promise<string>((resolve) => {

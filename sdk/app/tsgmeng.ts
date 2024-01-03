@@ -10,6 +10,7 @@ import { Key, emitKeypressEvents } from "readline";
 import EventEmitter from "events";
 import { Writable } from "stream";
 
+export type absolute<typename_t> = typename_t;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const mac_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.out`;
 const win_gmeng_path = path.join(__dirname, `..`, `..`, `lib`, `out`) + `/gmeng.exe`;
@@ -390,10 +391,142 @@ export namespace builder {
         console.clear();
         let fname = await tui.show_input_menu("enter filename");
         fname = lv_sanitize(fname);
-        while (fname.endsWith(".gt")) { fname = fname.slice(0, -3); }; // remove extensions
-        if (existsSync(process.cwd() + "/" + fname)) {
-
+        while (fname.endsWith(".glvl")) { fname = fname.slice(0, -3); }; // remove extensions
+        let filename = fname + ".glvl";
+        let current_level: TSGmeng.fw4_levelinfo = {
+            base: {
+                height: null,
+                width: null,
+                lvl_template: null
+            },
+            chunks: null,
+            description: null,
+            display_res: null,
+            name: null
         };
+        let active_overlay: number = 0;
+        if (existsSync(process.cwd() + "/" + filename)) {
+            current_level = gm_parsers.fw4_0.__glvl__(process.cwd() + "/" + filename);
+        } else {
+            // default_init for level (we dont have to deal with annoying menus)
+            // they can be tuned by the user via the menu instead
+            gm_parsers.fw4_0.__default_init__(current_level); // passed as reference (&namespace)
+            current_level.name = fname;
+        };
+        let current_chunk: { id: number, models: Array<TSGmeng.fw4_model> } = {
+            id: 0,
+            models: current_level?.chunks?.length > 0 ? current_level.chunks[0].models : []
+        };
+        const __editor_helpers__ = new class __fw4_0__editor__helpers__ {
+            /// draws text (supports newlines) at a specific point in the screen as a starting position
+            __ui_text__(text: string, posX: number = 0, posY: number = 0) {
+                if (posX > process.stdout.columns || posY > process.stdout.rows || posX < 0 || posY < 0) return;
+                text.split(`\n`).forEach((ln, indx) => {
+                    let rel_x = posX, rel_y = posY+indx;
+                    process.stdout.cursorTo(rel_x, rel_y); process.stdout.write(ln);
+                });
+            };
+            /// overlay for the glcp (gmeng level compiler parameters) base data
+            /// (width, height, name, description, chunk width, chunk height, base texture)
+            __overlay_level_settings__(active: boolean = true) {
+                let pos = process.stdout.columns - 37;
+                if (!active) {
+                    this.__ui_text__([
+                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `grayish`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
+                        tui.clr(tui.clr(tui.display_delegates.SIDE, `cyan`) + `  set overlay to 1 to view  ` + tui.clr(tui.display_delegates.SIDE, `cyan`), `tan`),
+                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
+                    ].join(`\n`), pos, 2);
+                    return;
+                };
+                let ui_text = this.__ui_text__;
+                function __overlay__draw__() {
+                    ui_text([
+                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `orange`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
+                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
+                    ].join(`\n`), pos, 2)
+                };
+                __overlay__draw__();
+            };
+            /// overlay for the glcp (gmeng level compiler parameters) textures 
+            /// what textures should be packed with it (if any)
+            /// this overlay lists the textures & models within the vgm
+            /// and any other texture / model that was imported to the editor
+            /// this is then compiled into the compiler parameters file
+            /// as a plib directory or lmf (lexed master file) 
+            __overlay_vgm_controller__(active: boolean = true) {
+                let pos = 2;
+                if (!active) {
+                    this.__ui_text__([
+                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`textures`, `grayish`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
+                        tui.clr(tui.clr(tui.display_delegates.SIDE, `cyan`) + `  set overlay to 0 to view  ` + tui.clr(tui.display_delegates.SIDE, `cyan`), `tan`),
+                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
+                    ].join(`\n`), pos, 2);
+                    return;
+                };
+                let vgm_controller = tui.overlay(`textures`, [
+                    {name: `test`, id: 0, selected: true},
+                    {name: `items`, id: 1, selected: false},
+                    {name: `for`, id: 2, selected: false},
+                    {name: `display_test`, id: 3, selected: false}
+                ], { x: 2, y: 2 });
+            };
+            /// calculates the position of &(ref __p, __s, __w) within a world.
+            /// an object with the size __s at the position __p in a world with the size __w.
+            /// imported into typescript from the c++ engine lib: Gmeng::Renderer::get_placement(__p, __s, __ws);
+            __placement_calculator__(__p: TSGmeng.fw4_drawpoint, __s: TSGmeng.fw4_drawpoint, __w: TSGmeng.fw4_drawpoint) {
+                const __delegate_positions__ = [];
+                if (__s.x > __w.x || __s.y > __w.y) return [-1]; // errored (__s is bigger than __w)
+                if ((__p.x < 0 || __p.y < 0 || __p.x + __s.x > __w.x || __p.y + __s.y > __w.y)) return [-1]; // errored (__p is out of bounds)
+                for (let x = 0; x < __s.x; x++) {
+                    for (let y = 0; y < __s.y; y++) {
+                        const __delegate_x__ = __p.x + x, __delegate_y__ = __p.y + y;
+                        __delegate_positions__.push({ x: __delegate_x__, y: __delegate_y__ });
+                    };
+                };
+                return __delegate_positions__; 
+            };
+        };
+        const titles = {
+            'level_editor': tui.clr(`gmeng ${tui.clr(`level editor`, `red`)}`, `dark_red`),
+        };
+        async function __draw__() {
+            process.stdout.cursorTo(0, 0);
+            process.stdout.write(tui.center_align(tui.clr(`${current_level.name} (${filename}) | ${current_level.description}`, `yellow`)));
+            process.stdout.cursorTo(0, 0);
+            process.stdout.write((titles.level_editor));
+            console.log(`\n` + tui.make_line(process.stdout.columns, `blue`));
+            ((TSGmeng.c_unit.repeat(current_level.base.width) + `\n`).repeat(current_level.base.height)).split(`\n`).forEach(b => {
+                console.log(tui.center_align(b));
+            });
+            console.log(tui.upk + tui.make_line(process.stdout.columns, `blue`));
+            console.log(tui.center_align(`overlay: ${active_overlay} | chunk_number: ${current_chunk.id}`));
+            if (active_overlay == 0) {
+                __editor_helpers__.__overlay_vgm_controller__(true);
+                __editor_helpers__.__overlay_level_settings__(false);
+            }
+            else if (active_overlay == 1) {
+                __editor_helpers__.__overlay_vgm_controller__(false);
+                __editor_helpers__.__overlay_level_settings__(true);
+            };
+            process.stdout.cursorTo(0, 2 + current_level.base.height);
+        }
+        function __edit__() {
+            process.stdin.setRawMode(true); process.stdin.setDefaultEncoding(`utf-8`);
+            console.clear();
+            __draw__();
+        };
+        tui.capture([`tab`], (key, ctrl) => {
+            switch (key.name) {
+                case `tab`: // switch active overlay 
+                    active_overlay++;
+                    if (active_overlay > 1 || active_overlay < 0) active_overlay = 0;
+                    __draw__();
+                    break;
+                default: 
+                    break;
+            };
+        });
+        __edit__();
     };
     /**
     editor for the `gm1.1-sdk` gamemap framework. 
@@ -452,6 +585,10 @@ export namespace builder {
         console.clear();
         builder.show_editor(WorldData, wmap_dirfile);
     };
+    /**
+     * framework 1.1_sdk editor (will not cooperate with fw4.0_glvl)
+     * @deprecated use framework 4.0_glvl instead
+     */
     export async function show_editor(worldData: TSGmeng.WorldData, mapfile: Directory<string>) {
         let WMAP_UNITS: Array<TSGmeng.Unit> = [];
         if (mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`) != null) WMAP_UNITS = TSGmeng.ReadMapData(worldData, mapfile.contents.FILE_LIST.find(a=>a.name==`world.mpd`).content);
@@ -568,9 +705,10 @@ export namespace vgm_defaults {
     export let vg_rdmodels: Map<string, TSGmeng.fw4_model> = new Map;
     export let vg_textures: Map<string, TSGmeng.fw4_texture> = new Map;
 };
-const __vgm_err6556_contl__ = `libts-gmeng: __vgm_init__ failed: no vgm directory (./envs/models does not exist)`;
-const __vgm_err6557_unimpl_e__ = `libts-gmeng: __vgm_init__ failed: tsgmeng currently does not support .mdl files`;
-const __gm_err_unimpl_e__ = `libts-gmeng: unknown error`;
+export const __vgm_err6556_contl__ = `libts-gmeng: __vgm_init__ failed: no vgm directory (./envs/models does not exist)`;
+export const __vgm_err6557_unimpl_e__ = `libts-gmeng: __vgm_init__ failed: tsgmeng currently does not support .mdl files`;
+export const __gm_err_unimpl_e__ = `libts-gmeng: unknown system error`;
+export const __gm_err65536_overlay_id_unimpl_e__ = `libts-gmeng: OverlayController must include an id`;
 export namespace gm_parsers {
     export declare namespace gmeng {};
     export function __vgm_init__() {
@@ -582,7 +720,31 @@ export namespace gm_parsers {
     };
 };
 
+export function v_gen_units(height: number, width: number, color: number): TSGmeng.Unit[] {
+    let units: TSGmeng.Unit[] = [];
+    for (let i = 0; i < height * width; i++) {
+        units.push({
+            color: color,
+            collidable: true
+        });
+    };
+    return units;
+};
+
+
 export namespace gm_parsers.fw4_0 {
+    export function __default_init__(val: TSGmeng.fw4_levelinfo): absolute<void> {
+        val.base.width = 20;
+        val.base.height = 10;
+        val.description = `New Level ${Math.floor(Math.random() * 100)}.${crypto.randomUUID().substring(29)}`;
+        val.base.lvl_template = {
+            collidable: true,
+            height: 100,
+            width: 200,
+            name: `%base.template ${Math.floor(Math.random() * 100)}.${crypto.randomUUID().substring(29)}`,
+            units: v_gen_units(100, 200, 0)
+        };
+    };
     export function __chunk__(v_str: string): { chunk: TSGmeng.fw4_chunk, model_macros: Array<string> } {
         // #chunk p1x=<num> p1y=<num> p2x=<num> p2y=<num> <mdl1>,<mdl2>
         let data = v_str.split(` `).slice(1); // remove keyword
@@ -638,10 +800,8 @@ export namespace gm_parsers.fw4_0 {
         lines.forEach((ln: string, indx: number) => {
             let line = ln.split(`;`)[0];
             let data = line.split(` `);
-            if ([0,1,2,3].includes(indx)) return a_lbase.push(line);
-            //! FIXME: chunk_size and similar values are not initialized and set correctly
-            //! this implementation of a level loader would not work
-            if (indx == 4) { v_lbase = __lbase__(a_lbase); lvl.base = v_lbase; delete a_lbase[0], a_lbase[1], a_lbase[2], a_lbase[3]; };
+            if ([0,1,2,3].includes(indx)) return a_lbase.push(line.split(`=`)[1]); // only values, not the variable names
+            if (indx == 4) { lvl.name = a_lbase[0]; lvl.description = a_lbase[1]; lvl.base.lvl_template = (vgm_defaults.vg_textures.get(a_lbase[2]) ?? builder.load_texture(a_lbase[2])) ?? null; lvl.base.width = parseInt(a_lbase[3].split(`,`)[0]); lvl.base.height = parseInt(a_lbase[3].split(`,`)[1]); delete a_lbase[0], a_lbase[1], a_lbase[2], a_lbase[3]; };
             switch (data[0]) {
                 case `#texture`:
                     let vtx = __txtr__(line);
@@ -660,10 +820,6 @@ export namespace gm_parsers.fw4_0 {
             };
         });
         return lvl;
-    };
-    export function __lbase__(v_arr: Array<string>): TSGmeng.fw4_lbase {
-        let lbase: TSGmeng.fw4_lbase;
-        return lbase;
     };
 };
 

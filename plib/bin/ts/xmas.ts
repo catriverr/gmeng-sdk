@@ -10,7 +10,7 @@ async function main() {
     function __add_snow__() {
         let random_x = Math.floor(Math.random() * process.stdout.columns);
         let random_y = Math.floor(Math.random() * process.stdout.rows) + 5;
-        while(random_y >= process.stdout.rows) random_y--;
+        while(random_y >= Math.floor(process.stdout.rows / 2) + height) random_y--;
         process.stdout.cursorTo(random_x, random_y);
         process.stdout.write(snow);
         setTimeout(() => { process.stdout.cursorTo(random_x, random_y); process.stdout.write(` `); }, 2000);
