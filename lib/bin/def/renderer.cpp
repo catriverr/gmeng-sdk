@@ -18,9 +18,29 @@
 namespace fs = std::filesystem;
 
 namespace Gmeng {
+    enum color_t {
+        WHITE  = 0,
+        BLUE   = 1,
+        GREEN  = 2,
+        CYAN   = 3,
+        RED    = 4,
+        PINK   = 5,
+        YELLOW = 6,
+        BLACK  = 7
+    };
     namespace Renderer {
         struct drawpoint { int x; int y; };
         struct viewpoint { drawpoint start; drawpoint end; };
+        inline Gmeng::texture generate_empty_texture(int width, int height) {
+            Gmeng::texture __t; __t.width = width; __t.height = height; __t.collidable = false;
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++)
+                    __t.units.push_back(Gmeng::Unit {
+                        .color = j % 2 == 0 ? Gmeng::color_t::PINK : Gmeng::color_t::BLACK
+                    });
+            };
+            return __t;
+        };
         class Model {
             private:
               inline Objects::coord get_pointXY(int pos) {
@@ -34,6 +54,7 @@ namespace Gmeng {
             public:
               std::size_t width; std::size_t height; std::size_t size; drawpoint position;
               std::string name; Gmeng::texture texture; int id;
+              inline void reset_texture() { this->texture = generate_empty_texture(this->width, this->height); };
               inline void attach_texture(Gmeng::texture __t) { this->texture = __t; this->width = __t.width; this->height = __t.height; };
               inline void load_texture(std::string __tf) { this->texture = Gmeng::LoadTexture(__tf); }; //! FIXME: width,height values remain unchanged
         };
@@ -59,6 +80,7 @@ namespace Gmeng {
             returnvalue.m.height = std::stoi(v_index[4].substr(2));
             returnvalue.m.size = returnvalue.m.width*returnvalue.m.height;
             returnvalue.txname = v_index[5].substr(3);
+            returnvalue.id = g_mkid();
             return returnvalue;
         };
         // compiles Renderer::Model objects into a Gmeng::Unit vector
@@ -161,13 +183,12 @@ namespace Gmeng {
                     else this->camera.MovePlayer(0, plcoords.y, plcoords.x);
                     gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
                     for (int i = 0; i < this->rendered_units.size(); i++) {
-                        if (this->camera.display_map.unitmap[i].is_player) { 
+                        if (this->camera.display_map.unitmap[i].is_player) {
                             this->camera.playerunit.color = this->rendered_units[i].color; /// fix for __gtransparent_unit__ background
-                            continue; 
+                            continue;
                         };
                         this->camera.display_map.unitmap[i] = this->rendered_units[i];
                     };
-                    
                     this->camera.update();
                     this->camera.clear_screen();
                     std::cout << this->camera.draw() << endl;
@@ -193,6 +214,110 @@ namespace Gmeng {
         Gmeng::Renderer::LevelBase base; std::string name; std::vector<int> display_res;
         std::vector<Gmeng::r_chunk> chunks; std::string description;
     };
+    struct VectorView {
+        std::map<int, std::vector<Gmeng::Unit>> vectors; std::size_t width = 1; std::size_t height = 1;
+    };
+    struct RenderBuffer {
+        std::vector<Gmeng::Unit> units; drawpoint pos; bool linear = false;
+    };
+    enum LinearRenderBufferPositionController {
+        SIDE_RIGHT  = 0, SIDE_LEFT = 1
+    };
+    enum HorizontalRenderBufferPositionController {
+        SIDE_BOTTOM = 0, SIDE_TOP  = 1
+    };
+    /// generates a cameraview unit vector that can be drawn to the screen
+    /// (splicing different parts of r_chunk renderbuffers into one cameraview instance)
+    inline std::vector<Gmeng::Unit> _vgen_camv_f2pcv(std::vector<Gmeng::r_chunk> chunks, int width, int height) {
+        // width & height values are the viewpoint of the display, so we should create renderbuffers
+        // that will equate to the exact units that should be rendered of each chunk.
+        // to get these chunks, we should first trace them to the display_pos chunk
+        // for example:
+        // LEVEL(CHUNKS(id)):
+        // xxxxxxxxxxxxxxxxx
+        // x 0 | 1 | 2 | 3 x
+        // x 4 | 5 | 6 | 7 x
+        // x 8 | 9 | 10| 11x
+        // xxxxxxxxxxxxxxxxx
+        // HOW -> width_of_chunk_sizes_defined_in_glvl_file_header % width_of_base_template_of_the_level_defined_in_glvl_file_header returns
+        //        the amount of chunks that should be drawn according to the base template width (skybox)
+        //        this calculates the amount of chunk_lines the base template can get
+        //        our chunks are already placed in a std::vector<model> models, viewpoint vp;
+        //        so we can get the position each chunk will be in
+        //        for example a chunk with { start { x 0, y 0 }, end { x 4, y 4 } } will be placed in POS(0) of CAMERA(0)
+        //        and so on until we meet the end. these values are trustable enough, since .glvl files will be compiled
+        //        from a .glcp (gmeng level compiler parameters) header file which is generated by the editor
+        //        so all we actually have to do is move the camera viewpoint, and generate a VECTOR(CHUNK) object such as this:
+        //        +----------------------------+
+        //        | CHUNK(1) CHUNK(2) CHUNK(3) |                     +------------------------------------------------------------------+
+        //        | CHUNK(4) CHUNK(5) CHUNK(6) |         FROM        | CHUNK(1) CHUNK(2) CHUNK(3) CHUNK(4) CHUNK(5) CHUNK(6) CHUNK(7)...|
+        //        | CHUNK(7) CHUNK(8) CHUNK(9) |                     +------------------------------------------------------------------+
+        //        +----------------------------+
+        //                 basically we are generating a 1d vector that lists its chunks as a 2d vector, from a 2d vector
+        //                 which does not have its chunks aligned accordingly to its viewpoints. We split it through the
+        //                 level's header which defines the base template (skybox). Pretty calculationally heavy though.
+        //
+        // WHY -> We don't want an undertale-like world renderer, where the terrain only updates when the player leaves a chunk and enters a new one,
+        //        a much better approach would be to load chunks according to the CAMERA(0, 0)'s viewpoint. We can calculate which chunks
+        //        that viewpoint contains through creating a vector that contains each chunk's drawpoints (all x,y positions of all units).
+        //        we can then check through the vector with _vcreate_shared_vector(), which uses _voptimize_chunk_vector(X>>Y) which will remove
+        //        unlikely viewpoints from the display. This still does not return the values though, since a chunk may include a drawpoint, but
+        //        its viewpoint starter may not contain it. For example start: 0,0 end: 4,4 contains 3,3 but it is not in the chunk's header
+        //        _voptimize_chunk_vector() removes viewpoints that are after our viewpoint's end drawpoint for example:
+        //          vp_this = VIEWPOINT( START(6, 6), END(10, 10) )
+        //          chunks = (
+        //              unlikely_chunk = CHUNK( START(11, 11), END(15, 15) )
+        //          )
+        //         _voptimize_chunk_vector() realizes that chunks @ unlikely_chunk starts at a point over vp_this' viewpoint.
+        //         so it removes its entries from the iterable_vector.
+
+        // I have been looking at this text editor for the past 5 hours. And this enormous method will take all my energy to do which i simply don't have.
+        // TODO: Implement this by the end of the week.
+    };
+    inline VectorView trace_chunk_display_pos(std::vector<Gmeng::r_chunk> chunks) {
+
+    };
+    inline std::vector<RenderBuffer> splice_render_buffers(Gmeng::Level& level_t, VectorView viewspace) {
+
+    };
+    /// methods to join RenderBuffer output together
+    /// only linear and horizontal since we dont have to account for a cameraview viewpoint
+    /// being bigger than the size of current_chunk in r_chunk->chunks(0) - it is limited.
+    /// std::vector<string> as &new_delegate since a single character may have color defining escape codes in it
+    inline std::string _ujoin_unit_linear(std::string& current, std::vector<std::string>& new_delegate, LinearRenderBufferPositionController pos) {
+        switch (pos) {
+            case LinearRenderBufferPositionController::SIDE_RIGHT:
+                std::vector<std::string> c_lines = g_splitStr(current, "\n");
+                int _vpos = 0;
+                for (const auto& line : c_lines) {
+                    if (_vpos > new_delegate.size()-1) break;
+                    c_lines[_vpos] = line + new_delegate[_vpos];
+                   _vpos++;
+                };
+                return g_joinStr(c_lines, "\n");
+                break;
+            case LinearRenderBufferPositionController::SIDE_LEFT:
+                std::vector<std::string> c_lines = g_splitStr(current, "\n");
+                int _vpos = 0;
+                for (const auto& line : c_lines) {
+                    if (_vpos > new_delegate.size()-1) break;
+                    c_lines[_vpos] = new_delegate[_vpos] + line;
+                   _vpos++;
+                };
+                return g_joinStr(c_lines, "\n");
+                break;
+        };
+    };
+    inline _ujoin_unit_horizontal(std::string& current, std::vector<std::string>& new_delegate, HorizontalRenderBufferPositionController pos) {
+        switch (pos):
+            case HorizontalRenderBufferPositionController::SIDE_TOP:
+                return g_joinStr(new_delegate, "") + "\n" + current;
+                break;
+            case HorizontalRenderBufferPositionController::SIDE_BOTTOM:
+                return current + "\n" + g_joinStr(new_delegate, "");
+                break;
+    };
+
     inline Objects::coord trace_1dp(int xy, int wmp_x) {
         int width  = xy % wmp_x; int height = xy / wmp_x;
         return Objects::coord { .x = width, .y = height };
@@ -228,16 +353,19 @@ namespace Gmeng {
             gm_nlog("\n");
         };
     };
+
         inline const Gmeng::Renderer::Model nomdl = {
         .id=Gmeng::CONSTANTS::vl_nomdl_id
     };
     inline const Gmeng::texture notxtr = {
         .name=v_str(Gmeng::CONSTANTS::vl_notxtr_id)
     };
+
     template<typename v_type>
     struct vd_item {
         v_intl id; v_type data;
     };
+
     template<typename v_type>
     struct v_dictl {
         public:
@@ -251,6 +379,7 @@ namespace Gmeng {
             /// returns the vector of the dictionary
             inline std::vector<Gmeng::vd_item<v_type>> v_getrelative() { return this->values; };
     };
+
     inline Gmeng::Renderer::Model vd_find_model(v_dictl<Gmeng::Renderer::Model> dict, v_title name) {
         for (const auto& val : dict.v_getrelative()) {
             if (val.data.name == name) return val.data;
@@ -295,11 +424,13 @@ namespace Gmeng {
             gm_err(1, "g,gm,gmeng,Gmeng -> _uread_into_vgm(const v_title& folder) : status v_error -> vgm data in folder " + std::string(ex.what()) + " is corrupt/faulty.");
         }
     };
+
     /// writes values in Gmeng::vgm_defaults::vg_rdmodels & vg_textures into vectors v_mdls and v_txtrs
     inline void _uwritevgm_to_maps(std::map<v_title, Gmeng::Renderer::Model>& v_mdls, std::map<v_title, Gmeng::texture>& v_txtrs) {
         for (const auto& mdl : vgm_defaults::vg_rdmodels.v_getrelative()) { v_mdls[mdl.data.name] = mdl.data; };
         for (const auto& txtr : vgm_defaults::vg_textures.v_getrelative()) { v_txtrs[txtr.data.name] = txtr.data; };
     };
+
     inline LevelInfo parse_glvl(std::string __fn) {
         /// syntax:
         /// ln 1-4 are headers
@@ -413,7 +544,8 @@ namespace Gmeng {
         .colorId = 0,
         .colored=true,
         .c_ent_tag = "o",
-   });
+    });
+
     class Level {
         private:
             // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a CameraView instance to render

@@ -170,7 +170,7 @@ namespace Gmeng {
 	const char c_outer_unit_floor[4] = "\u2580";
 	struct Unit {
 		public:
-			int color = 1; bool collidable = true; bool is_player = false; bool is_entity = false; 
+			int color = 1; bool collidable = true; bool is_player = false; bool is_entity = false;
             Objects::G_Player player={}; bool transparent = false; bool special = false; int special_clr = 0;
 			Objects::G_Entity entity={}; std::string special_c_unit = "";
 	};

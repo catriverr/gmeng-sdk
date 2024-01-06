@@ -22,4 +22,4 @@ async function main(value: number) {
     };
 };
 
-main(parseInt(process.argv[2]) ?? null);
+main(parseInt(process.argv[2].substring("-e=".length)) ?? null);
