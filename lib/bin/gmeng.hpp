@@ -174,6 +174,12 @@ namespace Gmeng {
             Objects::G_Player player={}; bool transparent = false; bool special = false; int special_clr = 0;
 			Objects::G_Entity entity={}; std::string special_c_unit = "";
 	};
+    struct texture {
+        std::size_t width = 0; std::size_t height = 0; bool collidable;
+        std::vector<Gmeng::Unit> units; std::string name;
+    };
+    extern void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2);
+    extern Gmeng::texture LoadTexture(std::string __fname);
 	struct modifier {
 		public:
 			std::string name = "v_unallocated_modifier"; int value = 0;
@@ -333,7 +339,6 @@ static void _gthread_catchup() {
 #include "def/gmeng.cpp"
 #include "def/renderer.cpp"
 #include "utils/envs/map.hpp"
-
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;

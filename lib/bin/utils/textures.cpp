@@ -14,10 +14,6 @@
 
 
 namespace Gmeng {
-    struct texture {
-        std::size_t width = 0; std::size_t height = 0; bool collidable;
-        std::vector<Gmeng::Unit> units; std::string name;
-    };
     inline void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2) {
         int indx = 0;
         for ( const auto& unit : g_tx2.units ) {
