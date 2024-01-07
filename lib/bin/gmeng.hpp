@@ -1,3 +1,4 @@
+#pragma once
 #include <exception>
 #include <iostream>
 #include <fstream>
@@ -6,8 +7,6 @@
 #include <chrono>
 #include <vector>
 #include <string>
-#include "utils/textures.cpp"
-#include "objects.cpp"
 #include <future>
 #include <functional>
 #include <random>
@@ -16,6 +15,7 @@
 #include <sstream>
 #include <functional>
 #include <atomic>
+#include "objects.cpp"
 #ifdef __GMENG_OBJECTINIT__
 #define v_str std::to_string
 
@@ -329,6 +329,7 @@ static void _gthread_catchup() {
 };
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
+#include "utils/textures.cpp"
 #include "def/gmeng.cpp"
 #include "def/renderer.cpp"
 #include "utils/envs/map.hpp"

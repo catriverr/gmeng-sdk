@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <string>
 #include <array>
@@ -10,10 +11,8 @@
 #include <filesystem>
 #include <sstream>
 
-#include "../utils/textures.cpp"
 
 #ifdef __GMENG_INIT__
-#ifndef __GMENG_MODELRENDERER__INIT__
 
 namespace fs = std::filesystem;
 
@@ -691,5 +690,4 @@ namespace Gmeng {
 };
 
 #define __GMENG_MODELRENDERER__INIT__ true
-#endif
 #endif

@@ -1,7 +1,5 @@
+#pragma once
 #include <iostream>
-
-
-#ifndef __GMENG_OBJECTINIT__
 #define __GMENG_OBJECTINIT__ true
 
 namespace Objects {
@@ -23,5 +21,3 @@ namespace Objects {
 		int textureId = 0;
 	};
 };
-
-#endif

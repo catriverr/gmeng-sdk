@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -7,7 +8,6 @@
 #include <fstream>
 
 #ifdef __GMENG_INIT__
-#ifndef __GMENG_TEXTUREMGR_INIT__
 
 #define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
@@ -89,5 +89,4 @@ namespace Gmeng {
 };
 
 #define __GMENG_TEXTUREMGR_INIT__ true
-#endif
 #endif

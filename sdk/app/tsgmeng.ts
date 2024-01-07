@@ -111,7 +111,7 @@ export namespace builder {
         function _urender(): string { let final_ = ``; for (let i = 0; i < texture.units.length; i++) {  final_ += _urender1(texture.units[i]); }; return final_; };
         console.clear();
         function _uplace_cursor() {
-            let minw  = texture.width+2; // +2 is border c_unit and coord_pointers (since /2, we do /2 to +4)
+            let minw  = texture.width+1; // +(2-1) is border c_unit and coord_pointers (since /2, we do /2 to +4) | -1 is offset_value for ceil operation
             let v_pos = Math.ceil((process.stdout.columns - minw) / 2);
             process.stdout.cursorTo(0, process.stdout.rows-2);
             console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()])} | id: ${v1d_curpos()}`)
@@ -129,7 +129,7 @@ export namespace builder {
         let _gu_selected = 0;
         function __gdraw(active: boolean = false) {
             process.stdout.cursorTo(0, 4);
-            console.log(tui.make_line(50, active ? `blue` : `grayish`)); 
+            console.log(tui.make_line(50, active ? `blue` : `grayish`));
             console.log(tui.clr(`brush:`, active ? `blue` : `grayish`));
             _gu_modifiers.forEach((c, i) => {
                 if (i == _gu_selected) c.selected = true;
