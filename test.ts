@@ -22,4 +22,6 @@ async function main(value: number) {
     };
 };
 
-main(parseInt(process.argv[2]?.substring("-e=".length)) ?? null);
+let __argument__ = (parseInt((process.argv[2])?.substring("-e=".length)));
+
+main(process.argv[2] != null ? __argument__ : null);

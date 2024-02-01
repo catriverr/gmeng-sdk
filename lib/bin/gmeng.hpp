@@ -7,6 +7,7 @@
 #include <chrono>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <future>
 #include <functional>
 #include <random>
@@ -16,6 +17,7 @@
 #include <functional>
 #include <atomic>
 #include "objects.cpp"
+
 #ifdef __GMENG_OBJECTINIT__
 #define v_str std::to_string
 
@@ -210,6 +212,22 @@ namespace Gmeng {
 			};
 		};
 	};
+    typedef struct {
+        std::vector<int> indexes;
+        std::vector<std::string> containers;
+        bool dev_console;
+    } __global_object__;
+    /// static__ , global_controllers__
+    static __global_object__ global;
+    static std::ofstream outfile;
+};
+
+inline void controller_set(int index, std::string value) {
+    Gmeng::global.indexes.push_back(index);
+    Gmeng::global.containers.push_back(value);
+};
+inline void switch_dev_console() {
+    Gmeng::global.dev_console = !Gmeng::global.dev_console;
 };
 
 inline std::string _uget_thread() {
@@ -263,18 +281,24 @@ inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
     return vector;
 };
 
+/// writes to a log file (&name) with content (&content)
+static void __gmeng_write_log__(const std::string& name, const std::string& content, bool append = true) {
+    Gmeng::outfile << content;
+};
+
+
 #include "utils/termui.cpp"
 
 namespace Gmeng {
     static t_display logc = {
-        .pos = { .x=8, .y=2 },
+        .pos = { .x=94, .y=2 },
         .v_cursor = 0,
         .v_outline_color = 1,
-        .v_width = 185,
+        .v_width = 100,
         .v_height = 40,
         .init=true,
         .v_textcolor = 2,
-        .v_drawpoints=_ulogc_gen1dvfc(185*40),
+        .v_drawpoints=_ulogc_gen1dvfc(100*40),
         .title="gm:0/logstream"
     };
 };
@@ -289,6 +313,7 @@ static void gm_nlog(std::string msg) {
     #endif
 };
 
+
 static void gm_log(std::string msg, bool use_endl = true) {
     #ifndef __GMENG_ALLOW_LOG__
         return;
@@ -297,9 +322,10 @@ static void gm_log(std::string msg, bool use_endl = true) {
         std::string _uthread = _uget_thread();
         std::string __vl_log_message__ =  "gm:" + _uthread + " *logger >> " + msg + (use_endl ? "\n" : "");
         Gmeng::logstream << __vl_log_message__;
-        _utext(Gmeng::logc, __vl_log_message__);
-        #if __GMENG_ALLOW_LOGC__ == true
-            std::thread([&]() { _udraw_display(Gmeng::logc); });
+        __gmeng_write_log__("gmeng.log", __vl_log_message__);
+        if (Gmeng::global.dev_console) _utext(Gmeng::logc, __vl_log_message__);
+        #if __GMENG_DRAW_AFTER_LOG__ == true
+            if (Gmeng::global.dev_console) _udraw_display(Gmeng::logc);
         #endif
     #endif
 };
@@ -311,21 +337,26 @@ namespace Gmeng {
     static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); if (thread.joinable()) thread.join(); _uclear_threads(); }; };
 }
 
-static void _gupdate_logc_intvl() {
+static void _gupdate_logc_intvl(int ms = 250) {
     #if __GMENG_ALLOW_LOG__ == false
         return;
     #endif
+    __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
+    __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
     Gmeng::_ucreate_thread([&]() {
         for ( ;; ) {
+            if (!Gmeng::global.dev_console) continue;
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
                 Gmeng::completelog << Gmeng::logstream.str();
                 Gmeng::logstream.str(""); /// flush sstream
-               _uflush_display(Gmeng::logc, 10);
+               _uflush_display(Gmeng::logc, 5);
                gm_log("t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
             };
             _udraw_display(Gmeng::logc);
-            Gmeng::_uclear_threads();
+            std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         }
+        /// close log file
+        Gmeng::outfile.close();
     });
 };
 

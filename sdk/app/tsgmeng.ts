@@ -376,7 +376,13 @@ export namespace builder {
         return  tui.clr(`${TSGmeng.c_outer_unit.repeat(width+2)}`, `orange`) + `\n` +
         final + `\n` + tui.clr(`${TSGmeng.c_outer_unit_floor.repeat(width+2)}`, `orange`);
     };
-    /**
+    export function chunk_deltaX(vp: TSGmeng.fw4_viewpoint): number {
+        return (vp.end.x - vp.start.x);
+    };
+    export function chunk_deltaY(vp: TSGmeng.fw4_viewpoint): number {
+        return (vp.end.y - vp.start.y);
+    };
+        /**
     editor for the `gm4.0-glvl` gamemap framework.
     
     this framework is the recommended and preferred way to handle maps.
@@ -405,6 +411,7 @@ export namespace builder {
             name: null
         };
         let active_overlay: number = 0;
+        let focused_overlay: number = -1;
         if (existsSync(process.cwd() + "/" + filename)) {
             current_level = gm_parsers.fw4_0.__glvl__(process.cwd() + "/" + filename);
         } else {
@@ -413,9 +420,13 @@ export namespace builder {
             gm_parsers.fw4_0.__default_init__(current_level); // passed as reference (&namespace)
             current_level.name = fname;
         };
-        let current_chunk: { id: number, models: Array<TSGmeng.fw4_model> } = {
-            id: 0,
-            models: current_level?.chunks?.length > 0 ? current_level.chunks[0].models : []
+        let current_chunk: { id: number, models: Array<TSGmeng.fw4_model>, vp: TSGmeng.fw4_viewpoint } = 
+        current_level.chunks?.length > 0 ?
+        { id: 0, vp: current_level.chunks[0].vp, models: current_level.chunks[0].models } 
+        : 
+        {
+            id: 0, vp: { start: { x: 0, y: 0 }, end: { x: 20, y: 10 } },
+            models: []
         };
         const __editor_helpers__ = new class __fw4_0__editor__helpers__ {
             /// draws text (supports newlines) at a specific point in the screen as a starting position
@@ -428,22 +439,30 @@ export namespace builder {
             };
             /// overlay for the glcp (gmeng level compiler parameters) base data
             /// (width, height, name, description, chunk width, chunk height, base texture)
-            __overlay_level_settings__(active: boolean = true) {
+            __overlay_level_settings__(active: boolean = true, focused = false) {
                 let pos = process.stdout.columns - 37;
+                if (!active && focused) {
+                    __editor_helpers__.__ui_text__([
+                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `pink`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `yellow`),
+                        tui.clr(tui.clr(tui.display_delegates.SIDE, `yellow`) + `  set overlay to 1 to view  ` + tui.clr(tui.display_delegates.SIDE, `yellow`), `tan`),
+                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `yellow`)
+                    ].join(`\n`), pos, 2);
+                    return;
+                };
                 if (!active) {
-                    this.__ui_text__([
+                    __editor_helpers__.__ui_text__([
                         tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `grayish`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
                         tui.clr(tui.clr(tui.display_delegates.SIDE, `cyan`) + `  set overlay to 1 to view  ` + tui.clr(tui.display_delegates.SIDE, `cyan`), `tan`),
                         tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
                     ].join(`\n`), pos, 2);
                     return;
                 };
-                let ui_text = this.__ui_text__;
+                let ui_text = __editor_helpers__.__ui_text__;
                 function __overlay__draw__() {
                     ui_text([
                         tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `orange`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
                         tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
-                    ].join(`\n`), pos, 2)
+                    ].join(`\n`), pos, 2);
                 };
                 __overlay__draw__();
             };
@@ -453,22 +472,90 @@ export namespace builder {
             /// and any other texture / model that was imported to the editor
             /// this is then compiled into the compiler parameters file
             /// as a plib directory or lmf (lexed master file) 
-            __overlay_vgm_controller__(active: boolean = true) {
+            __overlay_vgm_controller__(active: boolean = true, focused: boolean = false) {
                 let pos = 2;
+                if (!active && focused) {
+                    __editor_helpers__.__ui_text__([
+                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`textures`, `pink`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `yellow`),
+                        tui.clr(tui.clr(tui.display_delegates.SIDE, `yellow`) + `  set overlay to 0 to view  ` + tui.clr(tui.display_delegates.SIDE, `yellow`), `tan`),
+                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `yellow`)
+                    ].join(`\n`), pos, 2);
+                    return; 
+                };
                 if (!active) {
-                    this.__ui_text__([
+                    __editor_helpers__.__ui_text__([
                         tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`textures`, `grayish`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
                         tui.clr(tui.clr(tui.display_delegates.SIDE, `cyan`) + `  set overlay to 0 to view  ` + tui.clr(tui.display_delegates.SIDE, `cyan`), `tan`),
                         tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
                     ].join(`\n`), pos, 2);
                     return;
                 };
-                let vgm_controller = tui.overlay(`textures`, [
-                    {name: `test`, id: 0, selected: true},
-                    {name: `items`, id: 1, selected: false},
-                    {name: `for`, id: 2, selected: false},
-                    {name: `display_test`, id: 3, selected: false}
-                ], { x: 2, y: 2 });
+                let items: Array<{name: string, id: number, selected: boolean}> = [
+                    {name: `[import texture_pack (.gtxp)]`, id: 0, selected: true}
+                ];
+                let textures: Array<{name: string, id: number, texture: TSGmeng.fw4_texture}> = [];
+                let indx = 0;
+                gm_parsers.__vgm_init__();
+                vgm_defaults.vg_textures.forEach((tx) => {
+                    let obj = {
+                        name: tx.name + " (" + Math.floor(Math.random() * 1000000) + " - " + tx.width +"*" + tx.height + " - " + (tx.collidable ? tui.clr("c", "green") : tui.clr("c", "dark_red")) +")",
+                        id: indx+1,
+                        selected: false,
+                        texture: tx
+                    };
+                    items.push({
+                        name: obj.name, id: obj.id, selected: obj.selected
+                    });
+                    textures.push(obj);
+                    indx++;
+                });
+                let vgm_controller = tui.overlay(`textures`, items, { x: 2, y: 2 });
+                vgm_controller.on(`selection_change`, (item: number) => {
+                    for (let i = 0; i < 28; i++) {
+                        process.stdout.cursorTo(0, (process.stdout.rows - 29) + i);
+                        console.log(` `.repeat(process.stdout.columns));
+                    };
+                    process.stdout.cursorTo(2, process.stdout.rows-29);
+                    if (item == 0) return; // import texture pack, not supported currently
+                    let fin = ""; let selected_item = items.find(i => i.id == item);
+                    let texture = textures.find(f => f.id == item).texture;
+                    if (texture.width > process.stdout.columns - 2 - 3 - 2 - 3 ||
+                        texture.height > process.stdout.rows- 29 -3            ) { 
+                        return console.log(tui.clr(`<texture can not fit into the screen>`, `red`)); };
+                    for (let y = 0; y < texture.height; y++) {
+                        for (let x = 0; x < texture.width; x++) {
+                            fin += _urender_basic_unit(texture.units[
+                                                y * texture.width + x
+                                                                    ]
+                                                      );
+                        };
+                        fin += "\n";
+                    };
+                    fin = fin.slice(0, -1); /// remove trailing \n
+                    let v_cxs = (` `);
+                    for (let i = 0; i < texture.width; i++) { v_cxs += (i % 10 == 0 ? chalk.bold.white.underline(((i / 10 != 0) ? (i / 10) : i / 10).toString()[((i / 10 != 0) ? (i / 10) : i / 10).toString().length > 1 ? 1 : 0]) : chalk.dim((i > 10 ? (i % 10) : i).toString())); }; v_cxs += (` `);
+                    process.stdout.cursorTo(4, process.stdout.rows-29);
+                    console.log((chalk.overline(v_cxs)));
+                    process.stdout.cursorTo(5, process.stdout.rows-28);
+                    (border(fin.split("\n"), texture.width).split(`\n`).forEach((ln, indx) => {
+                            if (indx == 0 || indx == (texture.height)+1) return process.stdout.cursorTo(4, process.stdout.rows-28+indx), console.log((ln));
+                            let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
+                            let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                            process.stdout.cursorTo(2, process.stdout.rows-28 + indx);
+                            console.log((v_lnidx) + ln + (v2_lnidx));
+                    }));
+                    process.stdout.cursorTo(0), process.stdout.cursorTo(4); console.log((chalk.overline(v_cxs)));
+                });
+                vgm_controller.on(`selection_made`, (item) => {
+
+                });
+                vgm_controller.on(`destroy`, () => {
+                    // fuck off typescript.
+                    // __draw__() is executed FASTER than a tui.capture listener is destroyed
+                    // this is unbelievably retarded
+                    focused_overlay = -1;
+                    __draw__();
+                });
             };
             /// calculates the position of &(ref __p, __s, __w) within a world.
             /// an object with the size __s at the position __p in a world with the size __w.
@@ -485,29 +572,123 @@ export namespace builder {
                 };
                 return __delegate_positions__; 
             };
+            /// chunk draw - draws the chunk to the screen
+            /// same as fw4.0_glvl.texture4_0 display
+            __chunk_view__() {
+                let lines: Array<Array<string>> = [];
+                for (let y = current_chunk.vp.start.y; y < current_chunk.vp.end.y; y++) {
+                    lines[y] = [];
+                    for (let x = current_chunk.vp.start.x; x < current_chunk.vp.end.x; x++) {
+                        lines[y][x] = _urender_basic_unit(current_level.base.lvl_template.units[
+                                                   y * current_level.base.lvl_template.width + x
+                                                                                             ]);
+                    };
+                };
+                let fin = [];
+                lines.map(ln => fin.push(ln.join(``)));
+                let v_cxs = (` `);
+                for (let i = 0; i < chunk_deltaX(current_chunk.vp); i++) { v_cxs += (i % 10 == 0 ? chalk.bold.white.underline(((i / 10 != 0) ? (i / 10) : i / 10).toString()[((i / 10 != 0) ? (i / 10) : i / 10).toString().length > 1 ? 1 : 0]) : chalk.dim((i > 10 ? (i % 10) : i).toString())); }; v_cxs += (` `);
+                console.log(tui.center_align(chalk.overline(v_cxs)));
+                let sfin = border(fin, chunk_deltaX(current_chunk.vp));
+                sfin.split(`\n`).forEach((ln: string, indx: number) => {
+                    if (indx == 0 || indx == (chunk_deltaY(current_chunk.vp)+1)) return console.log(tui.center_align(ln));
+                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
+                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                    console.log(tui.center_align((v_lnidx) + ln + v2_lnidx));
+                });
+                console.log(tui.center_align(chalk.overline(v_cxs)) + "\n");
+            };
+            __draw_texture__(tx: TSGmeng.fw4_texture): string {
+                let fin = ""
+                for (let y = 0; y < tx.height; y++) {
+                    for (let x = 0; x < tx.width; x++) {
+                        fin += _urender_basic_unit(tx.units[y * tx.width + x]);
+                    };
+                    fin += "\n";
+                };
+                return fin;
+            };
+            __draw_image_to__(tx: string, pos: { x: number, y : number }) {
+                let spacing = " ".repeat(Math.ceil((process.stdout.columns - chunk_deltaX(current_chunk.vp)+1)/2));
+                let line_count_of_useless_text_for_morons = 4;
+                tx.split(`\n`).forEach((l, indx) => {
+                    process.stdout.cursorTo(spacing.length + pos.x, pos.y + line_count_of_useless_text_for_morons + indx);
+                    console.log(l);
+                });
+            };
+            /// model placement method
+            async __model_placement__(__item: TSGmeng.fw4_texture): Promise<TSGmeng.fw4_model> {
+                return new Promise<TSGmeng.fw4_model>(async (resolve, reject) => {                    
+                    let dp_pos: TSGmeng.fw4_drawpoint = { x: 0, y: 0 };
+                    let model = new TSGmeng.fw4_model();
+                    let id = (Math.floor(Math.random() * 1000000));
+                    model.texture = __item;
+                    model.name = __item.name + "_gmdl." + id.toString();
+                    model.width = __item.width;
+                    model.height = __item.height;
+                    model.id = id;
+                    function __write_texture__(pos: { x: number, y: number }) {
+                        __editor_helpers__.__draw_image_to__(__editor_helpers__.__draw_texture__(__item), pos);
+                    };
+                    let __inited__ = false;
+                    async function placement_k() {
+                        return new Promise<void>((resolve, reject) => {
+                            tui.capture([`up`, `down`, `left`, `right`, `return`, `escape`], (key, ctrl) => {
+                                switch(key.name) {
+                                    case 'return':
+                                        model.position = dp_pos;
+                                        current_chunk.models.push(model);
+                                        break;
+                                    case 'escape':
+                                        model.name == "__UNKNOWN__";
+                                        model.id = -1;
+                                        break;
+                                    case 'up':
+                                        if (dp_pos.y - 1 < 0) break;
+                                        dp_pos.y--;
+                                        break;
+                                    case 'down':
+                                        if (dp_pos.y + 1 > chunk_deltaY(current_chunk.vp)) break;
+                                        dp_pos.y++;
+                                        break;
+                                    case 'right':
+                                        if (dp_pos.x + 1 > chunk_deltaX(current_chunk.vp)) break;
+                                        dp_pos.x++;
+                                        break;
+                                    case 'left':
+                                        if (dp_pos.x - 1 < 0) break;
+                                        dp_pos.x--;
+                                        break;
+                                };
+                                ctrl.close();
+                                __write_texture__(dp_pos);
+                            });
+                            resolve(void 0);
+                        });
+                    };
+                    placement_k();
+                });
+            };
         };
         const titles = {
             'level_editor': tui.clr(`gmeng ${tui.clr(`level editor`, `red`)}`, `dark_red`),
         };
-        async function __draw__() {
+        async function __draw__(no_overlays = false) {
             process.stdout.cursorTo(0, 0);
             process.stdout.write(tui.center_align(tui.clr(`${current_level.name} (${filename}) | ${current_level.description}`, `yellow`)));
             process.stdout.cursorTo(0, 0);
             process.stdout.write((titles.level_editor));
             console.log(`\n` + tui.make_line(process.stdout.columns, `blue`));
-            ((TSGmeng.c_unit.repeat(current_level.base.width) + `\n`).repeat(current_level.base.height)).split(`\n`).forEach(b => {
-                console.log(tui.center_align(b));
-            });
+            __editor_helpers__.__chunk_view__();
             console.log(tui.upk + tui.make_line(process.stdout.columns, `blue`));
             console.log(tui.center_align(`overlay: ${active_overlay} | chunk_number: ${current_chunk.id}`));
-            if (active_overlay == 0) {
-                __editor_helpers__.__overlay_vgm_controller__(true);
-                __editor_helpers__.__overlay_level_settings__(false);
-            }
-            else if (active_overlay == 1) {
-                __editor_helpers__.__overlay_vgm_controller__(false);
-                __editor_helpers__.__overlay_level_settings__(true);
-            };
+            let overlays = [
+                __editor_helpers__.__overlay_vgm_controller__,
+                __editor_helpers__.__overlay_level_settings__
+            ];
+            overlays.forEach((mtd, indx) => { mtd(false, active_overlay == indx); });
+            let focused = overlays[focused_overlay < overlays.length-1 ? focused_overlay : overlays.length-1];
+            if (focused_overlay != -1) focused(true, true);
             process.stdout.cursorTo(0, 2 + current_level.base.height);
         }
         function __edit__() {
@@ -515,11 +696,19 @@ export namespace builder {
             console.clear();
             __draw__();
         };
-        tui.capture([`tab`], (key, ctrl) => {
+        let __focused__ = true;
+        tui.capture([`tab`, `return`], (key, ctrl) => {
+            if (focused_overlay == -1) __focused__ = true;
+            if (!__focused__) return;
             switch (key.name) {
                 case `tab`: // switch active overlay 
                     active_overlay++;
                     if (active_overlay > 1 || active_overlay < 0) active_overlay = 0;
+                    __draw__();
+                    break;
+                case `return`:
+                    __focused__ = false;
+                    focused_overlay = active_overlay;
                     __draw__();
                     break;
                 default: 
@@ -734,15 +923,15 @@ export function v_gen_units(height: number, width: number, color: number): TSGme
 
 export namespace gm_parsers.fw4_0 {
     export function __default_init__(val: TSGmeng.fw4_levelinfo): absolute<void> {
-        val.base.width = 20;
-        val.base.height = 10;
+        val.base.width = (2**10)*2; // MAX LIMIT (should not be reached anyways)
+        val.base.height = 2**10; // MAX LIMIT (should not be reached anyways)
         val.description = `New Level ${Math.floor(Math.random() * 100)}.${crypto.randomUUID().substring(29)}`;
         val.base.lvl_template = {
             collidable: true,
             height: 100,
             width: 200,
             name: `%base.template ${Math.floor(Math.random() * 100)}.${crypto.randomUUID().substring(29)}`,
-            units: v_gen_units(100, 200, 0)
+            units: v_gen_units((2**10)*2, (2**10), 0)
         };
     };
     export function __chunk__(v_str: string): { chunk: TSGmeng.fw4_chunk, model_macros: Array<string> } {

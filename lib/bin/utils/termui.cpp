@@ -1,5 +1,6 @@
 #include <iostream>
 #include <array>
+#pragma once
 #include <vector>
 #include <cstdio>
 #include <string>
@@ -7,7 +8,6 @@
 #include <math.h>
 
 #ifdef __GMENG_OBJECTINIT__
-#ifndef __GMENG_DISPLAYMGR_INIT__
 
 
 /// t_init structures
@@ -19,6 +19,9 @@ namespace Gmeng {
     };
     const char d_endl = '\x0f'; /// newline | formatter 0
     struct t_charpos { int p1; /* x axis */ int p2; /* y axis */ };
+};
+
+namespace Gmeng::display_thread_controller {
 };
 
 static void _uset_cursor_pos(int x, int y) {
@@ -91,6 +94,7 @@ static void _utext(Gmeng::t_display &display, std::string _ln) {
     int v_countchars = 0;
     for (const auto& ch : _ln) {
         if (ch == '\n' || ch == Gmeng::d_endl) { v_countchars += (display.v_width - v_countchars); continue; };
+        if (display.v_drawpoints.size()-1 < display.v_cursor+v_countchars) continue;
         display.v_drawpoints[display.v_cursor+v_countchars] = ch;
         v_countchars++;
     };
@@ -123,5 +127,4 @@ static void _udraw_display(Gmeng::t_display& __d) {
 
 
 #define __GMENG_DISPLAYMGR_INIT__ true
-#endif
 #endif

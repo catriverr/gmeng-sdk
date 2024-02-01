@@ -1,5 +1,6 @@
 #include <chrono>
-#define __GMENG_ALLOW_LOG__ false
+#include <ostream>
+#define __GMENG_ALLOW_LOG__ true
 
 #include <iostream>
 #include <algorithm>
@@ -136,12 +137,12 @@ int main1() {
 
 int test_vgmcontent() {
     std::cout << "vgm_defaults size: " << Gmeng::vgm_defaults::vg_textures.size() << endl;
-    for (int j = 0; j < Gmeng::vgm_defaults::vg_textures.size(0); j++) {
+    Gmeng::CameraView<1, 1> camera;
+    camera.SetResolution(1, 1);
+        for (int j = 0; j < Gmeng::vgm_defaults::vg_textures.size(0); j++) {
         auto tx = Gmeng::vgm_defaults::vg_textures.indx(j);
-        Gmeng::CameraView<1, 1> camera;
         std::cout << "drawing texture: ";
         std::cout << tx.name << " | notxtr: " << (Gmeng::notxtr.name == tx.name ? "true" : "false");
-        camera.SetResolution(1, 1);
         for (int i = 0; i < tx.units.size(); i++) {
             if ((i % tx.width) == 0) std::cout << std::endl;
             std::cout << camera.draw_unit(tx.units[i]);
@@ -165,29 +166,88 @@ int test_caketxtr() {
     return 0;
 };
 
+int test_chunkvpoint() {
+    Gmeng::Level level_test = {
+        .base = {
+            .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
+            .width = 88,
+            .height = 44
+        },
+        .name = v_str(g_mkid())
+    };
+    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
+    Gmeng::Renderer::Model test_model_2 = {
+        .position = { 0, 6 }
+    };
+    test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
+    test_model.name = v_str(g_mkid());
+    test_model.position = { 0,0 };
+    level_test.load_chunk({
+        .vp = { { 0, 0 }, { 88, 22 } },
+        .models = {
+            test_model
+        },
+    });
+    level_test.load_chunk({
+        .vp = { { 0, 23 }, { 88, 44 } },
+        .models = {
+            test_model_2
+        }
+    });
+    level_test.display.set_resolution(88, 22);
+    level_test.draw_camera(0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    level_test.draw_camera(1);
+    std::cout << "starting test for __viewpoint_vector_move_camera__" << std::endl;
+    /// bit to check text_data
+    gm::global.dev_console = true;
+    _udraw_display(Gmeng::logc);
+    gm::global.dev_console = false;
+    return 0;
+};
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,
     &test_loadtexture,
     &test_placement,
     &test_renderer,
-    &test_loadglvl
+    &test_loadglvl,
+    &test_chunkvpoint
 };
 
 int main(int argc, char* argv[]) {
+    std::cout << "gmeng_tests -> SPAWN(1)" << std::endl;
+    std::cout << "gmeng_tests -> checking platform (expecting OS X)" << std::endl;
+    #if _WIN32
+        std::cout << Gmeng::colors[4] << "libgmeng-abi: __excuse__" << std::endl;
+        std::cout << "INTERNAL: __gmeng_platform__, __gmeng_threading__, __stdlib__, __libc++-abi__, __std_com_apple_main_pthread__" << std::endl;
+        std::cout << "Gmeng is not available in a core-platform other than darwin ( apple_kernel )." << std::endl;
+        std::cout << "current_platform: win32 ( WINDOWS_NT )" << std::endl;
+        std::cout << "__gmeng_halt_execution__( CAUSE( gmeng::global.v_exceptions->__find__( \"controller.platform\" ) ) && CAUSE( \"__environment_not_suitable__\" ) )" << std::endl;
+        return 0;
+    #endif
+    std::cout << "gmeng_tests -> checking arguments" << std::endl;
+    gm::global.dev_console = true;
     std::vector<int> do_list = {};
     bool do_main1 = false;
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
         if (startsWith(argument, "-l=")) {
-            std::vector<std::string> do_tests = g_splitStr(argument.substr(3), ",");;
-            for (const auto& tid : do_tests) do_list.push_back(std::stoi(tid)); 
+            std::vector<std::string> do_tests = g_splitStr(argument.substr(3), ",");
+            for (const auto& tid : do_tests) if (tid.length() > 0) do_list.push_back(std::stoi(tid));
         };
         if (argument == "-all") do_main1 = true;
+        if (argument == "-no-devc") gm::global.dev_console = false;
     };
-    if (do_main1) return main1();
-    else {
+    {
+        if (do_main1) {
+            do_list.clear();
+            for (int i = 0; i < testids.size(); i++) {
+                do_list.push_back(i);
+            };
+        };
         _gupdate_logc_intvl();
         gm::_uread_into_vgm("./envs/models");
         int total = 0;
@@ -196,7 +256,9 @@ int main(int argc, char* argv[]) {
             if (it == do_list.end()) { std::cout << "skipping test_000" << i << ": since test loader do_list does not include it" << std::endl; continue; };
             std::cout << "running 000" << i << "_test_nr_" << i << " | heap_at: " << _uconv_1ihx(_uget_addr(testids[i])) << std::endl;
             total++;
+            if (testids.size() == i) break;
             int value = testids[i]();
+            continue;
             std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << std::endl;
         };
         _gthread_catchup();

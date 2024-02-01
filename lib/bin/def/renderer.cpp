@@ -31,11 +31,14 @@ namespace Gmeng {
         struct viewpoint { drawpoint start; drawpoint end; };
         inline Gmeng::texture generate_empty_texture(int width, int height) {
             Gmeng::texture __t; __t.width = width; __t.height = height; __t.collidable = false;
+            int color_value = 0;
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++)
                     __t.units.push_back(Gmeng::Unit {
-                        .color = j % 2 == 0 ? Gmeng::color_t::PINK : Gmeng::color_t::BLACK
+                        .color = j % 2 == color_value ? Gmeng::color_t::PINK : Gmeng::color_t::BLACK
                     });
+                if (color_value == 0) color_value++;
+                else color_value = 0;
             };
             return __t;
         };
@@ -55,6 +58,14 @@ namespace Gmeng {
               inline void reset_texture() { this->texture = generate_empty_texture(this->width, this->height); };
               inline void attach_texture(Gmeng::texture __t) { this->texture = __t; this->width = __t.width; this->height = __t.height; };
               inline void load_texture(std::string __tf) { this->texture = Gmeng::LoadTexture(__tf); }; //! FIXME: width,height values remain unchanged
+        };
+        inline Model generate_empty_model(int width, int height) {
+            int id = g_mkid();
+            return Model {
+                .width=static_cast<std::size_t>(width), .height=static_cast<std::size_t>(height), .size=static_cast<std::size_t>(width*height),
+                .position = { 0, 0 }, .name = "unknown_" + v_str(id),
+                .texture = generate_empty_texture(width, height), .id = id
+            };
         };
         struct LevelBase {
             Gmeng::texture lvl_template; std::size_t width; std::size_t height;
@@ -137,8 +148,8 @@ namespace Gmeng {
             // Ensure the viewpoint is within the map boundaries
             view.start.x = std::max(view.start.x, 0); view.end.x = std::min(view.end.x, map.x - 1);
             view.start.y = std::max(view.start.y, 0); view.end.y = std::min(view.end.y, map.y - 1);
-            for (int x = view.start.x; x <= view.end.x; ++x) {
-                for (int y = view.start.y; y <= view.end.y; ++y) { result.push_back({x, y}); };
+            for (int y = view.start.y; y <= view.end.y; ++y) {
+                for (int x = view.start.x; x <= view.end.x; ++x) { result.push_back({x, y}); };
             };
             return result;
         };
@@ -558,6 +569,18 @@ namespace Gmeng {
             inline void set_chunk(int id, Gmeng::r_chunk chunk) {
                 this->chunks[id] = chunk;
             };
+            inline Renderer::viewpoint calculate_camera_viewpoint() {
+                Renderer::drawpoint start; Renderer::drawpoint end;
+                start.x = this->plcoords.x - ((this->display.width -1)/2);
+                start.y = this->plcoords.y - ((this->display.height-1)/2);
+                end.x   = this->plcoords.x + ((this->display.width -1)/2);
+                end.y   = this->plcoords.y + ((this->display.height-1)/2);
+                while (start.x > this->base.lvl_template.width && start.x != 0)  start.x--;
+                while (start.y > this->base.lvl_template.height&& start.y != 0)  start.y--;
+                while (end.x   > this->base.lvl_template.width &&   end.x != 0)    end.x--;
+                while (end.y   > this->base.lvl_template.height &&  end.y != 0)    end.x--;
+                return { start, end };
+            };
         public:
             Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display; Objects::G_Player player = Gmeng::v_base_player; Objects::coord plcoords = { .x=0, .y=0 };
             std::vector<Gmeng::r_chunk> chunks; std::string desc; std::string name;
@@ -597,6 +620,11 @@ namespace Gmeng {
                     .c_ent_tag="o"
                 }, 0, 0);
             };
+            /// sets the current frame to the param &vector<units>
+            inline void set_image(std::vector<Gmeng::Unit> units) {
+                std::copy(units.begin(), units.end(), this->display.camera.display_map.unitmap);
+                this->display.draw(this->player, this->plcoords);
+            };
             // draws chunk in Gmeng::Level::(std::vector<Gmeng::r_chunk>)chunks on position: chunk_id
             // to the Display::CameraView controller
             inline void draw_camera(int chunk_id) {
@@ -619,6 +647,9 @@ namespace Gmeng {
             inline std::vector<Gmeng::Unit> get_rendered_chunk(int id) {
                 return this->render_chunk(this->chunks[id]);
             };
+            inline std::vector<Gmeng::Unit> v_render_chunk(Gmeng::r_chunk chunk) {
+                return this->render_chunk(chunk);
+            };
             /// refreshes the current chunk display
             inline void refresh() {
                 this->display.set_resolution(this->display.width, this->display.height);
@@ -632,13 +663,13 @@ namespace Gmeng {
             };
             inline void move_player(int x, int y) {
                 this->plcoords.x=x; this->plcoords.y=y;
+                this->display.viewpoint = this->calculate_camera_viewpoint();
             };
     };
     /// checks if a viewpoint contains a sub-viewpoint
     /// this code is horrifying to edit, we should just hope that it will never cause issues
     inline std::vector<Renderer::drawpoint> viewpoint_includes(const Renderer::viewpoint &v_control, const Renderer::viewpoint &v_check) {
         std::vector<Renderer::drawpoint> __shared__;
-
         // Check if v_checks start point is within control
         if (v_check.start.x >= v_control.start.x && v_check.start.y >= v_control.start.y &&
             v_check.start.x <= v_control.end.x && v_check.start.y <= v_control.end.y) {
@@ -668,6 +699,12 @@ namespace Gmeng {
         };
         return __shared__;
     };
+    inline bool viewpoint_includes_dp(Renderer::viewpoint vp, Renderer::drawpoint dp) {
+        if (dp.x >= vp.start.x && dp.x <= vp.end.x &&
+            dp.y >= vp.start.y && dp.y <= vp.end.y) return true;
+        return false;
+    };
+    /// @deprecated not used internally | DOES NOT RETURN CORRECT VALUES
     inline std::vector<Gmeng::Unit> trace_render_partial(Gmeng::Level level_t, int id, std::vector<Renderer::drawpoint> drawpoints) {
         std::vector<Gmeng::Unit> raw_chunk = level_t.get_rendered_chunk(id);
         std::vector<Gmeng::Unit> __partial__;
@@ -685,74 +722,137 @@ namespace Gmeng {
         return __partial__;
     };
     /// traces a chunk's display position in a vector
-    inline VectorView trace_chunk_display_pos(Gmeng::Level& level_t) {
-        Gmeng::VectorView displays; Gmeng::CameraView<0, 0> *pCamera = &(level_t.display.camera);
+    inline std::vector<Gmeng::r_chunk> trace_chunk_vector(Gmeng::Level& level_t) {
+        std::vector<Gmeng::r_chunk> displays; Gmeng::CameraView<0, 0> *pCamera = &(level_t.display.camera);
         Gmeng::Renderer::Display *pDisplay = &(level_t.display);
         int __iterator_count__ = 0;
         __iterate_through__: for (const auto& chunk : level_t.chunks) {
             std::vector<Renderer::drawpoint> shared_delegates = viewpoint_includes(pDisplay->viewpoint, chunk.vp);
-            if (shared_delegates.size() < 1) break;
+            if (shared_delegates.size() < 1) continue;
             // chunk exists in camera viewpoint, add it to vectorview
-            displays.vectors[__iterator_count__] = trace_render_partial(level_t, __iterator_count__, shared_delegates);
+            displays.push_back(chunk);
             __iterator_count__++;
         };
         return displays;
     };
     /// combines render buffers into a list
-    inline std::vector<RenderBuffer> splice_render_buffers(Gmeng::Level& level_t, VectorView viewspace) {
-
+    inline std::vector<Unit> splice_render_buffers(std::vector<r_chunk> chunks, Gmeng::Level &level_t) {
+        std::vector<Unit> units;
+        for (const auto& chunk : chunks) {
+            std::vector<Renderer::drawpoint> shared_delegates = viewpoint_includes(level_t.display.viewpoint, chunk.vp);
+            if (shared_delegates.size() < 1) continue;
+            std::vector<Unit> v_units = level_t.v_render_chunk(chunk);
+            units.insert(units.end(), v_units.begin(), v_units.end());
+        };
+        return units;
     };
-    inline void _voptimize_chunk_vector(Gmeng::VectorView &vec, Gmeng::Level& level_t) {
+    inline std::vector<Renderer::drawpoint> chromatize_viewpoint(Renderer::viewpoint vp) {
+        std::vector<Renderer::drawpoint> _vpos;
+        /// x, y < |MATH_DELTA( VP_END, VP_START )| (viewpoint_width)
+        /// transcend_drawpoint_to_viewpoint(); __viewpoint_controller__();
+        for (int y = 0; y < vp.end.y - vp.start.y; y++) {
+            for (int x = 0; x < vp.end.x - vp.start.x; x++) {
+                _vpos.push_back({
+                    .x = x + (vp.end.x - vp.start.x),
+                    .y = y + (vp.end.y - vp.start.y)
+                });
+            };
+        };
+        return _vpos;
     };
-    /// generates a cameraview unit vector that can be drawn to the screen
+    inline Renderer::drawpoint trace_drawpoint_in_viewpoint(Renderer::viewpoint vp, Renderer::drawpoint dp) {
+        std::vector<Renderer::drawpoint> vp_pos = chromatize_viewpoint(vp);
+        return {
+            .x = vp_pos[dp.y * (vp.end.x - vp.start.x) + dp.x].x,
+            .y = vp_pos[dp.y * (vp.end.x - vp.start.x) + dp.x].y
+        };
+    };
+    /// @deprecated not used internally | NOT IMPLEMENTED
+    /// trace_chunk_vector implements optimization itself.
+    inline void _voptimize_chunk_vector(Gmeng::Level& level_t) {
+    };
+    /// sorts a chunk vector according to its levels' viewpoints ( correct_formed_list )
+    /// @deprecated not used internally, but returns values as expected
+    inline std::vector<r_chunk> _vsort_chunk_vector(Gmeng::Level& level_t) {
+        std::vector<r_chunk> chunks;
+        int __base_width__ = level_t.base.width;
+        int __iterator_value__ = 0;
+        int __next_viewpoint_value__ = 0;
+        __iterate_through__: for (const auto& chunk : level_t.chunks) {
+            if (__next_viewpoint_value__ != 0 && __next_viewpoint_value__ != chunk.vp.start.y * level_t.base.width + chunk.vp.start.x) continue;
+            chunks.push_back(chunk);
+            __next_viewpoint_value__ = chunk.vp.start.y * level_t.base.width + chunk.vp.start.x;
+            __iterator_value__++;
+        };
+        return chunks;
+    };
+    /// compiles a level's display viewpoint into a vector of units
     /// (splicing different parts of r_chunk renderbuffers into one cameraview instance)
-    inline std::vector<Gmeng::Unit> _vgen_camv_f2pcv(std::vector<Gmeng::r_chunk> chunks, int width, int height) {
-        // width & height values are the viewpoint of the display, so we should create renderbuffers
-        // that will equate to the exact units that should be rendered of each chunk.
-        // to get these chunks, we should first trace them to the display_pos chunk
-        // for example:
-        // LEVEL(CHUNKS(id)):
-        // xxxxxxxxxxxxxxxxx
-        // x 0 | 1 | 2 | 3 x
-        // x 4 | 5 | 6 | 7 x
-        // x 8 | 9 | 10| 11x
-        // xxxxxxxxxxxxxxxxx
-        // HOW -> width_of_chunk_sizes_defined_in_glvl_file_header % width_of_base_template_of_the_level_defined_in_glvl_file_header returns
-        //        the amount of chunks that should be drawn according to the base template width (skybox)
-        //        this calculates the amount of chunk_lines the base template can get
-        //        our chunks are already placed in a std::vector<model> models, viewpoint vp;
-        //        so we can get the position each chunk will be in
-        //        for example a chunk with { start { x 0, y 0 }, end { x 4, y 4 } } will be placed in POS(0) of CAMERA(0)
-        //        and so on until we meet the end. these values are trustable enough, since .glvl files will be compiled
-        //        from a .glcp (gmeng level compiler parameters) header file which is generated by the editor
-        //        so all we actually have to do is move the camera viewpoint, and generate a VECTOR(CHUNK) object such as this:
-        //        +----------------------------+
-        //        | CHUNK(1) CHUNK(2) CHUNK(3) |                     +------------------------------------------------------------------+
-        //        | CHUNK(4) CHUNK(5) CHUNK(6) |         FROM        | CHUNK(1) CHUNK(2) CHUNK(3) CHUNK(4) CHUNK(5) CHUNK(6) CHUNK(7)...|
-        //        | CHUNK(7) CHUNK(8) CHUNK(9) |                     +------------------------------------------------------------------+
-        //        +----------------------------+
-        //                 basically we are generating a 1d vector that lists its chunks as a 2d vector, from a 2d vector
-        //                 which does not have its chunks aligned accordingly to its viewpoints. We split it through the
-        //                 level's header which defines the base template (skybox). Pretty calculationally heavy though.
-        //
-        // WHY -> We don't want an undertale-like world renderer, where the terrain only updates when the player leaves a chunk and enters a new one,
-        //        a much better approach would be to load chunks according to the CAMERA(0, 0)'s viewpoint. We can calculate which chunks
-        //        that viewpoint contains through creating a vector that contains each chunk's drawpoints (all x,y positions of all units).
-        //        we can then check through the vector with _vcreate_shared_vector(), which uses _voptimize_chunk_vector(X>>Y) which will remove
-        //        unlikely viewpoints from the display. This still does not return the values though, since a chunk may include a drawpoint, but
-        //        its viewpoint starter may not contain it. For example start: 0,0 end: 4,4 contains 3,3 but it is not in the chunk's header
-        //        _voptimize_chunk_vector() removes viewpoints that are after our viewpoint's end drawpoint for example:
-        //          vp_this = VIEWPOINT( START(6, 6), END(10, 10) )
-        //          chunks = (
-        //              unlikely_chunk = CHUNK( START(11, 11), END(15, 15) )
-        //          )
-        //         _voptimize_chunk_vector() realizes that chunks @ unlikely_chunk starts at a point over vp_this' viewpoint.
-        //         so it removes its entries from the iterable_vector.
-
-        // I have been looking at this text editor for the past 5 hours. And this enormous method will take all my energy to do which i simply don't have.
-        // TODO: Implement this by the end of the week.
-        
+    inline std::vector<Gmeng::Unit> _vgen_camv_fv2cv(Gmeng::Level &level_t) {
+        Gmeng::Renderer::Display *pDisplay = &level_t.display; Gmeng::CameraView<0,0> *pCamera = &level_t.display.camera;
+        std::vector<r_chunk> chunks = Gmeng::trace_chunk_vector(level_t);
+        std::vector<Unit> units = Gmeng::splice_render_buffers(chunks, level_t);
+        std::vector<Unit> v_units_final;
+        int x = 0, y = 0;
+        for (const auto& unit : units) {
+            int unit_dpi_in_level = y * level_t.base.width + x;
+            if (viewpoint_includes_dp(pDisplay->viewpoint, { x, y })) v_units_final.push_back(unit);
+            x++;
+            if (x % level_t.base.width == 0) { x = 0; y++; };
+        };
+        return v_units_final;
+    };
+    /// returns delta of a viewpoint's X coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
+    };
+    /// returns delta of a viewpoint's Y coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
+    };
+    template <typename... Args>
+    auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
+    };
+    template <typename... Args>
+    auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
+    };
+    /// returns position of a 2d pointer in a vector as a 1d index to the vector
+    /// example:
+    /// { 0, 1, 2,
+    ///   3, 4, 5 }
+    /// width = 3,
+    /// pointer = (1, 1)
+    /// y (1) * width (3) + x (1) => pos(4)
+    /// vector[4] = 4
+    template <typename number_type = int>
+    inline number_type _vcreate_vu2d_delta_xy(int x, int y, int width) {
+        return v_static_cast<number_type>( ( y * width ) + x );
+    };
+    /// returns a frame generated by a level_t object
+    /// chronological execution:
+    ///     ->  _vcamv_gen_frame( LEVEL(1) )
+    ///         -> _vgen_camv_fv2cv( &LEVEL(1) )
+    ///             -> trace_chunk_vector( &LEVEL(1) ) => vector< CHUNK(0) > chunks
+    ///             -> splice_render_buffers( chunks ) => vector< UNIT(0) > units
+    ///         -> _vcreate_vp2d_deltay, _vcreate_vp2d_deltax, _vcreate_vu2d_delta_xy
+    inline std::string _vcamv_gen_frame(Gmeng::Level level_t) {
+        std::string __final__ = "";
+        std::vector<Unit> units = Gmeng::_vgen_camv_fv2cv(level_t);
+        Gmeng::CameraView<0, 0>* pCameraRenderer = &level_t.display.camera;
+        for (int y = 0; y < Gmeng::_vcreate_vp2d_deltay(level_t.display.viewpoint); y++) {
+            for (int x = 0; x < Gmeng::_vcreate_vp2d_deltax(level_t.display.viewpoint); x++) {
+                __final__ += pCameraRenderer->draw_unit(
+                                units[ _vcreate_vu2d_delta_xy(x, y,
+                                       _vcreate_vp2d_deltax(level_t.display.viewpoint)) ]
+                             );
+            };
+            __final__ += "\n";
+        };
+        return __final__;
     };
 };
-
 #define __GMENG_MODELRENDERER__INIT__ true

@@ -145,6 +145,31 @@ export namespace tui {
         text.split(`\n`).forEach(vl => { console.log(tui.clr(TSGmeng.c_unit, `orange`) + ` ` + (vl) + ` ` + tui.clr(TSGmeng.c_unit, `orange`)); });
         console.log(tui.clr(TSGmeng.c_outer_unit_floor.repeat(width+4), `orange`));
     };
+    class wcontrollers {
+        public display = new class __wcontrollers_inital_variable__ { 
+            public width: number = 5; public height: number = 5;
+            public big_border: boolean = false; public pos: { x: number, y: number } = { x: 0, y : 0 }
+            public lines: Array<Array<string>> = [];
+        };
+        constructor(width: number, height: number, pos: { x: number, y: number }, big_border = true) { 
+            this.display.pos = pos;
+            this.display.big_border = big_border;
+            this.display.width = width; this.display.height = height;
+        };
+        public wchar_at(pos: { x: number, y: number }, s: string) {
+            if (remove_colorcodes(s).length > 1) return;
+            if (this.display.lines.length <= pos.y) return;
+            if (this.display.lines[pos.y].length <= pos.x) return;
+            lines[pos.y][pos.x] = s;
+        };
+        public wdraw() {
+
+        };
+    };
+    export function display_w(width: number, height: number, pos: { x: number, y: number }, bborder = true): wcontrollers {
+        let controller = new wcontrollers(width, height, pos, bborder);
+        return controller;
+    };
     export function capture<Func extends (key: rl.Key, ctrl: { closed: boolean; close: () => void } ) => void>(keys: Array<string>, callback: Func) {
         process.stdin.setRawMode(true);
         process.stdin.setDefaultEncoding("utf-8");
@@ -178,18 +203,18 @@ export namespace tui {
             this.callback_delegates.set(`__overlay_destroy__`, () => { return void 0; });
             this.callback_delegates.set(`destroy`, this.callback_delegates.get(`__overlay_destroy__`));
         };
-        public run_delegate(delegate: string, ...args: any[]) {
+        public run_delegate(delegate: delegate_names, ...args: any[]) {
             this.callback_delegates.get(delegate)(...args);
         };
         public on(delegate: delegate_names, callback: Function) {
             this.callback_delegates.set(delegate, callback);
         };
         public assign_delegate = (...args: absolute<delegate_assign_types | never | unknown | (() => (void[] | any))>[]) => this.on(args[0], args[1]);
-        public assign_macro(pointee: string, pointer: string) { this.callback_delegates.set(pointee, this.callback_delegates.get(pointer)); };
+        public assign_macro(pointee: string, pointer: string) { this.callback_delegates.set(pointee, (...args) => { this.callback_delegates.get(pointer)(args); }); };
     };
     export function overlay(title: string, menu_items: Array<overlay_item>, pos?: {x : number, y : number}): absolute<OverlayController<
-                            "selection_change" | "item_change" | "item_select">
-                                                                              > {
+        "selection_made" | "selection_change" | "item_change" | "item_select" | "destroy">
+                                                                                         > {
         let controller = new OverlayController();
         controller.assign_delegate(`selection_change`, (selection: number) => {
             let voidptr: absolute<void> = void 0;
@@ -210,12 +235,12 @@ export namespace tui {
             menu_items.forEach((item, indx) => {
                 process.stdout.cursorTo(pos?.x ?? 0, (pos?.y ?? 0) + indx + 1);
                 let text_t = ``;
-                let spacing = Math.floor((41 - item.name.length - 8)/2);
+                let spacing = 42 - Math.floor((41 - item.name.length - 8)/2);
                 if (item.selected) {
                     selected = indx;
-                    text_t = tui.clr(`->`, `orange`) + ` `.repeat(spacing) + tui.undrln(tui.clr(item.name, `yellow`)) + ` `.repeat(spacing) + `  `;
+                    text_t = tui.clr(`->`, `orange`) + ` ` + tui.undrln(tui.clr(item.name, `yellow`)) + ` `.repeat(spacing) + `  `;
                 } else {
-                    text_t = tui.clr(`->`, `grayish`) + ` `.repeat(spacing) + item.name + ` `.repeat(spacing) + `  `
+                    text_t = tui.clr(`->`, `grayish`) + ` ` + item.name + ` `.repeat(spacing) + `  `;
                 };
                 while (tui.remove_colorcodes(text_t).length < 37) text_t += `  `;
                 while (tui.remove_colorcodes(text_t).length > 37) text_t = text_t.slice(0, -1);
@@ -225,6 +250,31 @@ export namespace tui {
             console.log(tui.clr(display_delegates.BOTTOM_LEFT + display_delegates.LINE.repeat(39) + display_delegates.BOTTOM_RIGHT, `cyan`));
         };
         __build_overlay__();
+        tui.capture([`up`, `down`, `escape`, `return`], (key, ctrl) => {
+            let WeAreDestroyingThisListenerDontExecute = false;
+            switch (key.name) {
+                case 'up':
+                    menu_items[selected].selected = false;
+                    if (selected-1 < 0) { menu_items[menu_items.length-1].selected = true; break; };
+                    menu_items[selected-1].selected = true;
+                    break;
+                case 'down':
+                    menu_items[selected].selected = false;
+                    if (selected+1 > menu_items.length-1) { menu_items[0].selected = true; break; };
+                    menu_items[selected+1].selected = true;
+                    break;
+                case 'return':
+                    controller.run_delegate("selection_made", selected);
+                case 'escape':
+                    ctrl.close();
+                    controller.run_delegate('destroy');
+                    WeAreDestroyingThisListenerDontExecute = true;
+                    break;
+            };
+            if (WeAreDestroyingThisListenerDontExecute) return;
+            __build_overlay__();
+            controller.run_delegate('selection_change', selected);
+        });
         return controller;
     };
     export function show_input_menu(title: string, predefined_input?: string): Promise<string> {
