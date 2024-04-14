@@ -458,13 +458,47 @@ export namespace builder {
                     return;
                 };
                 let ui_text = __editor_helpers__.__ui_text__;
-                function __overlay__draw__() {
-                    ui_text([
-                        tui.clr(tui.display_delegates.TOP_LEFT + tui.display_delegates.TITLE_START + tui.clr(`settings`, `orange`) + tui.display_delegates.TITLE_END + tui.display_delegates.LINE.repeat(18) + tui.display_delegates.TOP_RIGHT,       `cyan`),
-                        tui.clr(tui.display_delegates.BOTTOM_LEFT + tui.display_delegates.LINE.repeat(28) + tui.display_delegates.BOTTOM_RIGHT, `cyan`)
-                    ].join(`\n`), pos, 2);
+                let items = [
+                    { name: `level name   -> ${tui.clr(current_level.name       .replace(current_level.name.substring(15),        ``), `blue`)}`, id: 0, selected: true  },
+                    { name: `level desc   -> ${tui.clr(current_level.description.replace(current_level.description.substring(15), ``), `blue`)}`, id: 1, selected: false },
+                    { name: `chunk width  -> ${tui.clr(`${current_level.display_res[0]}`, `blue`)}`, id: 2, selected: false },
+                    { name: `chunk height -> ${tui.clr(`${current_level.display_res[1]}`, `blue`)}`, id: 2, selected: false },
+                ];
+                for (let i = 0; i < items.length; i++) {
+                    process.stdout.cursorTo(pos, i + 2);
+                    process.stdout.write(` `.repeat(process.stdout.columns - pos));
                 };
-                __overlay__draw__();
+                let overlay__ = tui.overlay('settings', items, { x: pos - current_level.description.length + 5, y: 2});
+                overlay__.on(`selection_made`, async (item: number) => {
+                    console.clear();
+                    switch (item) {
+                        case 0: // LEVEL_NAME
+                            let nname = await tui.show_input_menu(`enter level name`);
+                            current_level.name = nname.replace(nname.substring(15), ``);;
+                            break;
+                        case 1: // LEVEL_DESC
+                            let ndesc = await tui.show_input_menu(`enter level desc`);
+                            current_level.name = ndesc.replace(ndesc.substring(15), ``);
+                            break;
+                        case 2: // LEVEL_CHUNK_SPLIT_WIDTH
+                            let ncwidth = await tui.show_input_menu(`enter width`);
+                            if (isNaN(parseInt(ncwidth))) { console.clear(); console.log(tui.center_align(tui.clr(`(int) value of (string)${ncwidth} is NaN`, `dark_red`))); await tui.usleep(3000); break; };
+                            current_level.display_res[0] = parseInt(ncwidth);
+                            break;
+                        case 3: // LEVEL_CHUNK_SPLIT_HEIGHT
+                            let ncheight = await tui.show_input_menu(`enter height`);
+                            if (isNaN(parseInt(ncheight))) { console.clear(); console.log(tui.center_align(tui.clr(`(int) value of (string)${ncheight} is NaN`, `dark_red`))); await tui.usleep(3000); break; };
+                            current_level.display_res[1] = parseInt(ncheight);
+                            break;   
+                        default: // UNKNOWN SPOT
+                            ui_text(tui.clr(`<unknown option: ??????>`, `dark_red`), pos, 2);
+                            break;
+                    };
+                });
+                overlay__.on(`destroy`, () => {
+                    focused_overlay = -1;
+                    __draw__();
+                });
             };
             /// overlay for the glcp (gmeng level compiler parameters) textures 
             /// what textures should be packed with it (if any)
@@ -550,7 +584,6 @@ export namespace builder {
 
                 });
                 vgm_controller.on(`destroy`, () => {
-                    // fuck off typescript.
                     // __draw__() is executed FASTER than a tui.capture listener is destroyed
                     // this is unbelievably retarded
                     focused_overlay = -1;
@@ -933,6 +966,7 @@ export namespace gm_parsers.fw4_0 {
             name: `%base.template ${Math.floor(Math.random() * 100)}.${crypto.randomUUID().substring(29)}`,
             units: v_gen_units((2**10)*2, (2**10), 0)
         };
+        val.display_res = [20, 10];
     };
     export function __chunk__(v_str: string): { chunk: TSGmeng.fw4_chunk, model_macros: Array<string> } {
         // #chunk p1x=<num> p1y=<num> p2x=<num> p2y=<num> <mdl1>,<mdl2>

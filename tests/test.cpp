@@ -1,7 +1,7 @@
 #include <chrono>
 #include <ostream>
 #define __GMENG_ALLOW_LOG__ true
-
+#define __GMENG_LOG_TO_COUT__ true
 #include <iostream>
 #include <algorithm>
 #include "../lib/bin/gmeng.hpp"
@@ -206,6 +206,46 @@ int test_chunkvpoint() {
     return 0;
 };
 
+int test_vpointrender() {
+    std::cout << "starting test_vpointrender" << std::endl;
+    Gmeng::Level level_test = {
+        .base = {
+            .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
+            .width = 88,
+            .height = 44
+        },
+        .name = v_str(g_mkid())
+    };
+    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
+    Gmeng::Renderer::Model test_model_2 = {
+        .position = { 0, 6 }
+    };
+    test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
+    test_model.name = v_str(g_mkid());
+    test_model.position = { 0,0 };
+    level_test.load_chunk({
+        .vp = { { 0, 0 }, { 88, 22 } },
+        .models = {
+            test_model
+        },
+    });
+    level_test.load_chunk({
+        .vp = { { 0, 23 }, { 88, 44 } },
+        .models = {
+            test_model_2
+        }
+    });
+    level_test.display.set_resolution(88, 22);
+    level_test.draw_camera(0);
+    level_test.display.viewpoint = { { 10, 5 }, { 20, 10 } };
+    gm_log("__test_chunkvpoint__ (static test) -> __attempt_test__ ; _vcamv_gen_frame tl");
+    std::cout << std::endl;
+    std::string __test__ = Gmeng::_vcamv_gen_frame(level_test);
+    std::cout << __test__ << std::endl;
+    exit(0);
+    return 0;
+};
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,
@@ -213,7 +253,8 @@ static std::vector<int (*)()> testids = {
     &test_placement,
     &test_renderer,
     &test_loadglvl,
-    &test_chunkvpoint
+    &test_chunkvpoint,
+    &test_vpointrender
 };
 
 int main(int argc, char* argv[]) {
@@ -258,7 +299,6 @@ int main(int argc, char* argv[]) {
             total++;
             if (testids.size() == i) break;
             int value = testids[i]();
-            continue;
             std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << std::endl;
         };
         _gthread_catchup();

@@ -275,6 +275,9 @@ export namespace tui {
             __build_overlay__();
             controller.run_delegate('selection_change', selected);
         });
+        controller.assign_delegate(`selection_change`, (selection: number) => {
+            void 0; // __asign__( ASSERT( __DO_NOTHING__ ) )
+        });
         return controller;
     };
     export function show_input_menu(title: string, predefined_input?: string): Promise<string> {

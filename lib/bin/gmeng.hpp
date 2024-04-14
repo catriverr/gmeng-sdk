@@ -119,6 +119,7 @@ static std::vector<std::string> g_splitStr(std::string s, std::string delimiter)
 }
 
 namespace Gmeng {
+    static std::string version = "6.4.0-d";
 	enum CONSTANTS {
 		/// integer values
 		vl_nomdl_id = 0x0FFFF0, vl_notxtr_id = 0x0FFFF1, vl_nochunk_id = 0x0FFFF2,
@@ -219,7 +220,7 @@ namespace Gmeng {
     } __global_object__;
     /// static__ , global_controllers__
     static __global_object__ global;
-    static std::ofstream outfile;
+    static std::ofstream outfile("gmeng.log");
 };
 
 inline void controller_set(int index, std::string value) {
@@ -316,9 +317,13 @@ static void gm_nlog(std::string msg) {
 
 static void gm_log(std::string msg, bool use_endl = true) {
     #ifndef __GMENG_ALLOW_LOG__
+        __gmeng_write_log__("gmeng.log", "logging is disallowed");
         return;
     #endif
     #if __GMENG_ALLOW_LOG__ == true
+        #if __GMENG_LOG_TO_COUT__ == true
+            std::cout << msg << std::endl;
+        #endif
         std::string _uthread = _uget_thread();
         std::string __vl_log_message__ =  "gm:" + _uthread + " *logger >> " + msg + (use_endl ? "\n" : "");
         Gmeng::logstream << __vl_log_message__;

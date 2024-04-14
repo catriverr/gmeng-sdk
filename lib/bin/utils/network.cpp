@@ -2,10 +2,14 @@
 /// It is a utility to conversate and create strings that will be sent through the tsgmeng:0/network conversator
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <string>
 #include <vector>
 #include <map>
+
+#include "../gmeng.hpp"
 
 using string = std::string;
 
@@ -55,23 +59,21 @@ namespace Gmeng {
                 bool resolved = false; promise_t resolution; string reason;
                 using pcallback_t = std::function<void( std::function<accept(promise_t)>, std::function<refuse(string)> )>;
                 promise(pcallback_t p) {
-                    auto __func_accept__ = [&](promise_t obj) { this->resolved = true; this->resolution = obj;    };
-                    auto __func_refuse__ = [&](string reason) { this->resolved = true; this->reason     = reason; };
+                    auto __func_accept__ = [&](promise_t obj) -> accept { this->resolved = true; this->resolution = obj;    return accept("__accept"); };
+                    auto __func_refuse__ = [&](string reason) -> refuse { this->resolved = true; this->reason     = reason; return refuse(reason);     };
                     p( __func_accept__, __func_refuse__ );
                 };
                 /// artificially alter the promise. this spoofs the result until an actual resolution is generated.
 
-                void pbreak() {
-                    this->resolved = true; this->resolution = false;
-                };
-                void pcomplete() {
-                    this->resolved = true; this->resolution = true;
-                };
+                void pbreak() { this->resolved = true; };
+                void pcomplete() { this->resolved = true; };
         };
         namespace structure {
             struct pheader {
-                std::vector<string> names;
-                std::vector<string> values;
+                struct header_t {
+                    string name; string value;
+                };
+                std::vector<pheader::header_t> items;
             };
             struct pack_t {
                 std::uint64_t  event_type; std::uint8_t perms;   string key;
@@ -126,7 +128,7 @@ namespace Gmeng {
                 // if a packet is being spoofed or a fake packet being sent,
                 // this will detect that since no other client has access to it.
                 // while this can still be impersonated it is still a good measure.
-                std::uint64_t    cache_key; std::uint64_t    server_key;
+                std::string      cache_key; std::string      server_key;
                 std::vector<std::uint64_t>          registered_partiers;
                 std::map<string, std::map<string, cached_t>> collection;
                 promise<bool> add(cache_request r) {
@@ -144,6 +146,7 @@ namespace Gmeng {
                             this->collection[r.category] = {};
                         };
                         this->collection[r.category][r.data.identifier] = r.data;
+                        accept(true);
                     });
                 };
             };
@@ -151,9 +154,53 @@ namespace Gmeng {
         namespace s = structure;
         namespace {
             ///                  Sending Packages
+            // creates a header string from a list of headers
+            // begin; header_t(id,555); header_t(name,catriverr); end_header
+            static string __header_string__(structure::pheader header) {
+                std::vector<string> final;
+                final.push_back("begin_header");
+                for (int i = 0; i < header.items.size() - 1; i++) {
+                    final.push_back("(" + header.items[i].name + "," + header.items[i].value + ")");
+                };
+                return g_joinStr(final, "; header_t") + "; end_header";
 
-            static s::pack_t create_package(int id, s::pheader header) {};
-            static void      send_to_parent(s::pack_t p) {};
+            };
+            enum is_array {
+                BaseHeader = 0,
+                ArrayLike = 1
+            };
+            // parses a header from a string
+            static structure::pheader __parse_header__(string header, is_array array_like) {
+                s::pheader final;
+                string data = header;
+                if (array_like == ArrayLike) data.pop_back(), data.pop_back(), data = data.substr(2); // remove '[ ' and ' ]'
+                std::vector<string> spl_data = g_splitStr(data, "; ");
+                bool do_loop = false;
+                if (spl_data[0] == "begin") do_loop = true; // dont begin if its invalid
+                for (int i = 0; (i < spl_data.size()-2) && do_loop; i++) { // -2 since we remove first item
+                    auto v = spl_data[i];
+                    if (v == "end_header") { do_loop = false; continue; };
+                    if (!v.starts_with("header_t")) continue;
+                    v = v.substr(string("header_t(").length());
+                    v.pop_back(); // remove trailing ')'
+                    std::vector<string> spl_namevalue = g_splitStr(v, ",");
+                    final.items.push_back({.name = spl_namevalue[0], .value = spl_namevalue[1]});
+                };
+                return final;
+            };
+            static string create_package(s::pack_t p) {
+                return string(
+                         string("GMENG_NETWORKING ") +
+                         string("#gm/" + Gmeng::version + " ") +
+                         string("%(" + v_str(p.event_type) + ") ") +
+                         string("!(" + v_str(p.perms) + ") ") +
+                         string("*(" + p.event_cast_by + ") ") +
+                         string("[ " + __header_string__(p.event_headers) + " ]")
+                       );
+            };
+            static void send_to_parent(string p) {
+
+            };
             ///                 Recieving Packages
 
             // recognizes a package type
@@ -168,13 +215,16 @@ namespace Gmeng {
                 ///            log identifier  version      type     perms   event owner    any value,   cache key, asures package authenticity
                 ///                                                                         depends on
                 ///                                                                         the type
-                /// examples: GMENG_NETWORKING #gm/7.0.1-d %(7540) !(11101) *(server-id) [ PLAYER_JOIN,  pos=(0,0), name=catriverr ] @(nv196lv32)
-                ///           GMENG_NETWORKING #gm/7.0.1-d %(7541) !(11101) *(server-id) [ PLAYER_LEAVE, name=catriverr ] @(nv196lv32)
+                ///
+                /// examples: GMENG_NETWORKING #gm/7.0.1-d %(7540) !(1110100) *(server-id) [ PLAYER_JOIN,  pos=(0,0), name=catriverr ] @(nv196lv32)
+                ///           GMENG_NETWORKING #gm/7.0.1-d %(7541) !(1110100) *(server-id) [ PLAYER_LEAVE, name=catriverr ] @(nv196lv32)
             };
             ///                 Validating Packages
             static bool validate() {};
         };
     };
-    namespace Networking {};
+    namespace Networking {
+        namespace packaging = Gmeng::EventPackage;
+    };
     namespace net = Networking;
 };
