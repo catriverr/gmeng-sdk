@@ -119,7 +119,21 @@ static std::vector<std::string> g_splitStr(std::string s, std::string delimiter)
 }
 
 namespace Gmeng {
-    static std::string version = "6.4.0-d";
+    /// current version of the engine.
+    /// "-d" suffix means the version is a developer version, high unstability level
+    /// "-b" suffix means the version is a beta version, low unstability level but unpolished
+    /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
+    static std::string version = "7.0.1-d";
+    enum color_t {
+        WHITE  = 0,
+        BLUE   = 1,
+        GREEN  = 2,
+        CYAN   = 3,
+        RED    = 4,
+        PINK   = 5,
+        YELLOW = 6,
+        BLACK  = 7
+    };
 	enum CONSTANTS {
 		/// integer values
 		vl_nomdl_id = 0x0FFFF0, vl_notxtr_id = 0x0FFFF1, vl_nochunk_id = 0x0FFFF2,
@@ -217,6 +231,7 @@ namespace Gmeng {
         std::vector<int> indexes;
         std::vector<std::string> containers;
         bool dev_console;
+        bool debugger;
     } __global_object__;
     /// static__ , global_controllers__
     static __global_object__ global;
@@ -314,7 +329,6 @@ static void gm_nlog(std::string msg) {
     #endif
 };
 
-
 static void gm_log(std::string msg, bool use_endl = true) {
     #ifndef __GMENG_ALLOW_LOG__
         __gmeng_write_log__("gmeng.log", "logging is disallowed");
@@ -335,11 +349,15 @@ static void gm_log(std::string msg, bool use_endl = true) {
     #endif
 };
 
+static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
+    gm_log(Gmeng::colors[color] + title + " " + Gmeng::colors[Gmeng::WHITE] + text);
+};
+
 namespace Gmeng {
     static std::vector<std::thread> v_threads;
     static std::thread _ucreate_thread(std::function<void()> func) { return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back()); };
     static void        _uclear_threads() { v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end()); };
-    static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); if (thread.joinable()) thread.join(); _uclear_threads(); }; };
+    static void        _ujoin_threads () { for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); try { if (thread.joinable()) thread.join(); _uclear_threads(); } catch (std::exception& e) { std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping..."); gm_log(" :::: error cause -> " + std::string(e.what())); }; };  };
 }
 
 static void _gupdate_logc_intvl(int ms = 250) {
@@ -368,6 +386,22 @@ static void _gupdate_logc_intvl(int ms = 250) {
 static void _gthread_catchup() {
     gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
     Gmeng::_ujoin_threads();
+};
+
+static constexpr uint32_t _ghash(const char* data, size_t const size) noexcept {
+    uint32_t hash = 5381;
+    for(const char *c = data; c < data + size; ++c) hash = ((hash << 5) + hash) + (unsigned char) *c;
+    return hash;
+}
+
+static void _gargv_patch_global(int argc, char* argv[]) {
+    for (int i = 0; i < argc; i++) {
+        char *v_arg = argv[i];
+        std::string argument (v_arg);
+        if ( argument == "-devc" ) Gmeng::global.dev_console = true;
+        if ( argument == "-no-devc" ) Gmeng::global.dev_console = false;
+        if ( argument == "-debugger" || argument == "-debug" || argument == "--debugger" ) Gmeng::global.debugger = true;
+    };
 };
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization

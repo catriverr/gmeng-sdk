@@ -7,6 +7,8 @@
 #include "../lib/bin/gmeng.hpp"
 #include "../lib/bin/def/renderer.cpp"
 
+#define g_sleep std::this_thread::sleep_for
+
 using std::endl;
 
 int test_loadtexture() {
@@ -246,6 +248,63 @@ int test_vpointrender() {
     return 0;
 };
 
+int test_vwhole_renderer() {
+    std::cout << "beginning test" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    Gmeng::Level lvl = {
+        .base = {
+            .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
+            .width = 88,
+            .height = 44
+        },
+        .name = v_str(g_mkid())
+    };
+
+    std::cout << "generate lvl" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
+    test_model.position = { 0,5 };
+    test_model.name = v_str(g_mkid());
+    std::cout << "generate model1" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    lvl.load_chunk({
+        .vp = { { 0,0 }, { 44,44 } },
+        .models = {
+            test_model
+        }
+    });
+    std::cout << "load chunk1" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    Gmeng::Renderer::Model test_model_2 = {
+        .position = { 60,0 }
+    };
+    std::cout << "generate model2" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
+    std::cout << "texture model2" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    lvl.load_chunk({
+        .vp = { { 45,44 }, { 88,44 } },
+        .models = {
+            test_model_2
+        }
+    });
+    std::cout << "load chunk2" << std::endl;
+    lvl.display.set_resolution(88, 44);
+    lvl.display.viewpoint = { { 10,5 }, { 25,15 } };
+    g_sleep(std::chrono::milliseconds(200));
+    std::vector<std::string> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl);
+    std::cout << "renderscale done" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));
+    std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale);
+    std::cout << "level_view done" << std::endl;
+    /*g_sleep(std::chrono::milliseconds(200));
+    Gmeng::emplace_lvl_camera(lvl, _lvlview);
+    std::cout << "emplace_lvl_camera done" << std::endl;
+    g_sleep(std::chrono::milliseconds(200));*/
+    return 0;
+};
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,
@@ -254,7 +313,8 @@ static std::vector<int (*)()> testids = {
     &test_renderer,
     &test_loadglvl,
     &test_chunkvpoint,
-    &test_vpointrender
+    &test_vpointrender,
+    &test_vwhole_renderer
 };
 
 int main(int argc, char* argv[]) {
@@ -272,6 +332,7 @@ int main(int argc, char* argv[]) {
     gm::global.dev_console = true;
     std::vector<int> do_list = {};
     bool do_main1 = false;
+    _gargv_patch_global(argc, argv);
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
@@ -279,8 +340,6 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> do_tests = g_splitStr(argument.substr(3), ",");
             for (const auto& tid : do_tests) if (tid.length() > 0) do_list.push_back(std::stoi(tid));
         };
-        if (argument == "-all") do_main1 = true;
-        if (argument == "-no-devc") gm::global.dev_console = false;
     };
     {
         if (do_main1) {
