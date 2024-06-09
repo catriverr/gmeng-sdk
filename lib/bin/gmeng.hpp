@@ -180,6 +180,9 @@ namespace Gmeng {
 	static std::string colors[] = {
 		"\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
+    static std::string bgcolors[] = {
+        "\x1B[49m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
+    };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
 	const char c_unit[4] = "\u2588";
@@ -232,6 +235,7 @@ namespace Gmeng {
         std::vector<std::string> containers;
         bool dev_console;
         bool debugger;
+        bool log_stdout;
     } __global_object__;
     /// static__ , global_controllers__
     static __global_object__ global;
@@ -336,7 +340,7 @@ static void gm_log(std::string msg, bool use_endl = true) {
     #endif
     #if __GMENG_ALLOW_LOG__ == true
         #if __GMENG_LOG_TO_COUT__ == true
-            std::cout << msg << std::endl;
+            if (Gmeng::global.log_stdout) std::cout << msg << std::endl;
         #endif
         std::string _uthread = _uget_thread();
         std::string __vl_log_message__ =  "gm:" + _uthread + " *logger >> " + msg + (use_endl ? "\n" : "");
@@ -401,6 +405,7 @@ static void _gargv_patch_global(int argc, char* argv[]) {
         if ( argument == "-devc" ) Gmeng::global.dev_console = true;
         if ( argument == "-no-devc" ) Gmeng::global.dev_console = false;
         if ( argument == "-debugger" || argument == "-debug" || argument == "--debugger" ) Gmeng::global.debugger = true;
+        if ( argument == "-log-to-cout" || argument == "-lc" ) Gmeng::global.log_stdout = true;
     };
 };
 

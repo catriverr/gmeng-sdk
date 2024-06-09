@@ -514,6 +514,7 @@ namespace Gmeng {
                 gm_log("chunk viewpoint -> start -> x: " + v_str(chunk.vp.start.x) + " - y: " + v_str(chunk.vp.start.y) + " | end -> x: " + v_str(chunk.vp.end.x) + " - y: " + v_str(chunk.vp.end.y) );
                 gm_log("wrapper viewpoints -> " + v_str(wrapper.size()) );
                 gm_log("get_displacement -> " + v_str(wrapper.size()) + " drawpoints" );
+                gm_log("BASE_MAP_LENGTH: " + v_str(base_map->units.size()));
                 for ( const auto& dp : wrapper ) {
                     int vpos = (dp.y * base_map->width)+dp.x;
                     Gmeng::Unit v_unit = base_map->units[vpos];
@@ -522,10 +523,12 @@ namespace Gmeng {
                 };
                 gm_log("job_render *render_chunk -> v_chunkwrapper compileUnits: v_success\ncl_preview:");
                 int v_compl_t = 0;
+                bool va_start = true;
                 gm_log("\n\t");
                 for ( const auto& un : units ) {
-                    if (global.dev_console) { gm_log("preview not available inside dev_console"); break; };
-                    if (v_compl_t != 0 && v_compl_t % (chunk.vp.end.x - chunk.vp.start.x) == 0) std::cout << std::endl;
+                    if (global.dev_console || !global.debugger) { gm_log("preview not available inside dev_console or while not in debugger"); break; };
+                    if (v_compl_t == (chunk.vp.end.x - chunk.vp.start.x)) { va_start = false; v_compl_t = 0; };
+                    if (!va_start && v_compl_t == 0) std::cout << std::endl;
                     std::cout << (this->display.camera.draw_unit(un));
                     v_compl_t++;
                 };
@@ -537,7 +540,7 @@ namespace Gmeng {
                     gm_log("dp_loadmodel " + v_str(model.id) + " OK" );
                     gm_log("dp -> x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
                     gm_log("p2 -> x: " + v_str(model.width) + " - y: " + v_str(model.height) );
-                    std::vector<Gmeng::Renderer::drawpoint> displacement = Gmeng::Renderer::get_placement(dp, {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)}, {.x=chunk.vp.end.x,.y=chunk.vp.end.y});
+                    std::vector<Gmeng::Renderer::drawpoint> displacement = Gmeng::Renderer::get_placement(dp, {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)}, {.x=(chunk.vp.end.x - chunk.vp.start.x),.y=(chunk.vp.end.y - chunk.vp.start.y)});
                     for ( auto dp : displacement ) {
                         gm_log("displacement_log = x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
                     };
@@ -550,7 +553,7 @@ namespace Gmeng {
                     for ( const auto& unit : unitmap ) {
                         if (unit.transparent) { lndx++; continue; };
                         gm_log(v_str(lndx) +" <- pos_vdp: rendering_model_unit PREVIEW: " + this->display.camera.draw_unit(unit) );
-                        int _vdp_pos = ((displacement[lndx].y-1)*this->display.width)+displacement[lndx].x-2;
+                        int _vdp_pos = ((displacement[lndx].y)*(chunk.vp.end.x - chunk.vp.start.x + 1))+displacement[lndx].x;
                         if (_vdp_pos < (displacement).size()) {
                             gm_log("_vdp_pos find: " + v_str(_vdp_pos) +" OK" );
                             gm_log("_vdp_current -> x: " + v_str(displacement[_vdp_pos].x) + " - y: " + v_str(displacement[_vdp_pos].y) );
@@ -560,12 +563,13 @@ namespace Gmeng {
                             gm_log(Gmeng::colors[YELLOW] + "WARN!" + Gmeng::colors[WHITE] + " possible invalid _vdp_pos, clarification methods disabled");
                             gm_log(Gmeng::colors[CYAN] + "TRACE to pointer of " + Gmeng::colors[GREEN] + "_vdp_pos" + Gmeng::colors[CYAN] + ":");
                             gm_log("@== " + Gmeng::colors[PINK] + "_vdp_pos" + Gmeng::colors[CYAN] + " ==@");
-                            gm_log(colors[WHITE] + "\t#0 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx])) + " " + Gmeng::colors[GREEN] + "displacement [ lndx ]");
+                            gm_log(colors[WHITE] + "\t#0 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement)) + " " + Gmeng::colors[GREEN] + "displacement(" + v_str(displacement.size()) + ") [ lndx ]");
                             gm_log(colors[WHITE] + "\t#1 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].x)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.y_pointer [" + v_str(displacement[lndx].y)+ "] * this->display.width [ " + v_str(this->display.width) + " ] " + colors[PINK] + "== " + colors[WHITE] + v_str(displacement[lndx].y * this->display.width));
                             gm_log(colors[WHITE] + "\t#2 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].y)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.x_pointer [" + v_str(displacement[lndx].x) +"]");
                             gm_log(colors[CYAN] + "@== formulae -> " + Gmeng::colors[GREEN] + "(displacement[lndx].y*this->display.width)+displacement[lndx].x" + Gmeng::colors[CYAN] + " ==@");
                             gm_log(colors[YELLOW] + "WARN!" + colors[WHITE] + " consider investigation of this ccode, since it may occur when _vdp_pos is outbound from sizeof(displacement)");
                         };
+                        gm_log(v_str(unitmap.size()) + " ACCESS_TO_INDEX: " + v_str(lndx) + " APPLIED_FROM_SIZED: " + v_str(_vdp_pos) + " TO_SIZED_VECTOR_OF: " + v_str(units.size()));
                         units[_vdp_pos] = unitmap[lndx];
                         gm_log("set_unit_at(id: " + v_str(_vdp_pos) + ") OK" );
                         lndx++;
@@ -902,7 +906,12 @@ namespace Gmeng {
     inline int _cc1d_scalar_size(Renderer::viewpoint vp) {
         return ( _vcreate_vp2d_deltax(vp) * 0x1 );
     };
-
+    template<typename __vtype__>
+    inline void mirror(std::vector<__vtype__>& __v, int cc = 0) {
+        cc % 2 == 0 ?
+            std::reverse(__v.begin(), __v.end()) :
+            std::reverse(__v.end(), __v.begin()) ;
+    };
     /// concatenates all chunks within a level, according for a 2d space
     /// of which boundaries are set by the level's header base_template.
     /// returned as a vector<string>, which consist of rendered Gmeng::Unit rows
@@ -919,7 +928,7 @@ namespace Gmeng {
         std::vector<std::vector<std::string>> v_rows;
         std::string unit_seperator = v_str((char)0x1F); // hex code of 'UNIT SEPERATOR' (1-byte long)
 
-        for (int __rc = 0; __rc < lvl.base.lvl_template.height; __rc++) v_rows.push_back(g_splitStr(repeatString("A\x1F", __level_base_width__), "\x1F"));
+        for (int __rc = 0; __rc < lvl.base.lvl_template.height; __rc++) v_rows.push_back(g_splitStr(repeatString("\x1F", __level_base_width__), "\x1F"));
         for (const Gmeng::r_chunk chunk : lvl.chunks) {
             /// Y location from the start of the deltaY position of the viewpoint
             int vY = chunk.vp.start.y;
@@ -928,13 +937,16 @@ namespace Gmeng {
             bool vb_start = true;
             for (const auto unit : lvl.v_render_chunk(chunk)) {
                 if (__intlc-1 == _vcreate_vp2d_deltax(chunk.vp)) { vY++; __intlc = 0; vb_start = false; };
-                v_rows[vY].insert(v_rows[vY].begin() + __intlc % _vcreate_vp2d_deltay(chunk.vp), lvl.display.camera.draw_unit(unit));
+                /// inserts to the ROW of units (y = vY calculation) to the:
+                ///     beggining + chunk coverage boundary start X location + current drawpoint X location
+                /// \x0F is formatter to split units to prepare for trimming at get_lvl_view
+                v_rows[vY].insert(v_rows[vY].begin() + chunk.vp.start.x + __intlc, lvl.display.camera.draw_unit(unit) + "\x0F");
                 if (global.debugger) {
                     if (!vb_start && __intlc == 0) std::cout << std::endl;
                     std::cout << (lvl.display.camera.draw_unit(unit)) + colors[RED];
                 };
                 __intlc++;
-            };
+            }; if (global.debugger) std::cout << std::endl;
         };
 
         unsigned int rc = 0;
@@ -959,7 +971,7 @@ namespace Gmeng {
             p2 += _vcreate_vp2d_deltax(partial.vp);
         };
         if (global.debugger) {
-            gm_slog(YELLOW, "DEBUGGER", reinterpereted_data);
+            gm_slog(YELLOW, "DEBUGGER", "\n" + reinterpereted_data);
             gm_slog(YELLOW, "DEBUGGER", "^^ above is reinterpereted_data from _vconcatenate_lvl_chunks");
         };
         return g_splitStr(reinterpereted_data, "\n");
@@ -968,8 +980,8 @@ namespace Gmeng {
     /// returns all drawpoints that are included in a viewpoint as a vector<Gmeng::Renderer::drawpoint>.
     inline std::vector<Renderer::drawpoint> _vexpand_viewpoint(Gmeng::Renderer::viewpoint &vp) {
         std::vector<Renderer::drawpoint> v_drawpoints;
-        for (int unchromatized_x = 0; unchromatized_x < _vcreate_vp2d_deltax(vp); unchromatized_x++) {
-            for (int unchromatized_y = 0; unchromatized_y < _vcreate_vp2d_deltay(vp); unchromatized_y++) {
+        for (int unchromatized_y = 0; unchromatized_y < _vcreate_vp2d_deltay(vp); unchromatized_y++) {
+            for (int unchromatized_x = 0; unchromatized_x < _vcreate_vp2d_deltax(vp); unchromatized_x++) {
                 v_drawpoints.push_back({ .x = unchromatized_x + vp.start.x, .y = unchromatized_y + vp.start.y });
             };
         };
@@ -986,32 +998,70 @@ namespace Gmeng {
     /// Only use this when a chunk's models, textures are updated. Player and entity movement are handled
     /// automatically, so there is no need to put this method in any loops.
     inline std::vector<std::string> _vget_renderscale2dpartial_scalar(Gmeng::Level& level_t) {
-        std::vector<std::string> v_concat_chunk_raw = _vconcatenate_lvl_chunks(level_t);
-        std::vector<std::string> v_concat_chunks    = g_splitStr(g_joinStr(v_concat_chunk_raw, "\n"), v_str((char)0x1F));
+        std::vector<std::string> v_concat_chunks = _vconcatenate_lvl_chunks(level_t);
         if (global.debugger) {
-            gm_slog(YELLOW, "DEBUGGER", g_joinStr(v_concat_chunks, "\n"));
+            gm_slog(YELLOW, "DEBUGGER", "\n" + g_joinStr(v_concat_chunks, "\n"));
         };
         return v_concat_chunks;
     };
     /// returns the camera of the current level, with drawpoints included in level_t->display.viewpoint
     inline std::string get_lvl_view(Gmeng::Level& level_t, std::vector<std::string> concat_chunks) {
         gm_log("get_lvl_view -> tracing viewpoint from level->display.vp");
+        /// splits each unit including its colorcode ascii characters, using the formatter \x0F defined
+        /// in _vget_renderscale2dpartial_scalar() ~ _vconcatenate_lvl_chunks().
+        std::vector<std::string> trimmed_units = g_splitStr(g_joinStr(concat_chunks, ""), "\x0F");
+        if (global.debugger) {
+            gm_slog(GREEN, "DEBUGGER_RENDERENGINE", "inspection of trimmed_units:");
+            unsigned int cc = 0;
+            for ( const auto unit : trimmed_units ) {
+                if (cc % v_static_cast<int>(level_t.base.lvl_template.width) == 0) std::cout << std::endl;
+                std::cout << unit;
+                cc++;
+            };
+        };
         std::string __final__ = "";
         unsigned int ptr = 0;
         gm_log("get_lvl_view -> expanding viewpoint of level_t's camera");
-        for (const auto dp : _vexpand_viewpoint(level_t.display.viewpoint)) {
+        auto resource = _vexpand_viewpoint(level_t.display.viewpoint);
+        for (const auto dp : resource) {
             gm_log(" :::: get_lvl_view -> CURR_DP: " + Gmeng::Renderer::conv_dp(dp) + " *(p): " + v_str(ptr));
             if (global.debugger) {
-                gm_slog(YELLOW, "DEBUGGER", "UNPATCHED_ERROR RN!");
+                gm_slog(YELLOW, "DEBUGGER", "current drawpoint: " + v_str(dp.x) + "," + v_str(dp.y));
                 gm_slog(YELLOW, "DEBUGGER", "curr_dp potential vexers:");
                 gm_slog(YELLOW, "DEBUGGER", "ptr == " + v_str(ptr) + " | deltaX ~ ^vp2d == " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)));
-                gm_slog(YELLOW, "DEBUGGER", "concat_chunks size() == " + v_str(concat_chunks.size()) + " | _vcreate_vu2d_delta_xy ~ dp.x, dp.y, ^level_t.display.viewpoint == " + v_str(_vcreate_vu2d_delta_xy(dp.x, dp.y, _vcreate_vp2d_deltax(level_t.display.viewpoint))));
+                gm_slog(YELLOW, "DEBUGGER", "unit_depot size()" + v_str(trimmed_units.size()) + "concat_chunks size() == " + v_str(concat_chunks.size()) + " | _vcreate_vu2d_delta_xy ~ dp.x, dp.y, ^level_t.display.viewpoint == " + v_str(_vcreate_vu2d_delta_xy(dp.x, dp.y, _vcreate_vp2d_deltax(level_t.display.viewpoint))));
             };
-            if (ptr != 0 && ptr % _vcreate_vp2d_deltax(level_t.display.viewpoint) == 0) __final__ += "\n";
-            __final__ += concat_chunks[_vcreate_vu2d_delta_xy(dp.x, dp.y, _vcreate_vp2d_deltax(level_t.display.viewpoint))];
+            if (ptr % _vcreate_vp2d_deltax(level_t.display.viewpoint) == 0 && ptr != 0) __final__ += "\n";
+            /// INVALID, retrieves from vp not level_t.display
+            int _vpos_fallback_avoid_01 = ( ((int)(ptr / _vcreate_vp2d_deltax(level_t.display.viewpoint)) * _vcreate_vp2d_deltax(level_t.display.viewpoint)) + ( ptr % _vcreate_vp2d_deltax(level_t.display.viewpoint) ) );
+            /// valid _vpos
+            int _vpos = ( dp.y * v_static_cast<int>(level_t.base.lvl_template.width) + dp.x );
+            /// final unit to be placed to the _vpos specified 1d vector id for the 2d unit dp pointer, deltaX
+            /// \x0F is a formatter to trim in emplace_lvl_camera
+            ///------------------------------------------------------------------------------------------------
+            /// fallback in case the viewpoint is out of bounds or extends out of the base level wrapper,
+            /// otherwase the application would crash due to heap-extreme-overflow-access-unallocated-mem SEGV.
+            if ( dp.x < 0                                || dp.y < 0                                ||
+                 dp.x >= level_t.base.lvl_template.width || dp.y >= level_t.base.lvl_template.height ) {
+                if (global.debugger) gm_slog(RED, "DEBUGGER", colors[YELLOW] + "E_NO_UNIT" + colors[WHITE] + ": drawpoint out-of-bound, replace with placeholder");
+                __final__ += level_t.display.camera.draw_unit({
+                    .color = (ptr % 2 == 0) ? BLACK : WHITE,
+                    .special = true, .special_clr = RED,
+                    .special_c_unit = "?"
+                }) + "\x0F"; ptr++;
+                continue;
+            } else {
+                if (global.debugger) gm_slog(RED, "DEBUGGER", "dp.x: " + v_str(dp.x) + " lvl.width: " + v_str(level_t.base.lvl_template.width) + " dp.y: " + v_str(dp.y) + " lvl.height: " + v_str(level_t.base.lvl_template.height));
+                __final__ += trimmed_units[ _vpos ] + "\x0F";
+            };
             ptr++;
         };
-        return __final__;
+        gm_log("get_lvl_view -> level view rendered");
+        if (global.debugger) {
+              gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
+        };
+        /// remove \n newlines and return base, with formatters to split units
+        return g_joinStr(g_splitStr(__final__, "\n"), "");
     };
 
     /// emplaces unit data to the camera.
@@ -1019,16 +1069,89 @@ namespace Gmeng {
     /// to create a rendered_viewpoint use Gmeng::_vget_renderscale2dpartial_scalar(level) and put its return value to get_lvl_view(level, value)
     inline void emplace_lvl_camera(Gmeng::Level& level_t, std::string cam_data) {
         std::string cam_data_raw = cam_data;
-        gm_log("emplace_lvl_camera -> generating viable camera data from rendered_viewpoint");
-        cam_data_raw.erase(std::remove(cam_data_raw.begin(), cam_data_raw.end(), '\n'), cam_data.end());
+        gm_log("emplace_lvl_camera -> retrieved viable camera data from rendered_viewpoint");
         int p = 0;
-        for (const auto raw_unit : g_splitStr(cam_data_raw, Gmeng::resetcolor)) {
+        level_t.display.set_resolution(_vcreate_vp2d_deltax(level_t.display.viewpoint), _vcreate_vp2d_deltay(level_t.display.viewpoint));
+        for (const auto raw_unit : g_splitStr(cam_data_raw, "\x0F")) {
             gm_log("emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
             level_t.display.camera.raw_unit_map[p] = raw_unit + Gmeng::resetcolor;
             p++;
         };
-        gm_log("emplace_lvl_camera -> buffer override complete, the rendered_viewpoint is transfered to the camera");
+        gm_slog(GREEN, "emplace_lvl_camera", "-> buffer override complete, the rendered_viewpoint is transfered to the camera");
     };
+
+
+    /// Text and ascii character handling
+    /// TODO: implement textarea to fw4.0_glvl framework's world file format
+
+    // textblob_colors, color impl for text and blob
+struct textblob_colors_t {
+    Gmeng::color_t text;
+    Gmeng::color_t blob;
+};
+    // textblob, blob of text, controller methods in struct
+struct textblob_t {
+    private:
+        inline bool checkspace(std::size_t width, std::size_t height) {
+            if (this->position.x < width              ||
+                this->position.y < height             ||
+                this->position.x+1 >= width           ||
+                this->position.y+1 >= height          ||
+                this->position.x+4 + contents.length() >= width ||
+                this->position.y+2+(contents.length() / this->max_line_width) >= height ||
+                this->position.x+4 + title.length() >= height)
+                return false;
+            return true;
+        };
+        Gmeng::CameraView<0,0> cam_hide;
+        bool placed = false;
+        bool hidestate = false;
+    public:
+        std::size_t max_line_width; Renderer::drawpoint position;
+        std::string contents; std::string title; textblob_colors_t colors;
+        std::map<int, Gmeng::Unit> affected_units; std::vector<int> affected_unit_ids;
+
+        // Constructor
+        textblob_t(const std::string& text, const std::string& title, std::size_t max_line_width, Renderer::drawpoint pos, color_t text_color, color_t blob_color)
+            : contents(text), title(title), colors({text_color, blob_color}), max_line_width(max_line_width), position(pos) {}
+
+        // Emplace function
+        inline void emplace(Gmeng::CameraView<0,0>& cam) {
+            this->cam_hide = cam;
+            this->placed = true;
+            if (!this->checkspace(cam.w, cam.h)) {
+                if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "textblob_t could not be placed to " + v_str(this->position.x) + "," + v_str(this->position.y) + " because there is not enough space.");
+                return;
+            };
+        };
+
+        // Show function
+        template <typename T, typename = std::enable_if_t<std::is_same_v<T, int> || std::is_same_v<T, bool>>>
+        inline void hide(T state) {
+            if (state) {
+                this->emplace(this->cam_hide);
+            } else {
+                this->remove(this->cam_hide);
+            };
+            this->hidestate = (bool) state;
+        };
+
+        // Remove function
+        inline void remove(Gmeng::CameraView<0, 0>& cam) {
+            this->cam_hide = cam;
+            if (!this->placed || this->hidestate) { if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "ignored textblob_t.remove() call  because the text is already hidden or is not placed."); return; };
+            /// TODO: implement
+        };
+};
+
+    // textarea, creates a blob to emplace text
+    // turns units surrounding text in the specified position to special,
+    // and surrounds it with outer_c_unit characters
+inline textblob_t textarea(Gmeng::CameraView<0, 0> cam, Renderer::drawpoint pos, std::string text, std::string title = "$__NO_TITLE", std::size_t max_line_width = 10, color_t text_color = WHITE, color_t blob_color = BLACK) {
+    textblob_t blob(text, title, max_line_width, pos, text_color, blob_color);
+    blob.emplace(cam);
+    return blob;
+};
 };
 
 #define __GMENG_MODELRENDERER__INIT__ true

@@ -8,6 +8,7 @@
 #include "../lib/bin/def/renderer.cpp"
 
 #define g_sleep std::this_thread::sleep_for
+#define ms std::chrono::milliseconds
 
 using std::endl;
 
@@ -250,7 +251,6 @@ int test_vpointrender() {
 
 int test_vwhole_renderer() {
     std::cout << "beginning test" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     Gmeng::Level lvl = {
         .base = {
             .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
@@ -261,47 +261,73 @@ int test_vwhole_renderer() {
     };
 
     std::cout << "generate lvl" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
     test_model.position = { 0,5 };
     test_model.name = v_str(g_mkid());
     std::cout << "generate model1" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     lvl.load_chunk({
-        .vp = { { 0,0 }, { 44,44 } },
+        .vp = { { 0,0 }, { 43,44 } },
         .models = {
             test_model
         }
     });
     std::cout << "load chunk1" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     Gmeng::Renderer::Model test_model_2 = {
-        .position = { 60,0 }
+        .position = { 20,0 }
     };
     std::cout << "generate model2" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
     std::cout << "texture model2" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     lvl.load_chunk({
-        .vp = { { 45,44 }, { 88,44 } },
+        .vp = { { 44,0 }, { 87,43 } },
         .models = {
             test_model_2
         }
     });
     std::cout << "load chunk2" << std::endl;
-    lvl.display.set_resolution(88, 44);
-    lvl.display.viewpoint = { { 10,5 }, { 25,15 } };
-    g_sleep(std::chrono::milliseconds(200));
+
+    Gmeng::Renderer::viewpoint def_vp = { { 0,0 }, { 40, 20 } };
+    unsigned int def_c = 30;
+    unsigned int def_ms = 25;
+    lvl.display.set_resolution(Gmeng::_vcreate_vp2d_deltax(def_vp), Gmeng::_vcreate_vp2d_deltay(def_vp));
+    lvl.display.viewpoint = def_vp;
     std::vector<std::string> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl);
     std::cout << "renderscale done" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));
     std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale);
     std::cout << "level_view done" << std::endl;
-    /*g_sleep(std::chrono::milliseconds(200));
     Gmeng::emplace_lvl_camera(lvl, _lvlview);
     std::cout << "emplace_lvl_camera done" << std::endl;
-    g_sleep(std::chrono::milliseconds(200));*/
+    lvl.display.camera.clear_screen();
+    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+        lvl.display.viewpoint.start.x += 1;
+        lvl.display.viewpoint.end.x   += 1;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        std::cout << lvl.display.camera.draw() << std::endl;
+        g_sleep(ms(def_ms));
+    };
+    std::cout << "X axis movement done" << std::endl;
+    g_sleep(ms(1000));
+    lvl.display.viewpoint = def_vp;
+    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+        lvl.display.viewpoint.start.y += 1;
+        lvl.display.viewpoint.end.y   += 1;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        std::cout << lvl.display.camera.draw() << std::endl;
+        g_sleep(ms(def_ms));
+    };
+    std::cout << "Y axis movement done" << std::endl;
+    g_sleep(ms(1000));
+    lvl.display.viewpoint = def_vp;
+    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+        lvl.display.viewpoint.start.y += 1;
+        lvl.display.viewpoint.end.y   += 1;
+        lvl.display.viewpoint.start.x += 1;
+        lvl.display.viewpoint.end.x   += 1;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        std::cout << lvl.display.camera.draw() << std::endl;
+        g_sleep(ms(def_ms));
+    };
+    std::cout << "double axis movement done" << std::endl;
     return 0;
 };
 

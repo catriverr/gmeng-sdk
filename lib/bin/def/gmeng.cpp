@@ -1,11 +1,11 @@
+#pragma once
 #include <iostream>
 #include <string>
 #include <array>
 #include <cstring>
 #include <vector>
 #include <algorithm>
-
-#ifdef __GMENG_INIT__
+#include "../gmeng.hpp"
 
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     std::vector<Objects::coord> coordinates;
@@ -80,10 +80,12 @@ namespace Gmeng {
 		inline std::string draw() {
             gm_log("Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
 			gm_log("Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
+            gm_log("Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
             this->clear_screen();
             std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {
-				if (i % w == 0) {
+				if (i % this->w == 0) {
+                    if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "append_newline__" + v_str( (int)(i / this->h) ));
 					if (i > 1) final += "\x1B[38;2;246;128;25m",  final += Gmeng::c_unit;
 					final += "\n\x1B[38;2;246;128;25m"; final += Gmeng::c_unit;
 				};
@@ -279,4 +281,3 @@ namespace Gmeng {
 		return wrldmp;
 	};
 };
-#endif
