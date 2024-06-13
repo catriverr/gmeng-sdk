@@ -1,0 +1,1 @@
+g++ --std=c++20 -pthread ./tests/test.cpp -o ./tests/out/test.o `pkg-config --libs --cflags ncursesw` -Wno-switch-bool -Wno-format-security -framework ApplicationServices
