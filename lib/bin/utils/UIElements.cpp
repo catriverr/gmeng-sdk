@@ -3,6 +3,7 @@
 #include "./UIElements.hpp"
 #include <clocale>
 #include <ctime>
+#include <future>
 #include <locale.h>
 #include <iostream>
 #include <optional>
@@ -178,12 +179,16 @@ namespace Gmeng {
                 };
             };
 
-            bool hovered; bool clicked;
+            bool hovered; bool clicked; bool hidden;
             std::size_t height; std::size_t width;
             std::string title; Renderer::drawpoint position;
-            short foreground_color; short background_color;
+
+            short foreground_color;
+            short background_color;
             short background_color_highlight;
             short foreground_color_highlight;
+            short foreground_color_click;
+            short background_color_click;
 
             inline Element(bool hovered, std::size_t height, std::size_t width, std::string title, Renderer::drawpoint position,
                     Gmeng::uicolor_t foreground_color, Gmeng::uicolor_t background_color,
@@ -196,7 +201,6 @@ namespace Gmeng {
             virtual ~Element() = default;
             /// Hover function. Runs when the element is hovered.
             virtual void hover(UI::Screen* instance, bool state) = 0;
-
             /// Click function. Runs when the element is clicked.
             virtual void click(UI::Screen* instance, UI::Interactions::MouseButton button) = 0;
             /// Refresh function. Draws the Element, controlled by main class.
@@ -205,7 +209,6 @@ namespace Gmeng {
         std::size_t Screen::width = 0;
         std::size_t Screen::height = 0;
         bool Screen::initialized = false;
-
         void Screen::handle_resize(int sig) {
             Gmeng::UI::Screen::refresh_width_height();
         }
@@ -228,10 +231,9 @@ namespace Gmeng {
             initscr(); cbreak(); noecho(); keypad(stdscr, TRUE);
             mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
             start_color(); curs_set(0); setlocale(LC_CTYPE, "");
-            nodelay(stdscr, true);
             signal(SIGWINCH, Gmeng::UI::Screen::handle_resize);
             Gmeng::UI::Screen::refresh_width_height();
-
+            mouseinterval(0);
             init_pair(UI_WHITE, COLOR_WHITE, COLOR_BLACK);
             init_pair(UI_BLUE, COLOR_BLUE, COLOR_BLACK);
             init_pair(UI_GREEN, COLOR_GREEN, COLOR_BLACK);
@@ -241,14 +243,29 @@ namespace Gmeng {
             init_pair(UI_YELLOW, COLOR_YELLOW, COLOR_BLACK);
             init_pair(UI_BLACK, COLOR_BLACK, COLOR_BLACK);
             init_pair(UI_BGBLACK, COLOR_WHITE, COLOR_BLACK);
+            init_pair(UI_BGPINK, COLOR_WHITE, COLOR_MAGENTA);
             init_pair(UI_BGWHITE, COLOR_BLACK, COLOR_WHITE);
             init_pair(UI_BGBLUE, COLOR_WHITE, COLOR_BLUE);
             init_pair(UI_BGCYAN, COLOR_BLACK, COLOR_CYAN);
             init_pair(UI_BGGREEN, COLOR_BLACK, COLOR_GREEN);
             init_pair(UI_BGRED, COLOR_WHITE, COLOR_RED);
             init_pair(UI_BGYELLOW, COLOR_BLACK, COLOR_YELLOW);
-            if (_gutil_get_terminal() == "iTerm.app")
-                if (global.debugger) this->text("right-click functionality will not work on your current Terminal! (iTerm / iTerm2). Please switch to your default, OS-Provided Terminal instead.", UI_RED, UI_BLACK, {0,0});
+            if (_gutil_get_terminal() == "iTerm.app") {
+                this->text("WARNING! iTerm/iTerm2 does not support RIGHT-CLICK functionality! Some functionality may not work consistently or expectedly.\n[PRESS ENTER TO CONTINUE]");
+                while(true) {
+                    int ch = getch();
+                    if (ch == 10) break; // 10 == enter
+                };
+            };
+            if (_gutil_get_terminal() != "Terminal.app" && _gutil_get_terminal() != "tmux") {
+                endwin();
+                std::string __text = "ERR_ENGINE_WILL_NOT_COEXIST, ERR_INCOOPERABLE_TERMINAL" + Gmeng::resetcolor + " Your current Terminal Application (" + _gutil_get_terminal() + ") is not suitable for the Gmeng::UI::Screen utility due to its inconsistent handling of screen manipulations." + Gmeng::resetcolor + Gmeng::colors[YELLOW] + " Switch to your default, OS-Provided Terminal Application or use TMUX Instead, the latter being the best choice as TMUX offers right-click functionality, and run on a fullscreen window with a font size of 21.";
+                std::cout << Gmeng::bgcolors[4] << __text << Gmeng::resetcolor << std::endl;
+                exit(1);
+            };
+            nodelay(stdscr, true);
+            this->report_status = false;
+            this->loopfunction = [&](Renderer::drawpoint) -> void {};
             Gmeng::UI::Screen::initialized = true;
         }
 
@@ -259,16 +276,18 @@ namespace Gmeng {
 
         void Screen::recv_mouse() {
             MEVENT event;
+            bool mpos_show = false;
             while (true) {
                 int ch = getch();
                 if (ch == 'q') exit(0);
+                if (ch == 'M') mpos_show = !mpos_show, this->modify_scr("           ", UI_BLACK, UI_BGBLACK, false, {0,0});
                 if (ch == KEY_MOUSE) {
                     if (getmouse(&event) == OK) {
                         Renderer::drawpoint pos{ event.x, event.y };
-                        if (event.bstate & BUTTON1_CLICKED) {
+                        if (event.bstate & BUTTON1_PRESSED) {
                             handle_left_click(pos);
                         }
-                        else if (event.bstate & BUTTON3_CLICKED) {
+                        else if (event.bstate & BUTTON3_PRESSED) {
                             handle_right_click(pos);
                         }
                         else if (event.bstate & BUTTON4_PRESSED) {
@@ -280,10 +299,12 @@ namespace Gmeng {
                     };
                     this->_refresh();
                 };
-                this->check_hover_states(get_pointed_pos(get_mouse_pos())); // checks the hover states of all elements within the screen.
-                sleep(ms(6)); // no more than 120 refreshes needed per second.
+                if (get_window_id() != 0) this->check_hover_states(get_pointed_pos(get_mouse_pos())); // checks the hover states of all elements within the screen.
+                if (get_window_id() != 0 && report_status) this->loopfunction(get_pointed_pos(get_mouse_pos()));
+                if (get_window_id() != 0 && mpos_show) this->modify_scr("pos: " + v_str(get_pointed_pos(get_mouse_pos()).x) + "," + v_str(get_pointed_pos(get_mouse_pos()).y) + "    ", UI_WHITE, UI_BGBLACK, false, {0,0});
+                sleep(ms(7)); // no more than 120 refreshes needed per second.
             };
-        }
+        };
 
         Renderer::drawpoint Screen::get_current_pos() {
             int x, y;
@@ -370,16 +391,21 @@ namespace Gmeng {
         }
 
         void Screen::_refresh() {
+            clear();
             auto v = get_current_pos();
             for (auto& elem : this->elements) {
+                if (elem->clicked) { elem->refresh(this, CLICKED); continue; };
                 elem->refresh(this, elem->hovered ? HOVERED : NONE);
             };
             refresh();
         };
 
+        void Screen::__refresh() { refresh(); };
+
         void Screen::check_hover_states(Renderer::drawpoint mpos) {
             for (auto& elem : this->elements) {
                 if ( viewpoint_includes_dp(UI::Element::get_viewpoint(*elem), mpos) ) {
+                    if (elem->hidden) continue;
                     elem->hover(this, true);
                 } else elem->hover(this, false);
             };
@@ -392,6 +418,7 @@ namespace Gmeng {
                     .end = { static_cast<int>(elem->position.x + elem->width), static_cast<int>(elem->position.y + elem->height - 1) }
                     }, { pos.x,pos.y });
                 if ((std::string)(v ? "true" : "false") == "true") {
+                    if (elem->hidden) continue;
                     elem->click(this, LEFT);
                 }
                 else { elem->hovered = false; };
@@ -411,38 +438,49 @@ namespace Gmeng {
           protected:
               const UI::Element::Types type = UI::Element::BUTTON;
           private:
-            std::function<void(UI::Interactions::ButtonInteraction cb)> click_method;
+            std::function<void(UI::Button* button, UI::Interactions::ButtonInteraction cb)> click_method;
           public:
             using UI::Element::Element; bool compact = false;
-            Button(Renderer::drawpoint pos, std::string title, bool compact, short fg_color, short bg_color, std::function<void(UI::Interactions::ButtonInteraction cb)> fn) : Element() {
+            Button(Renderer::drawpoint pos, std::string title, bool compact, short fg_color, short bg_color, std::function<void(UI::Button* button, UI::Interactions::ButtonInteraction cb)> fn) : Element() {
                 this->position = pos; this->title = title;
                 this->foreground_color = fg_color; this->background_color = bg_color;
                 this->foreground_color_highlight = *(&this->foreground_color);
                 this->background_color_highlight = *(&this->background_color);
+                this->foreground_color_click = *(&this->foreground_color);
+                this->background_color_click = *(&this->background_color);
                 this->click_method = fn;
                 this->width = title.length() + 4;
                 this->height = compact ? 1 : 3;
                 this->compact = compact;
+                this->hidden = false; // SHOW.
             };
             inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
+                this->clicked = button == LEFT ? true : false;
                 switch (button) {
                     case LEFT:
                         this->refresh(instance, CLICKED);
-                        this->click_method(CLICKED);
+                        this->click_method(this, CLICKED);
                         break;
                     case RIGHT:
                         this->refresh(instance, CONTEXT_MENU);
-                        this->click_method(CONTEXT_MENU);
+                        this->click_method(this, CONTEXT_MENU);
                         break;
                 };
+                instance->__refresh();
+                auto future_thing = std::async(std::launch::async, [&]() -> void {
+                    sleep(ms(125));
+                    this->clicked = false;
+                });
             };
 
             inline void hover(UI::Screen* instance, bool state) override {
                 this->hovered = state;
+                if (this->clicked) return; // if clicked, ignore hover color.
                 if (state) this->refresh(instance, HOVERED);
                 else this->refresh(instance, NONE);
             };
             inline void refresh(UI::Screen* instance, UI::Interactions::ButtonInteraction type) override {
+                if (this->hidden) return;
                 struct {
                     bool highlight = false;
                     bool reverse_bg = false;
@@ -467,35 +505,111 @@ namespace Gmeng {
                     short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
                     short highlighted_bg = modifiers.highlight ? this->background_color_highlight : this->background_color;
                     short applied_bg = highlighted_bg;
-                    instance->modify_scr(ACS_RTEE, applied_fg, applied_bg, modifiers.reverse_bg, this->position);
-                    instance->modify_scr(ACS_LTEE, applied_fg, applied_bg, modifiers.reverse_bg, { .x=v_static_cast<int>(position.x+title.length()+1),.y=position.y });
-                    instance->modify_scr(title, applied_fg, applied_bg, modifiers.reverse_bg, { .x=v_static_cast<int>(position.x+1),.y=position.y });
+                    instance->modify_scr(ACS_RTEE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
+                    instance->modify_scr(ACS_LTEE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x=v_static_cast<int>(position.x+title.length()+1),.y=position.y });
+                    instance->modify_scr(title,    modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x=v_static_cast<int>(position.x+1),.y=position.y });
                 } else {
                     short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
                     short highlighted_bg = modifiers.highlight ? this->background_color_highlight : this->background_color;
                     short applied_bg = highlighted_bg;
-                    instance->modify_scr(ACS_ULCORNER, applied_fg, applied_bg, modifiers.reverse_bg, this->position);
+                    instance->modify_scr(ACS_ULCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
                     __oloop__: for (int j = 0; j < 2; j++) {
                       __iloop__: for (int i = 0; i < (title.length()+2); i++) {
-                          instance->modify_scr(ACS_HLINE, applied_fg, applied_bg, modifiers.reverse_bg, {
+                          instance->modify_scr(ACS_HLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, {
                               .x=v_static_cast<int>(this->position.x+1 + i),
                               .y=this->position.y+(j==1 ? j+1 : 0)
                           });
                       };
                     };
-                    instance->modify_scr(ACS_URCORNER, applied_fg, applied_bg, modifiers.reverse_bg, { .x= v_static_cast<int>(this->position.x+this->title.length()+3), .y=this->position.y });
-                    instance->modify_scr(ACS_VLINE, applied_fg, applied_bg, modifiers.reverse_bg, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(ACS_VLINE, applied_fg, applied_bg, modifiers.reverse_bg, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(" " + title + " ", applied_fg, applied_bg, modifiers.reverse_bg, { .x = v_static_cast<int>(this->position.x+1), .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(ACS_LLCORNER, applied_fg, applied_bg, modifiers.reverse_bg, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+2) });
-                    instance->modify_scr(ACS_LRCORNER, applied_fg, applied_bg, modifiers.reverse_bg, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+2) });
+                    instance->modify_scr(ACS_URCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x= v_static_cast<int>(this->position.x+this->title.length()+3), .y=this->position.y });
+                    instance->modify_scr(ACS_VLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+1) });
+                    instance->modify_scr(ACS_VLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+1) });
+                    instance->modify_scr(" " + title + " ", modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+1), .y = v_static_cast<int>(this->position.y+1) });
+                    instance->modify_scr(ACS_LLCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+2) });
+                    instance->modify_scr(ACS_LRCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+2) });
                 };
             };
         };
 
-        template<std::size_t height = 0, std::size_t width = 0>
         struct ActionMenu : public UI::Element {
+          private:
+            std::vector<std::unique_ptr<UI::Element>> members;
+          public:
+            using UI::Element::Element;
+            ActionMenu(Renderer::drawpoint pos, std::string title, std::size_t width, std::size_t height, uicolor_t color, uicolor_t highlight_color) : Element() {
+                this->position = pos;
+                this->hidden = false;
+                this->title = title;
+                this->width = width;
+                this->height = height;
+                this->foreground_color = color;
+                this->foreground_color_click = color;
+                this->foreground_color_highlight = highlight_color;
+                this->background_color = this->background_color_click = this->background_color_highlight = UI_WHITE;
+            };
+            inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
+                this->clicked = button == LEFT ? true : false;
+                this->refresh(instance, CLICKED);
+                instance->__refresh();
+                auto future_thing = std::async(std::launch::async, [&]() -> void {
+                    //sleep(ms(125)); // click does not affect ActionMenu Elements.
+                    this->clicked = false;
+                });
+            };
 
+            inline void hover(UI::Screen* instance, bool state) override {
+                this->hovered = state;
+                //if (this->clicked) return; // click does not affect ActionMenu elements.
+                if (state) this->refresh(instance, HOVERED);
+                else this->refresh(instance, NONE);
+            };
+
+            template<typename T>
+            inline void add_member(std::unique_ptr<T> elem) {
+                this->members.push_back(std::move(elem));
+            };
+
+            inline void refresh(UI::Screen* instance, UI::Interactions::ButtonInteraction type) override {
+                if (this->hidden) return;
+                /// REFRESH THE COVER
+                bool hovered = type == HOVERED || type == CLICKED;
+                short applied_color = hovered ? this->foreground_color_highlight : this->foreground_color;
+                instance->modify_scr(ACS_ULCORNER, UI_BLACK, applied_color, false, this->position);
+                instance->modify_scr(ACS_RTEE, UI_BLACK, applied_color, false, {this->position.x+1,this->position.y});
+                instance->modify_scr(this->title, UI_BLACK, applied_color, false, {this->position.x+2,this->position.y});
+                instance->modify_scr(ACS_LTEE, UI_BLACK, applied_color, false, {this->position.x+2+(int)this->title.length(),this->position.y});
+                int i = 0;
+                for ( ;; ) { // dangerous and risky :)
+                    if (i == (int)(this->width-this->title.length()-4)) break;
+                    instance->modify_scr(ACS_HLINE, UI_BLACK, applied_color, false, {this->position.x+3+i+(int)this->title.length(),this->position.y});
+                    i++;
+                };
+                instance->modify_scr(ACS_URCORNER, UI_BLACK, applied_color, false, {this->position.x+3+i+(int)this->title.length(), this->position.y});
+                int c = 1;
+                for ( ;; ) { // once again, dangerous and risky!
+                    if (c == (int)this->height) break;
+                    instance->modify_scr(ACS_VLINE, UI_BLACK, applied_color, false, {this->position.x, this->position.y+c});
+                    instance->modify_scr(ACS_VLINE, UI_BLACK, applied_color, false, {this->position.x+(int)this->width-1, this->position.y+c});
+                    c++;
+                }
+                instance->modify_scr(ACS_LLCORNER, UI_BLACK, applied_color, false, {this->position.x, this->position.y+c});
+                int p = 0;
+                for ( ;; ) { // dangerous and risky :)
+                    if (p == (int)(this->width-2)) break;
+                    instance->modify_scr(ACS_HLINE, UI_BLACK, applied_color, false, {this->position.x+1+p,this->position.y+c});
+                    p++;
+                };
+                instance->modify_scr(ACS_LRCORNER, UI_BLACK, applied_color, false, {this->position.x+(int)this->width-1, this->position.y+c});
+                /// REFRESH MEMBERS
+                for ( auto& elem : this->members ) {
+                    elem->hovered = false;
+                    bool is_hovered_over_element = false;
+                    Renderer::drawpoint mpos = get_pointed_pos(get_mouse_pos());
+                    if (viewpoint_includes_dp(UI::Element::get_viewpoint(*elem), mpos)) is_hovered_over_element = true;
+                    if (this->clicked && type == CLICKED && is_hovered_over_element) { elem->click(instance, LEFT); continue; };
+                    elem->refresh(instance, is_hovered_over_element ? HOVERED : NONE);
+                };
+            };
         };
     };
 };

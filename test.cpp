@@ -3,6 +3,7 @@
 #include "./lib/bin/gmeng.hpp"
 #include "./lib/bin/utils/UIElements.cpp"
 #include "lib/bin/def/renderer.cpp"
+#include "lib/bin/utils/UIElements.hpp"
 #include <memory>
 #include <ncurses.h>
 #include <thread>
@@ -35,24 +36,47 @@ int main2() {
     return 0;
 }
 
+
+
+
+namespace instance_container { UI::Screen* instance; };
+using namespace instance_container;
+
+void data_recv(Renderer::drawpoint mpos) {
+    
+};
+
 int main(int argc, char **argv) {
     bool do_main2 = false;
     for (int i = 0; i < argc; i++)
         if (std::string(argv[i]) == "-main2") do_main2 = true;
     if (do_main2) { main2(); return 0; };
     Gmeng::UI::Screen test;
+    instance_container::instance = &test;
     test.initialize();
-    auto func = [&](UI::ButtonInteraction mb) {
-        test.text("hi there!", UI_WHITE, UI_BLACK, { 50, 3 });
+    auto b1func = [&](UI::Button* button, UI::ButtonInteraction mb) {
     };
-    auto button1 = UI::Button({25, 10}, "button1", false, UI_WHITE, UI_BGRED, func);
-    button1.background_color_highlight = UI_BGGREEN;
+    auto b2func = [&](UI::Button* button, UI::ButtonInteraction mb) {
+    };
+    auto b3func = [&](UI::Button* button, UI::ButtonInteraction mb) {
+    };
+    auto button1 = UI::Button({128,3}, "OPEN MAP", false, UI_WHITE, UI_BGBLUE, b1func);
+    button1.background_color_highlight = UI_BGWHITE;
+    button1.background_color_click = UI_BGCYAN;
     button1.hovered = false;
-    auto button2 = UI::Button({37, 10}, "button2", false, UI_WHITE, UI_BGBLUE, func);
-    button2.background_color_highlight = UI_BGCYAN;
-    button2.hovered = false;
-    bool add1 = test.add_element<UI::Button>(std::make_unique<UI::Button>(button1));
-    bool add2 = test.add_element<UI::Button>(std::make_unique<UI::Button>(button2));
+    auto button2 = UI::Button({128,7}, "SAVE MAP", false, UI_WHITE, UI_BGBLUE, b2func);
+    button2.background_color_highlight = UI_BGWHITE;
+    button2.background_color_click = UI_BGCYAN;
+    auto button3 = UI::Button({127,11}, "CREATE MAP", false, UI_WHITE, UI_BGBLUE, b3func);
+    button3.background_color_highlight = UI_BGWHITE;
+    button3.background_color_click = UI_BGCYAN;
+    auto menu1 = UI::ActionMenu({124,1}, "editor", 20, 14, UI_WHITE, UI_YELLOW);
+    menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button1)));
+    menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button2)));
+    menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button3)));
+    bool add3 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu1)));
+    test.report_status = true;
+    test.loopfunction = data_recv;
     test.recv_mouse();
     return 0;
 };

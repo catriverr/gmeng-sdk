@@ -43,6 +43,8 @@ class Gmeng::UI::Screen {
     Renderer::drawpoint mouse_pos;
     Renderer::drawpoint current_cursor_pos;
     bool should_report_mouse;
+    bool report_status;
+    std::function<void(Renderer::drawpoint mouse_pos)> loopfunction = [&](Renderer::drawpoint) -> void {};
     std::vector<std::unique_ptr<UI::Element>> elements;
     inline void initialize();
     inline void destroy();
@@ -57,6 +59,7 @@ class Gmeng::UI::Screen {
     template<typename T>
     inline bool add_element(std::unique_ptr<T>);
     inline void _refresh();
+    inline void __refresh();
   private:
     void check_hover_states(Renderer::drawpoint);
     void handle_left_click(Renderer::drawpoint);
