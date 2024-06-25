@@ -47,6 +47,7 @@ void data_recv(Renderer::drawpoint mpos) {
 };
 
 int main(int argc, char **argv) {
+    gm::_uread_into_vgm("./envs/models");
     bool do_main2 = false;
     for (int i = 0; i < argc; i++)
         if (std::string(argv[i]) == "-main2") do_main2 = true;
@@ -75,6 +76,16 @@ int main(int argc, char **argv) {
     menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button2)));
     menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button3)));
     bool add3 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu1)));
+    auto vgm_cake  = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "01_cake_txtr");
+    auto vgm_allah = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "allah");
+    UI::small_render_t render1(vgm_cake);
+    UI::small_render_t render2(vgm_allah);
+    auto hover1 = UI::Hoverable({4,3}, vgm_cake.name, render1, UI_CYAN, UI_YELLOW);
+    auto hover2 = UI::Hoverable({4,5}, vgm_allah.name, render2, UI_CYAN, UI_YELLOW);
+    auto menu2 = UI::ActionMenu({2,1}, "objects", 20, 25, UI_WHITE, UI_BLUE);
+    menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover1)));
+    menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover2)));
+    bool add4 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu2)));
     test.report_status = true;
     test.loopfunction = data_recv;
     test.recv_mouse();

@@ -3,6 +3,7 @@
 #include "./UIElements.hpp"
 #include <clocale>
 #include <ctime>
+#include <cwchar>
 #include <future>
 #include <locale.h>
 #include <iostream>
@@ -13,7 +14,7 @@
 #include <map>
 #include <thread>
 #include <vector>
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
 #include <unordered_map>
 #include <regex.h>
 #include <wchar.h>
@@ -95,10 +96,11 @@ Renderer::drawpoint get_window_size(CGWindowID windowID) {
     CGRect bounds = CTFontGetBoundingBox(font);
     CFRelease(font);
     Renderer::drawpoint size;
+    auto win_id = get_window_id();
     size.x = (bounds.size.width/2-1) * (COLS);
-    size.x = size.x > CGDisplayBounds(get_display_for_window(get_window_id())).size.width ? CGDisplayBounds(get_display_for_window(get_window_id())).size.width : size.x;
+    size.x = size.x > CGDisplayBounds(get_display_for_window(win_id)).size.width ? CGDisplayBounds(get_display_for_window(win_id)).size.width : size.x;
     size.y = bounds.size.width       * (LINES-3);
-    size.y = size.y > CGDisplayBounds(get_display_for_window(get_window_id())).size.height ? CGDisplayBounds(get_display_for_window(get_window_id())).size.height : size.y;
+    size.y = size.y > CGDisplayBounds(get_display_for_window(win_id)).size.height ? CGDisplayBounds(get_display_for_window(win_id)).size.height : size.y;
     return size;
 };
 
@@ -144,8 +146,9 @@ Renderer::drawpoint get_mouse_pos() {
         globalMousePos.x - terminalBounds.origin.x,
         terminalBounds.size.height - (globalMousePos.y - terminalBounds.origin.y)
     };
-    CGDirectDisplayID display_id = get_display_for_window(get_window_id());
-    Renderer::drawpoint window_size = get_window_size(get_window_id());
+    auto win_id = get_window_id();
+    CGDirectDisplayID display_id = get_display_for_window(win_id);
+    Renderer::drawpoint window_size = get_window_size(win_id);
     CGRect dbounds = {.origin=NULL,.size={
         .width = v_static_cast<CGFloat>(window_size.x),
         .height = v_static_cast<CGFloat>(window_size.y)
@@ -162,6 +165,9 @@ Renderer::drawpoint get_mouse_pos() {
 
 namespace Gmeng {
     namespace UI {
+        const wchar_t* wc_unit             = L"\u2588";
+	    const wchar_t* wc_outer_unit       = L"\u2584";
+        const wchar_t* wc_outer_unit_floor = L"\u2580";
         using namespace UI::Interactions;
         /// Base struct, cannot be used.
         struct Element {
@@ -206,6 +212,7 @@ namespace Gmeng {
             /// Refresh function. Draws the Element, controlled by main class.
             virtual void refresh(UI::Screen* instance, UI::Interactions::ButtonInteraction button) = 0;
         };
+        Screen* scr;
         std::size_t Screen::width = 0;
         std::size_t Screen::height = 0;
         bool Screen::initialized = false;
@@ -224,13 +231,15 @@ namespace Gmeng {
         }
 
         void Screen::initialize() {
+            UI::scr = this;
             if (Gmeng::UI::Screen::initialized) {
                 if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "Screen cannot be initialized, a previous one already exists.");
                 return;
             };
             initscr(); cbreak(); noecho(); keypad(stdscr, TRUE);
             mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
-            start_color(); curs_set(0); setlocale(LC_CTYPE, "");
+            start_color(); curs_set(0);
+            setlocale(LC_ALL, "");
             signal(SIGWINCH, Gmeng::UI::Screen::handle_resize);
             Gmeng::UI::Screen::refresh_width_height();
             mouseinterval(0);
@@ -273,7 +282,6 @@ namespace Gmeng {
             endwin();
             Gmeng::UI::Screen::initialized = false;
         }
-
         void Screen::recv_mouse() {
             MEVENT event;
             bool mpos_show = false;
@@ -299,9 +307,11 @@ namespace Gmeng {
                     };
                     this->_refresh();
                 };
-                if (get_window_id() != 0) this->check_hover_states(get_pointed_pos(get_mouse_pos())); // checks the hover states of all elements within the screen.
-                if (get_window_id() != 0 && report_status) this->loopfunction(get_pointed_pos(get_mouse_pos()));
-                if (get_window_id() != 0 && mpos_show) this->modify_scr("pos: " + v_str(get_pointed_pos(get_mouse_pos()).x) + "," + v_str(get_pointed_pos(get_mouse_pos()).y) + "    ", UI_WHITE, UI_BGBLACK, false, {0,0});
+                bool viable_window = get_window_id() != 0;
+                if (viable_window) this->mmpos = get_pointed_pos(get_mouse_pos());
+                if (viable_window) this->check_hover_states(mmpos); // checks the hover states of all elements within the screen.
+                if (viable_window && report_status) this->loopfunction(mmpos);
+                if (viable_window && mpos_show) this->modify_scr("pos: " + v_str(mmpos.x) + "," + v_str(mmpos.y) + "    ", UI_WHITE, UI_BGBLACK, false, {0,0});
                 sleep(ms(7)); // no more than 120 refreshes needed per second.
             };
         };
@@ -359,6 +369,17 @@ namespace Gmeng {
             else attroff(COLOR_PAIR(bgcolor_pair));
             this->set_cursor(cpos);
         }
+
+        void Screen::modify_scr(const wchar_t* str, short fgcolor_pair, short bgcolor_pair, bool reverse_bg, Renderer::drawpoint pos) {
+            auto cpos = this->current_cursor_pos;
+            this->set_cursor(pos);
+            if (reverse_bg) attron(COLOR_PAIR(bgcolor_pair | A_REVERSE));
+            else attron(COLOR_PAIR(bgcolor_pair));
+            mvaddnwstr(pos.y, pos.x, str, wcslen(str));
+            if (reverse_bg) attroff(COLOR_PAIR(bgcolor_pair | A_REVERSE));
+            else attroff(COLOR_PAIR(bgcolor_pair));
+            this->set_cursor(cpos);
+        };
 
         void Screen::text(std::string text, short fgcolor, short bgcolor, Renderer::drawpoint pos) {
             if (pos.x != -1 && pos.y != -1) {
@@ -432,7 +453,7 @@ namespace Gmeng {
         };
 
         void Screen::handle_scroll_down(Renderer::drawpoint pos) {
-        };;
+        };
 
         struct Button : public UI::Element {
           protected:
@@ -496,38 +517,245 @@ namespace Gmeng {
                         modifiers.reverse_bg = true;
                         break;
                 };
-                gm_log("Refreshing BUTTON instance, of " + this->title + " at pos " + v_str(this->position.x) + "," + v_str(this->position.y));
                 if (this->title.length() > 25 || this->title.find("\n", 0) != std::string::npos) {
                     gm_log("could not refresh BUTTON instance, '" + this->title + "' is invalid. Max 25 characters allowed. Newlines are disallowed.");
                     return;
                 };
+                short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
+                short highlighted_bg = modifiers.highlight ? this->background_color_highlight : this->background_color;
+                short applied_bg = highlighted_bg;
                 if (this->compact) {
-                    short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
-                    short highlighted_bg = modifiers.highlight ? this->background_color_highlight : this->background_color;
-                    short applied_bg = highlighted_bg;
-                    instance->modify_scr(ACS_RTEE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
-                    instance->modify_scr(ACS_LTEE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x=v_static_cast<int>(position.x+title.length()+1),.y=position.y });
-                    instance->modify_scr(title,    modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x=v_static_cast<int>(position.x+1),.y=position.y });
+                    wchar_t* wcompact = concat_wstr(concat_wstr(L"┤",this->title), L"├");
+                    instance->modify_scr(wcompact, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
                 } else {
-                    short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
-                    short highlighted_bg = modifiers.highlight ? this->background_color_highlight : this->background_color;
-                    short applied_bg = highlighted_bg;
-                    instance->modify_scr(ACS_ULCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
-                    __oloop__: for (int j = 0; j < 2; j++) {
-                      __iloop__: for (int i = 0; i < (title.length()+2); i++) {
-                          instance->modify_scr(ACS_HLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, {
-                              .x=v_static_cast<int>(this->position.x+1 + i),
-                              .y=this->position.y+(j==1 ? j+1 : 0)
-                          });
-                      };
-                    };
-                    instance->modify_scr(ACS_URCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x= v_static_cast<int>(this->position.x+this->title.length()+3), .y=this->position.y });
-                    instance->modify_scr(ACS_VLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(ACS_VLINE, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(" " + title + " ", modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+1), .y = v_static_cast<int>(this->position.y+1) });
-                    instance->modify_scr(ACS_LLCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = this->position.x, .y = v_static_cast<int>(this->position.y+2) });
-                    instance->modify_scr(ACS_LRCORNER, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, { .x = v_static_cast<int>(this->position.x+3+title.length()), .y = v_static_cast<int>(this->position.y+2) });
+                    wchar_t* wtop    = concat_wstr(concat_wstr(L"┌", repeat_wstring(L"─",(int)this->width-2)), L"┐");
+                    wchar_t* wtitle  = concat_wstr(concat_wstr(L"│ ", this->title), L" │");
+                    wchar_t* wbottom = concat_wstr(concat_wstr(L"└", repeat_wstring(L"─",(int)this->width-2)), L"┘");
+                    instance->modify_scr(wtop, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, this->position);
+                    instance->modify_scr(wtitle, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, {this->position.x,this->position.y+1});
+                    instance->modify_scr(wbottom, modifiers.reverse_bg ? this->foreground_color_click : applied_fg, modifiers.reverse_bg ? this->background_color_click : applied_bg, false, {this->position.x,this->position.y+2});
                 };
+            };
+        };
+
+        class small_render_t {
+          public:
+            std::size_t width = 2; std::size_t height = 2;
+            Gmeng::texture contents = Renderer::generate_empty_texture(this->width, this->height);
+            small_render_t(Gmeng::texture txtr) : width(txtr.width), height(txtr.height), contents(txtr) {};
+            small_render_t() = default;
+            enum partial_type {
+                END_OF_HLINE = 0, // end of line, skip to next line
+                CONTINUE     = 1, // unit
+                UCORNER      = 2, // upper corner
+                LCORNER      = 3, // lower corner
+                VLINE        = 4  // vertical line
+            };
+            struct partial_render_obj {
+                enum partial_type  type;
+                struct Gmeng::Unit unit = Gmeng::Unit { .transparent=true };
+                struct Renderer::drawpoint image_size;
+            };
+            std::vector<partial_render_obj> get() {
+                std::vector<partial_render_obj> v_partials;
+                for (int i = 0; i < this->contents.height; i++) {
+                    for (int j = 0; j < this->contents.width; j++) {
+                        v_partials.push_back({
+                            CONTINUE,
+                            this->contents.units[(i*this->width)+j],
+                            {(int)this->width,(int)this->height}
+                        });
+                    };
+                    v_partials.push_back({ END_OF_HLINE });
+                };
+                return v_partials;
+            };
+            std::vector<partial_render_obj> with_frame() {
+                std::vector<partial_render_obj> v_partials;
+                repeat(this->width+2, [&]() { v_partials.push_back({ UCORNER }); });
+                v_partials.push_back({ END_OF_HLINE });
+                for (int i = 0; i < this->contents.height; i++) {
+                    v_partials.push_back({ VLINE });
+                    for (int j = 0; j < this->contents.width; j++) {
+                        v_partials.push_back({
+                            CONTINUE,
+                            this->contents.units[(i*this->width)+j],
+                            {(int)this->width,(int)this->height}
+                        });
+                    };
+                    v_partials.push_back({ VLINE });
+                    v_partials.push_back({ END_OF_HLINE });
+                };
+                repeat(this->width+2, [&]() { v_partials.push_back({ LCORNER }); });
+                v_partials.push_back({ END_OF_HLINE });
+                return v_partials;
+            };
+            struct viable_unit_transform_t {
+                const wchar_t* ch;
+                uicolor_t color;
+            };
+            typedef struct {
+                std::size_t MAX_WIDTH; std::size_t MAX_HEIGHT;
+            } max_values;
+            static std::vector<std::vector<viable_unit_transform_t>> do_render(std::vector<partial_render_obj> image, max_values max = {0, 0}) {
+                std::vector<std::vector<viable_unit_transform_t>> render;
+                std::vector<viable_unit_transform_t> p;
+                int c;
+                bool v_check_maxvalue = max.MAX_HEIGHT != 0 && max.MAX_WIDTH != 0;
+                for (const auto& partial : image) {
+                    switch (partial.type) {
+                        case UCORNER:
+                            p.push_back({wc_outer_unit,UI_CYAN});
+                            break;
+                        case LCORNER:
+                            p.push_back({wc_outer_unit_floor,UI_CYAN});
+                            break;
+                        case VLINE:
+                            p.push_back({wc_unit,UI_CYAN});
+                            break;
+                        case END_OF_HLINE:
+                            render.push_back(p);
+                            p.clear();
+                            break;
+                        default:
+                        case CONTINUE:
+                            p.push_back({wc_unit,stoui_color[partial.unit.transparent ? UI_BLACK : partial.unit.color]});
+                            break;
+                    };
+                    c++;
+                };
+                return render;
+            };
+        }; // should move to renderer.cpp
+
+        struct Hoverable : public UI::Element {
+          private:
+            bool HAS_ENOUGH_SPACE = true;
+            std::size_t MAX_SPACE_X = -1;
+            std::size_t MAX_SPACE_Y = -1;
+            bool oo_refresh_after_stopped_hovering = false;
+          public:
+            using UI::Element::Element;
+            using dp = Renderer::drawpoint;
+            small_render_t render;
+            Hoverable(dp pos,std::string title, small_render_t render, uicolor_t color_base, uicolor_t color_hovered) : Element() {
+                this->render = render;
+                this->position = pos;
+                this->hidden = false;
+                this->title = title;
+                this->width = title.length();
+                this->height = 1;
+                this->foreground_color = color_base;
+                this->background_color = color_base;
+                this->foreground_color_highlight = color_hovered;
+                this->background_color_highlight = color_hovered;
+                this->foreground_color_click = color_hovered;
+                this->background_color_click = color_hovered;
+            };
+            Hoverable() = default;
+            inline void click(UI::Screen* instance, Interactions::MouseButton button) override {
+                /// NO FUNCTIONALITY;
+            };
+            inline void hover(UI::Screen* instance, bool state) override {
+                if (state == false) {
+                    this->hovered = state;
+                    this->refresh(instance, NONE);
+                } else {
+                    this->hovered = state;
+                    this->refresh(instance, HOVERED);
+                };
+            };
+
+            inline void refresh(UI::Screen* instance, Interactions::ButtonInteraction type) override {
+                if (this->hidden || type == CLICKED) return;
+                if (type != HOVERED && this->oo_refresh_after_stopped_hovering) {
+                    clear();
+                    this->hidden = true;
+                    instance->_refresh();
+                    this->hidden = false;
+                    this->oo_refresh_after_stopped_hovering = false;
+                };
+                if (type != HOVERED) {
+                    instance->modify_scr("[" + this->title + "]", this->foreground_color, this->background_color, false, this->position);
+                    return;
+                };
+                clear();
+                this->hidden = true;
+                instance->_refresh();
+                this->hidden = false;
+                instance->modify_scr("[" + this->title + "]", this->foreground_color_highlight, this->background_color_highlight, false, this->position);
+                //// ^^ set the element's color before showing the image
+                std::size_t* render_width  = &this->render.width;
+                std::size_t* render_height = &this->render.height;
+                Renderer::drawpoint mouse_pos = instance->mmpos;
+                int cursor_x = mouse_pos.x;
+                int cursor_y = mouse_pos.y;
+                int space_below = LINES - cursor_y;
+                int space_above = cursor_y;
+                int ABOVE_OR_BELOW = 0; // 0 for below, 1 for above.
+                if (space_below >= v_static_cast<int>(*render_height)) { //dereference height before casting
+                    HAS_ENOUGH_SPACE = true;
+                    MAX_SPACE_X = -1;
+                    MAX_SPACE_Y = -1;
+                } else if (space_above >= v_static_cast<int>(*render_height)) {
+                    HAS_ENOUGH_SPACE = true;
+                    MAX_SPACE_X = -1;
+                    MAX_SPACE_Y = -1;
+                    ABOVE_OR_BELOW = 1;
+                } else {
+                    HAS_ENOUGH_SPACE = false;
+                    MAX_SPACE_X = COLS - cursor_x;
+                    MAX_SPACE_Y = std::max(space_above, space_below);
+                };
+                std::vector<std::vector<small_render_t::viable_unit_transform_t>> render_output;
+                if (!HAS_ENOUGH_SPACE) {
+                    std::vector _NOSPACE = small_render_t::do_render(this->render.with_frame(), {MAX_SPACE_X, MAX_SPACE_Y});
+                    render_output = _NOSPACE;
+                } else {
+                    std::vector _SPACE   = small_render_t::do_render(this->render.with_frame());
+                    render_output = _SPACE;
+                };
+                /// DRAW IMAGE (according to ABOVE_OR_BELOW)
+                if (ABOVE_OR_BELOW == 1) {
+                    // ABOVE
+                    int margin_Y = (cursor_y-render_output.size());
+                    int margin_X = (cursor_x);                      // asuming each line is the same length.
+                    for (int i = render_output.size(); i < 0; i--) {
+                        /// Y values
+                        int absolute_Y = (render_output.size()-i);          // value of how long we moved Y
+                        if (cursor_y-absolute_Y-margin_Y <= 0) break;       // stop if we have hit 0th Y coord
+                        auto vec_units = render_output[i];
+                        for (int j = 0; j < vec_units.size(); i++) {
+                            /// X values
+                            int absolute_X = j;                               // value of how long we moved X
+                            if (cursor_x+absolute_X > (COLS-cursor_x)) break; // stop if we hit MAXth X coord
+                            auto unit = vec_units[j];
+                            attron(COLOR_PAIR(unit.color));
+                            auto addv = mvaddnwstr(margin_Y+i,margin_X+j,unit.ch,wcslen(unit.ch));
+                            attroff(COLOR_PAIR(unit.color));
+                        };
+                    };
+                } else {
+                    // BELOW
+                    int margin_Y = (cursor_y);
+                    int margin_X = (cursor_x);
+                    for (int i = 0; i < render_output.size(); i++) {
+                        /// Y values
+                        int absolute_Y = i;
+                        if (cursor_y+i > (LINES)) break;    // stop if we hit MAXth Y coord
+                        auto vec_units = render_output[i];
+                        for (int j = 0; j < vec_units.size(); j++) {
+                            /// X values
+                            int absolute_X = j;
+                            if (cursor_x+absolute_X > (COLS-cursor_x)) break; // stop if we hit MAXth X coord
+                            auto unit = vec_units[j];
+                            attron(COLOR_PAIR(unit.color));
+                            auto addv = mvaddnwstr(margin_Y+i,margin_X+j,unit.ch,wcslen(unit.ch));
+                            attroff(COLOR_PAIR(unit.color));
+                        };
+                    };
+                };
+                this->oo_refresh_after_stopped_hovering = true; /// clear current image in the next frame
             };
         };
 
@@ -536,6 +764,7 @@ namespace Gmeng {
             std::vector<std::unique_ptr<UI::Element>> members;
           public:
             using UI::Element::Element;
+            bool extended = false; // show contents, or title of the menu only.
             ActionMenu(Renderer::drawpoint pos, std::string title, std::size_t width, std::size_t height, uicolor_t color, uicolor_t highlight_color) : Element() {
                 this->position = pos;
                 this->hidden = false;
@@ -552,7 +781,6 @@ namespace Gmeng {
                 this->refresh(instance, CLICKED);
                 instance->__refresh();
                 auto future_thing = std::async(std::launch::async, [&]() -> void {
-                    //sleep(ms(125)); // click does not affect ActionMenu Elements.
                     this->clicked = false;
                 });
             };
@@ -571,42 +799,43 @@ namespace Gmeng {
 
             inline void refresh(UI::Screen* instance, UI::Interactions::ButtonInteraction type) override {
                 if (this->hidden) return;
-                /// REFRESH THE COVER
+                auto win_id = get_window_id();
+                bool viable_window = win_id != 0;
+                if (!viable_window) return; // not focused
+                Renderer::drawpoint _mpos = {-1,-1};
+                if (viable_window) _mpos = get_pointed_pos(get_mouse_pos());
+                if ((_mpos.y-1 == this->position.y-1) && this->hovered && type == CLICKED) this->extended = !this->extended; // switch extended status.
+                wchar_t* wline_str_1 = concat_wstr(L"┌┤▼ ",this->title);
+                wchar_t* wline_str_1_e = concat_wstr(L"┌┤▲ ",this->title);
+                wchar_t* wline_str_2 = concat_wstr(L"├",repeat_wstring(L"─",(int)this->width-this->title.length()-6));
+                wchar_t* wline_str_3 = concat_wstr(wline_str_2,"┐");
+                wchar_t* wline_str   = extended ? concat_wstr(wline_str_1,wline_str_3) : concat_wstr(wline_str_1_e,wline_str_3);
+                wchar_t* wline_str_down = concat_wstr(concat_wstr(L"└", repeat_wstring(L"─",(int)this->width-2)), L"┘");
                 bool hovered = type == HOVERED || type == CLICKED;
                 short applied_color = hovered ? this->foreground_color_highlight : this->foreground_color;
-                instance->modify_scr(ACS_ULCORNER, UI_BLACK, applied_color, false, this->position);
-                instance->modify_scr(ACS_RTEE, UI_BLACK, applied_color, false, {this->position.x+1,this->position.y});
-                instance->modify_scr(this->title, UI_BLACK, applied_color, false, {this->position.x+2,this->position.y});
-                instance->modify_scr(ACS_LTEE, UI_BLACK, applied_color, false, {this->position.x+2+(int)this->title.length(),this->position.y});
-                int i = 0;
-                for ( ;; ) { // dangerous and risky :)
-                    if (i == (int)(this->width-this->title.length()-4)) break;
-                    instance->modify_scr(ACS_HLINE, UI_BLACK, applied_color, false, {this->position.x+3+i+(int)this->title.length(),this->position.y});
-                    i++;
+
+                /// extended menu? ( menus can be clicked to hide their contents )
+                if (!this->extended) {
+                    instance->modify_scr(wline_str, UI_BLACK, applied_color, false, this->position);
+                    instance->modify_scr(wline_str_down, UI_BLACK, applied_color, false, {this->position.x,this->position.y+1});
+                    return;
                 };
-                instance->modify_scr(ACS_URCORNER, UI_BLACK, applied_color, false, {this->position.x+3+i+(int)this->title.length(), this->position.y});
+                /// REFRESH THE COVER
+                instance->modify_scr(wline_str, UI_BLACK, applied_color, false, this->position);
                 int c = 1;
+                wchar_t* wvln = concat_wstr(concat_wstr(L"│", repeatString(" ",(int)this->width-2)), L"│");
                 for ( ;; ) { // once again, dangerous and risky!
                     if (c == (int)this->height) break;
-                    instance->modify_scr(ACS_VLINE, UI_BLACK, applied_color, false, {this->position.x, this->position.y+c});
-                    instance->modify_scr(ACS_VLINE, UI_BLACK, applied_color, false, {this->position.x+(int)this->width-1, this->position.y+c});
+                    instance->modify_scr(wvln, UI_BLACK, applied_color, false, {this->position.x, this->position.y+c});
                     c++;
                 }
-                instance->modify_scr(ACS_LLCORNER, UI_BLACK, applied_color, false, {this->position.x, this->position.y+c});
-                int p = 0;
-                for ( ;; ) { // dangerous and risky :)
-                    if (p == (int)(this->width-2)) break;
-                    instance->modify_scr(ACS_HLINE, UI_BLACK, applied_color, false, {this->position.x+1+p,this->position.y+c});
-                    p++;
-                };
-                instance->modify_scr(ACS_LRCORNER, UI_BLACK, applied_color, false, {this->position.x+(int)this->width-1, this->position.y+c});
+                instance->modify_scr(wline_str_down, UI_BLACK, applied_color, false, {this->position.x,this->position.y+c});
                 /// REFRESH MEMBERS
                 for ( auto& elem : this->members ) {
                     elem->hovered = false;
                     bool is_hovered_over_element = false;
-                    Renderer::drawpoint mpos = get_pointed_pos(get_mouse_pos());
-                    if (viewpoint_includes_dp(UI::Element::get_viewpoint(*elem), mpos)) is_hovered_over_element = true;
-                    if (this->clicked && type == CLICKED && is_hovered_over_element) { elem->click(instance, LEFT); continue; };
+                    if (viewpoint_includes_dp(UI::Element::get_viewpoint(*elem), _mpos)) is_hovered_over_element = true;
+                    if (_mpos.x != -1 && viable_window && this->clicked && type == CLICKED && is_hovered_over_element) { elem->click(instance, LEFT); continue; };
                     elem->refresh(instance, is_hovered_over_element ? HOVERED : NONE);
                 };
             };

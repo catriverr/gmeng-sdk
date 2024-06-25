@@ -1,3 +1,3 @@
 #.clangd
 #CompileFlags:
-   Add: [ -include, "/opt/homebrew/opt/ncurses/include", -D__GMENG_OBJECTINIT__=1, -include, "./lib/bin/gmeng.hpp" ]
+   Add: [ -D_DARWIN_C_SOURCE, -DNCURSES_WIDECHAR, -include, "/opt/homebrew/Cellar/ncurses/6.5/include/ncursesw", -include, "/opt/homebrew/Cellar/ncurses/6.5/include", -D__GMENG_OBJECTINIT__=1, -include, "./lib/bin/gmeng.hpp" ]
