@@ -1,6 +1,7 @@
 #pragma once
 #include "../gmeng.hpp"
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <optional>
 #include <ncurses.h>
@@ -19,6 +20,11 @@ namespace Gmeng {
     };
     const uicolor_t stoui_color[] = {UI_WHITE,UI_BLUE,UI_GREEN,UI_CYAN,UI_RED,UI_PINK,UI_YELLOW,UI_BLACK,UI_BGWHITE};
     namespace UI { class Screen; struct Element; };
+};
+
+static Gmeng::uicolor_t conv_bgcolor(Gmeng::uicolor_t color) {
+    if ((int) color < 9) return color;
+    return (Gmeng::uicolor_t)( (short)color-8 );
 };
 
 static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
@@ -68,6 +74,20 @@ static wchar_t* repeat_wstring(wchar_t* wc, int times) {
     return str;
 };
 
+static wchar_t* repeat_wstring(const wchar_t* wc, int times) {
+    if (times <= 0) {
+        return L"";
+    };
+    wchar_t* str = new wchar_t[times + 1];
+    for (int i = 0; i < times; ++i) {
+        str[i] = *wc;
+    }
+    str[times] = L'\0'; // Null-terminate the string
+
+    return str;
+};
+
+
 
 namespace Gmeng::UI::Interactions {
     enum MouseButton {
@@ -84,6 +104,7 @@ namespace Gmeng::UI::Interactions {
 
 class Gmeng::UI::Screen {
   private:
+     Renderer::drawpoint last_mmpos;
     static bool initialized;
     static void handle_resize(int sig);
     static void refresh_width_height();
@@ -95,8 +116,10 @@ class Gmeng::UI::Screen {
     Renderer::drawpoint mmpos;
     bool should_report_mouse;
     bool report_status;
+    bool handles_input;
     std::function<void(Renderer::drawpoint mouse_pos)> loopfunction = [&](Renderer::drawpoint) -> void {};
     std::vector<std::unique_ptr<UI::Element>> elements;
+    std::shared_ptr<UI::Element> input_handler;
     inline void initialize();
     inline void destroy();
     inline void recv_mouse();

@@ -211,6 +211,8 @@ namespace Gmeng {
             virtual void click(UI::Screen* instance, UI::Interactions::MouseButton button) = 0;
             /// Refresh function. Draws the Element, controlled by main class.
             virtual void refresh(UI::Screen* instance, UI::Interactions::ButtonInteraction button) = 0;
+            /// Text input function. When text is stream to the element, controlled b y main class.
+            virtual void text_recv(UI::Screen* instance, char ch) = 0;
         };
         Screen* scr;
         std::size_t Screen::width = 0;
@@ -231,11 +233,14 @@ namespace Gmeng {
         }
 
         void Screen::initialize() {
-            UI::scr = this;
             if (Gmeng::UI::Screen::initialized) {
                 if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "Screen cannot be initialized, a previous one already exists.");
                 return;
             };
+            this->last_mmpos = {-1,-1};
+            UI::scr = this;
+            this->handles_input = true;
+            this->input_handler = NULL;
             initscr(); cbreak(); noecho(); keypad(stdscr, TRUE);
             mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
             start_color(); curs_set(0);
@@ -287,7 +292,16 @@ namespace Gmeng {
             bool mpos_show = false;
             while (true) {
                 int ch = getch();
-                if (ch == 'q') exit(0);
+                if (!this->handles_input && ch != KEY_MOUSE && ch != ERR) {
+                    this->input_handler->text_recv(this, (char)ch);
+                    if (ch == 27) { // ESC key
+                        this->handles_input = true;
+                        this->input_handler->refresh(this, NONE);
+                        this->input_handler = NULL;
+                    };
+                    continue;
+                };
+                if (ch == 'q') { endwin(); exit(0); };
                 if (ch == 'M') mpos_show = !mpos_show, this->modify_scr("           ", UI_BLACK, UI_BGBLACK, false, {0,0});
                 if (ch == KEY_MOUSE) {
                     if (getmouse(&event) == OK) {
@@ -308,11 +322,15 @@ namespace Gmeng {
                     this->_refresh();
                 };
                 bool viable_window = get_window_id() != 0;
+                bool do_check = true;
                 if (viable_window) this->mmpos = get_pointed_pos(get_mouse_pos());
-                if (viable_window) this->check_hover_states(mmpos); // checks the hover states of all elements within the screen.
+                if (viable_window) {
+                    if (this->last_mmpos.x == this->mmpos.x && this->last_mmpos.y == this->mmpos.y) do_check = false;
+                    else this->last_mmpos = this->mmpos;
+                };
+                if (viable_window && do_check) this->check_hover_states(mmpos); // checks the hover states of all elements within the screen.
                 if (viable_window && report_status) this->loopfunction(mmpos);
                 if (viable_window && mpos_show) this->modify_scr("pos: " + v_str(mmpos.x) + "," + v_str(mmpos.y) + "    ", UI_WHITE, UI_BGBLACK, false, {0,0});
-                sleep(ms(7)); // no more than 120 refreshes needed per second.
             };
         };
 
@@ -433,6 +451,13 @@ namespace Gmeng {
         };
 
         void Screen::handle_left_click(Renderer::drawpoint pos) {
+            if (!this->handles_input && this->input_handler != NULL) {
+                if (!viewpoint_includes_dp(UI::Element::get_viewpoint(*this->input_handler), pos)) {
+                    this->handles_input = true;
+                    this->input_handler->clicked = false;
+                    this->input_handler = NULL;
+                };
+            };
             for (auto& elem : this->elements) {
                 bool v = viewpoint_includes_dp({
                     .start = elem->position,
@@ -475,6 +500,7 @@ namespace Gmeng {
                 this->compact = compact;
                 this->hidden = false; // SHOW.
             };
+            inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
                 this->clicked = button == LEFT ? true : false;
                 switch (button) {
@@ -629,6 +655,7 @@ namespace Gmeng {
         }; // should move to renderer.cpp
 
         struct Hoverable : public UI::Element {
+            using dp = Renderer::drawpoint;
           private:
             bool HAS_ENOUGH_SPACE = true;
             std::size_t MAX_SPACE_X = -1;
@@ -636,7 +663,6 @@ namespace Gmeng {
             bool oo_refresh_after_stopped_hovering = false;
           public:
             using UI::Element::Element;
-            using dp = Renderer::drawpoint;
             small_render_t render;
             Hoverable(dp pos,std::string title, small_render_t render, uicolor_t color_base, uicolor_t color_hovered) : Element() {
                 this->render = render;
@@ -656,6 +682,7 @@ namespace Gmeng {
             inline void click(UI::Screen* instance, Interactions::MouseButton button) override {
                 /// NO FUNCTIONALITY;
             };
+            inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void hover(UI::Screen* instance, bool state) override {
                 if (state == false) {
                     this->hovered = state;
@@ -759,6 +786,99 @@ namespace Gmeng {
             };
         };
 
+        struct LineTextBox : public UI::Element {
+          using UI::Element::Element;
+          using dp = Renderer::drawpoint;
+          using tfunc = std::function<void(std::string, UI::LineTextBox*)>;
+          protected:
+            std::string _text = ""; tfunc enter_func;
+          public:
+            const std::string* input = &_text; bool compact = false;
+            LineTextBox(dp pos, std::size_t max_size, uicolor_t color, uicolor_t highlighted_color, bool compact, tfunc enter_func) : Element() {
+                this->position = pos;
+                this->hidden = false;
+                this->width = max_size;
+                this->compact = compact;
+                this->height = compact ? 1 : 2; // cannot be taller than 2c
+                this->enter_func = enter_func;
+                this->foreground_color = UI_WHITE;
+                this->background_color = color;
+                this->background_color_highlight = color;
+                this->background_color_click = highlighted_color;
+            };
+            inline void hover(UI::Screen* instance, bool state) override {
+                /// NO FUNCTIONALITY;
+            };
+            inline void click(UI::Screen* instance, Interactions::MouseButton button) override {
+                if (this->clicked) return;
+                if (instance->input_handler != NULL) {
+                    instance->input_handler->clicked = false;
+                    instance->input_handler = NULL;
+                };
+                this->clicked = true;
+                instance->handles_input = false;
+                instance->input_handler = std::shared_ptr<UI::Element>(this, [](UI::Element*) {});
+                this->refresh(instance, CLICKED);
+            };
+            inline void text_recv(UI::Screen* instance, char ch) override {
+                if (ch == 27) { /// ESC key
+                    this->clicked = false;
+                    this->refresh(instance, NONE);
+                    return;
+                } else {
+                    if (this->_text.length() == this->width && ch != 7 && ch != 10) return;
+                    switch (ch) {
+                        case 2:
+                        case 3:
+                        case 4:
+                        case 5:
+                            break;
+                        case 9: /// TAB
+                            this->_text.push_back(' ');
+                            this->refresh(instance, CLICKED);
+                            break;
+                        case 10: /// Enter
+                            this->enter_func(this->_text, this);
+                            this->_text = "";
+                            this->refresh(instance, CLICKED);
+                            break;
+                        case 82:
+                        case 83:
+                            break;
+                        case 74: /// DEL key
+                        case 7: /// backspace
+                            if (this->_text.length() == 0) break;
+                            this->_text.pop_back();
+                            this->refresh(instance, CLICKED);
+                            break;
+                        default:
+                            this->_text.push_back(ch);
+                            this->refresh(instance, CLICKED);
+                            break;
+                    };
+                };
+            };
+            inline void refresh(UI::Screen* instance, Interactions::ButtonInteraction type) override {
+                if (this->hidden) {
+                    if (this->clicked) {
+                        this->clicked = false;
+                        instance->handles_input = true;
+                        instance->input_handler = NULL;
+                    };
+                    return;
+                };
+                wchar_t* w_lnU = repeat_wstring(wc_outer_unit, this->width);
+                if (!compact) instance->modify_scr(w_lnU, UI_WHITE, conv_bgcolor(clicked ? (uicolor_t)this->background_color_click : (uicolor_t)this->background_color), false, this->position);
+                if (type != CLICKED) {
+                    std::string w_ln = this->_text + repeatString(" ", (int)this->width-this->_text.length());
+                    instance->modify_scr(w_ln, UI_WHITE, this->background_color, false, {this->position.x,this->position.y+(int)!compact});
+                } else {
+                    wchar_t* w_ln = concat_wstr(concat_wstr(concat_wstr(L"", this->_text), this->_text.length() == this->width ? L"" : wc_unit), repeatString(" ", this->width-this->_text.length()-1));
+                    instance->modify_scr(w_ln, UI_WHITE, this->background_color_click, false, {this->position.x,this->position.y+(int)!compact});
+                };
+            };
+        };
+
         struct ActionMenu : public UI::Element {
           private:
             std::vector<std::unique_ptr<UI::Element>> members;
@@ -776,6 +896,7 @@ namespace Gmeng {
                 this->foreground_color_highlight = highlight_color;
                 this->background_color = this->background_color_click = this->background_color_highlight = UI_WHITE;
             };
+            inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
                 this->clicked = button == LEFT ? true : false;
                 this->refresh(instance, CLICKED);
@@ -803,8 +924,8 @@ namespace Gmeng {
                 bool viable_window = win_id != 0;
                 if (!viable_window) return; // not focused
                 Renderer::drawpoint _mpos = {-1,-1};
-                if (viable_window) _mpos = get_pointed_pos(get_mouse_pos());
-                if ((_mpos.y-1 == this->position.y-1) && this->hovered && type == CLICKED) this->extended = !this->extended; // switch extended status.
+                if (viable_window) _mpos = instance->mmpos;
+                if ((_mpos.y == this->position.y) && this->hovered && type == CLICKED) this->extended = !this->extended; // switch extended status.
                 wchar_t* wline_str_1 = concat_wstr(L"┌┤▼ ",this->title);
                 wchar_t* wline_str_1_e = concat_wstr(L"┌┤▲ ",this->title);
                 wchar_t* wline_str_2 = concat_wstr(L"├",repeat_wstring(L"─",(int)this->width-this->title.length()-6));

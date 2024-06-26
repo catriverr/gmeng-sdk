@@ -37,21 +37,39 @@ int main2() {
 }
 
 
+int main3() {
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    int row_num;
+    while (true) {
+        if (row_num == LINES-1) { clear(); row_num = 0; };
+        mvprintw(row_num,0, "enter char>");
+        int ch = getch();
+        if (ch == 'Q') { endwin(); exit(0); };
+        mvprintw(row_num++,0,std::string(std::string(" charcode is: ") + v_str(ch)).c_str());
+    };
+    return 0;
+};
 
 
 namespace instance_container { UI::Screen* instance; };
 using namespace instance_container;
 
 void data_recv(Renderer::drawpoint mpos) {
-    
+
 };
 
 int main(int argc, char **argv) {
     gm::_uread_into_vgm("./envs/models");
-    bool do_main2 = false;
-    for (int i = 0; i < argc; i++)
+    bool do_main2, do_main3 = false;
+    for (int i = 0; i < argc; i++) {
         if (std::string(argv[i]) == "-main2") do_main2 = true;
+        else if (std::string(argv[i]) == "-charcode_test") do_main3 = true;
+    };
     if (do_main2) { main2(); return 0; };
+    if (do_main3) { main3(); return 0; }
     Gmeng::UI::Screen test;
     instance_container::instance = &test;
     test.initialize();
@@ -86,6 +104,15 @@ int main(int argc, char **argv) {
     menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover1)));
     menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover2)));
     bool add4 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu2)));
+    auto textbox1 = UI::LineTextBox({29,4}, 20, UI_BGWHITE, UI_BGBLUE, true, [&](std::string str, UI::LineTextBox* textbox) {
+        std::vector<std::string> args = g_splitStr(str, " ");
+        if (args[0] == "set_compact") {
+            textbox->compact = !textbox->compact;
+            textbox->height = textbox->compact ? 1 : 2;
+            clear(); test._refresh();
+        };
+    });
+    bool add5 = test.add_element<UI::LineTextBox>(std::make_unique<UI::LineTextBox>(std::move(textbox1)));
     test.report_status = true;
     test.loopfunction = data_recv;
     test.recv_mouse();
