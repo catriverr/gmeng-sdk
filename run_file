@@ -1,2 +1,2 @@
-g++ -g --std=c++20 -pthread $1 -o $1.o `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security -framework ApplicationServices
-$1.o $*
+./build_cf $1
+$1.o $2 $3 $4 $5 $6 $7 $8 $9

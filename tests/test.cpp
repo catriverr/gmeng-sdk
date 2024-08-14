@@ -288,7 +288,7 @@ int test_vwhole_renderer() {
 
     Gmeng::Renderer::viewpoint def_vp = { { 0,0 }, { 40, 20 } };
     unsigned int def_c = 30;
-    unsigned int def_ms = 25;
+    unsigned int def_ms = 40;
     lvl.display.set_resolution(Gmeng::_vcreate_vp2d_deltax(def_vp), Gmeng::_vcreate_vp2d_deltay(def_vp));
     lvl.display.viewpoint = def_vp;
     std::vector<std::string> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl);
@@ -302,6 +302,18 @@ int test_vwhole_renderer() {
         lvl.display.viewpoint.start.x += 1;
         lvl.display.viewpoint.end.x   += 1;
         Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        lvl.display.camera.reset_cur();
+        std::cout << lvl.display.camera.draw() << std::endl;
+        g_sleep(ms(def_ms));
+    };
+    lvl.display.camera.clear_screen();
+    g_sleep(ms(500));
+    lvl.display.viewpoint = def_vp;
+    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+        lvl.display.viewpoint.start.x -= 1;
+        lvl.display.viewpoint.end.x   -= 1;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        lvl.display.camera.reset_cur();
         std::cout << lvl.display.camera.draw() << std::endl;
         g_sleep(ms(def_ms));
     };
@@ -344,20 +356,10 @@ static std::vector<int (*)()> testids = {
 };
 
 int main(int argc, char* argv[]) {
-    std::cout << "gmeng_tests -> SPAWN(1)" << std::endl;
-    std::cout << "gmeng_tests -> checking platform (expecting OS X)" << std::endl;
-    #if _WIN32
-        std::cout << Gmeng::colors[4] << "libgmeng-abi: __excuse__" << std::endl;
-        std::cout << "INTERNAL: __gmeng_platform__, __gmeng_threading__, __stdlib__, __libc++-abi__, __std_com_apple_main_pthread__" << std::endl;
-        std::cout << "Gmeng is not available in a core-platform other than darwin ( apple_kernel )." << std::endl;
-        std::cout << "current_platform: win32 ( WINDOWS_NT )" << std::endl;
-        std::cout << "__gmeng_halt_execution__( CAUSE( gmeng::global.v_exceptions->__find__( \"controller.platform\" ) ) && CAUSE( \"__environment_not_suitable__\" ) )" << std::endl;
-        return 0;
-    #endif
-    std::cout << "gmeng_tests -> checking arguments" << std::endl;
-    gm::global.dev_console = true;
     std::vector<int> do_list = {};
     bool do_main1 = false;
+    gm_log("test.cpp",__LINE__,"gmeng_tests -> SPAWN(1)");
+    gm::global.dev_console = true;
     _gargv_patch_global(argc, argv);
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];

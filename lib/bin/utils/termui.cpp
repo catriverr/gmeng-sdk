@@ -10,6 +10,7 @@
 #ifdef __GMENG_OBJECTINIT__
 
 
+
 /// t_init structures
 namespace Gmeng {
     struct t_display {

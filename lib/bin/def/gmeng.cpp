@@ -7,7 +7,9 @@
 #include <algorithm>
 #include "../gmeng.hpp"
 
+
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
+    __functree_call__(__FILE__, __LINE__, g_trace_trajectory);
     std::vector<Objects::coord> coordinates;
     int dx = abs(x2 - x1); int dy = abs(y2 - y1);
     int sx = (x1 < x2) ? 1 : -1; int sy = (y1 < y2) ? 1 : -1;
@@ -52,15 +54,18 @@ namespace Gmeng {
 		bool player_init = false;
 		int entitytotal = 0;
 		inline void SetResolution(std::size_t w, std::size_t h) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::SetResolution);
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
 		};
 		inline void constructor(Gmeng::Unit unitmap[_w*_h]) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::constructor);
 			for (int i = 0; i < (w*h); i++) {
 				this->display_map.unitmap[i] = unitmap[i];
 			};
 		};
 		inline void update() {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::update);
 			for (int i = 0; i < this->h; i++) {
 				for (int j = 0; j < this->w; j++) {
 					if (i*j == this->h*this->w) break;
@@ -72,15 +77,17 @@ namespace Gmeng {
 			};
 		};
         inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::temp_displacement);
             this->set_curXY(__pX, __pY);
             int pos_in_map = (__pY * this->w) + __pX;
             this->raw_unit_map[pos_in_map] = this->draw_unit(u);
             this->rewrite_mapping({ pos_in_map });
         };
 		inline std::string draw() {
-            gm_log("Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
-			gm_log("Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
-            gm_log("Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::draw);
+            gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
+			gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
+            gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
             this->clear_screen();
             std::string final = "";
 			for (int i = 0; i < (this->w*this->h); i++) {
@@ -99,14 +106,19 @@ namespace Gmeng {
 			return final;
 		};
 		inline bool has_modifier(std::string name) {  for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
-		inline void update_modifier(Gmeng::modifier& modifier, int value) { modifier.value = value; };
+		inline void update_modifier(Gmeng::modifier& modifier, int value) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::update_modifier);
+            modifier.value = value;
+        };
 		inline void set_modifier(std::string name, int value) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_modifier);
 			int vi = g_find_modifier(this->modifiers.values, name);
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
-			for (int i = 0; i < this->entitytotal; i++) {
+			__functree_call__(__FILE__, __LINE__, Gmeng::CameraView::SetPlayer);
+            for (int i = 0; i < this->entitytotal; i++) {
 				Objects::G_Entity entity = this->entitymap[i];
 				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
 			};
@@ -127,12 +139,15 @@ namespace Gmeng {
 			this->player_init = true;
 		};
 		inline void AddEntity(int entityId, Objects::G_Entity entity) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::__no_impl__::AddEntity);
 			//working on
 		};
 		inline void RemoveEntity(int entityId) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::__no_impl__::RemoveEntity);
 			//working on
 		};
 		inline Objects::coord GetPos(int entityId) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::GetPos);
 			bool exists;
 			Objects::G_Entity entity;
 			for (int i = 0; i < this->entitytotal; i++) {
@@ -144,17 +159,21 @@ namespace Gmeng {
 			return entity.coords;
 		};
 		inline void set_curXY(int x, int y) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_curXY);
    			 std::cout << "\033[" << x+2 << ";" << y+2 << "H"; return; // extra numbers account for the border around the map.
 		};
 		inline void reset_cur() {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::reset_cur);
 			this->set_curXY(-3, this->h);
 		};
 		inline Objects::coord get_xy(int __p1) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::get_xy);
 			int __p1_x = __p1 / this->w;
 			int __p1_y = __p1 % this->w;
 			return { .x=__p1_x,.y=__p1_y };
 		};
         inline void draw_info() {
+            /// __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::draw_info);
             this->set_curXY(0,0);
             std::cout << "[ pos: " << std::to_string(this->player.coords.x) << "," << std::to_string(this->player.coords.y) << " ] ";
             this->set_curXY(1,0);
@@ -188,6 +207,7 @@ namespace Gmeng {
 			return final;
 		};
 		inline void rewrite_mapping(const std::vector<int>& positions) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::rewrite_mapping);
 			for (std::size_t i=0;i<positions.size();i++) {
 				int curid = positions[i];
 				Objects::coord cpos = this->get_xy(curid);
@@ -198,21 +218,26 @@ namespace Gmeng {
 			this->reset_cur();
 		};
 		inline void clear_screen() {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::clear_screen);
 			std::cout << "\033[2J\033[1;1H";
 		};
         inline void set_entTag(std::string __nt) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_entTag);
             this->player.c_ent_tag = __nt;
         };
         inline std::string get_entTag() {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::get_entTag);
             return this->player.c_ent_tag;
         };
 		inline void rewrite_full() {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::rewrite_full);
 			this->clear_screen();
 			this->update();
             std::cout << repeatString("\n", 20) << endl;
 			std::cout << this->draw() << std::endl;
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::MovePlayer);
 			int move_to_in_map = (height*this->w)+width;
 			bool exists = false;
 			Objects::G_Player entity;
@@ -249,6 +274,7 @@ namespace Gmeng {
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};
 		inline void MoveEntity(int entityId, int width, int height) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::MoveEntity);
 			int move_to_in_map = (height*this->w)+width;
 			bool exists = false;
 			Objects::G_Entity entity;
@@ -267,6 +293,7 @@ namespace Gmeng {
 	};
 	template<std::size_t _w, std::size_t _h>
 	inline CameraView<_w, _h> UseRenderer(Gmeng::G_Renderer<_w, _h> __r) {
+        __functree_call__(__FILE__, __LINE__, Gmeng::UseRenderer);
 		Gmeng::CameraView<_w, _h> wrldmp;
 		wrldmp.w = __r.width; wrldmp.h = __r.height;
 		wrldmp.constructor(__r.display.unitmap);
@@ -280,4 +307,28 @@ namespace Gmeng {
 		};
 		return wrldmp;
 	};
+};
+
+#include "../utils/network.cpp"
+
+namespace Gmeng::RemoteServer {
+    static bool state = false;
+    static gmserver_t server(7385);
+    static std::string aplpass = v_str(g_mkid());
+    static std::thread* thread;
+};
+
+static void _gremote_server_apl(bool state, std::string aplpass) {
+    __functree_call__(__FILE__, __LINE__, _gremote_server_apl);
+    Gmeng::RemoteServer::state = state;
+    Gmeng::RemoteServer::aplpass = aplpass;
+    auto thread_t = Gmeng::_ucreate_thread([&]() {
+        Gmeng::RemoteServer::server.run();
+        Gmeng::RemoteServer::server.create_path(path_type_t::POST, "/stop", [&](request req, response res) {
+            bool body_matches = req.body == Gmeng::RemoteServer::aplpass;
+            if (body_matches) Gmeng::RemoteServer::server.stop(), exit(0); /// exit application
+            else res.status_code = 401, res.body = "e_unauthorized";
+        });
+    });
+    Gmeng::RemoteServer::thread = &thread_t;
 };

@@ -10,6 +10,10 @@
 #define cpps(str) ( std::string(str) )
 using namespace std;
 
+
+
+/// GMENG 1.1
+
 namespace Gmeng {
 	struct PlayerData {
 		int startDX = 0; int startDY = 0;
@@ -17,7 +21,7 @@ namespace Gmeng {
 		std::string c_ent_tag = "o";
 	};
 	struct WorldData {
-		public: 
+		public:
 			std::size_t _w; std::size_t _h;
 			std::string name; std::string description;
 			Gmeng::PlayerData player;
@@ -89,7 +93,6 @@ namespace Gmeng {
 			};
 			return map;
 		};
-		
 		inline Gmeng::ModifiedWorldData GetInfo(std::string __wf, std::string __pf) {
 			std::string w_cntnt = g_readFile(__wf); std::string p_cntnt = g_readFile(__pf);
 			Gmeng::ModifiedWorldData __pd = Gmeng::MapParser::ParseWorldInfo(w_cntnt, p_cntnt);

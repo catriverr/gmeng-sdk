@@ -1,230 +1,454 @@
-/// This file is not a networking utility.
-/// It is a utility to conversate and create strings that will be sent through the tsgmeng:0/network conversator
+#pragma once
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
 #include <iostream>
 #include <string>
-#include <vector>
+#if _WIN32 == false
+#include <curl/curl.h>
+#endif
+#include <cstring>
+#include <unistd.h>
+#if _WIN32 == false
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+#include <functional>
+#include <unordered_map>
+#include <chrono>
 #include <map>
-
 #include "../gmeng.hpp"
+#include <vector>
+#include <sstream>
 
-using string = std::string;
+#define time_rn std::chrono::system_clock::now().time_since_epoch()
+#define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
 
-/// permissions as bits
-/// example:
-/// number 255 = (binary) 1 1 1 1 1 1 1 1
-///                       max permissions, can do everything
-/// number 1   = (binary) 0 0 0 0 0 0 0 1
-///                       only permission is for the last one
-/// number 0   = (binary) 0 0 0 0 0 0 0 0
-///                       no permissions at all
-template <typename T>
-bool* get_perm_int(T number) {
-    bool* perms[sizeof(T) * 8];
-    for (int i = sizeof(T) * 8 - 1; i >= 0; --i) {
-        *perms[i] = (number & (1ULL << i)) != 0;
-    }
-    return *perms;
+
+
+/// CLIENT
+/// ONLY FOR REQUESTS, NOT USED BY SERVER
+
+
+struct server_t {
+    std::string address;
+    int port = 7388;
 };
-/// permissions as bits
-/// example:
-/// number 255 = (binary) 1 1 1 1 1 1 1 1
-///                       max permissions, can do everything
-/// number 1   = (binary) 0 0 0 0 0 0 0 1
-///                       only permission is for the last one
-/// number 0   = (binary) 0 0 0 0 0 0 0 0
-///                       no permissions at all
-/// create([ true, true, true, true, true, true, true, true ]) = 255
-/// create<uint64_t>([ true, true, true, ...(x64) ]) = 2^64 ( can be used for values higher than 8-bit limit 255 )
-template <typename T = uint8_t>
-T create_perm_int(const bool boolArray[sizeof(T) * 8]) {
-    T result = 0;
-    for (int i = 0; i < sizeof(T) * 8; ++i) {
-        result |= static_cast<T>(boolArray[i]) << i;
+
+struct response_t {
+    long status_code;
+    std::string body;
+    int ping = 0;
+};
+
+// Callback function to write received data
+size_t write_callback(char* ptr, size_t size, size_t nmemb, std::string* data) {
+    data->append(ptr, size * nmemb);
+    return size * nmemb;
+}
+
+// Function to send an HTTP GET request using libcurl
+response_t send_request(const std::string& url, const std::string& authorization = "NONE") {
+#if _WIN32 == false
+    __functree_call__(__FILE__, __LINE__, send_request);
+    CURL* curl;
+    CURLcode res;
+    struct response_t response;
+
+    curl = curl_easy_init();
+    if (curl) {
+        // Set the URL
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+        // Set headers
+        struct curl_slist* headers = NULL;
+        if (!authorization.empty()) {
+            std::string auth_header = "Authorization: " + authorization;
+            headers = curl_slist_append(headers, auth_header.c_str());
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        // Set callback function to receive data
+        std::string data;
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+        // Perform the request
+        auto tm1 = GET_TIME();
+        res = curl_easy_perform(curl);
+        response.ping = GET_TIME() - tm1;
+        // Get the response code
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response.status_code);
+
+        // Check for errors
+        if (res != CURLE_OK) {
+            response.status_code = -1; // Return -1 for request error
+            response.body = "ERROR: " + std::string(curl_easy_strerror(res));
+        } else {
+            response.body = data;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+        if (headers)
+            curl_slist_free_all(headers);
+    } else {
+        response.status_code = -2; // Return -2 for initialization error
+        response.body = "ERROR: Failed to initialize libcurl";
     }
+
+    return response;
+#endif
+};
+
+/// OVERLOAD for post requests
+response_t send_request(const std::string& url, const std::string& authorization = "NONE", const std::string& method = "GET", const std::string& body = "") {
+#if _WIN32 == false
+    __functree_call__(__FILE__, __LINE__, Gmeng::send_request::overload::POST_BODY);
+    CURL* curl;
+    CURLcode res;
+    struct response_t response;
+
+    curl = curl_easy_init();
+    if (curl) {
+        // Set the URL
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+        // Set headers
+        struct curl_slist* headers = NULL;
+        if (!authorization.empty() && authorization != "NONE") {
+            std::string auth_header = "Authorization: " + authorization;
+            headers = curl_slist_append(headers, auth_header.c_str());
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        // Set request method and body for POST
+        if (method == "POST") {
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+            headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        }
+
+        // Set callback function to receive data
+        std::string data;
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+        // Perform the request
+        auto tm1 = GET_TIME();
+        res = curl_easy_perform(curl);
+        response.ping = GET_TIME() - tm1;
+        // Get the response code
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response.status_code);
+
+        // Check for errors
+        if (res != CURLE_OK) {
+            response.status_code = -1; // Return -1 for request error
+            response.body = "ERROR: " + std::string(curl_easy_strerror(res));
+        } else {
+            response.body = data;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+        if (headers)
+            curl_slist_free_all(headers);
+    } else {
+        response.status_code = -2; // Return -2 for initialization error
+        response.body = "ERROR: Failed to initialize libcurl";
+    }
+
+    return response;
+#endif
+};
+
+
+/// BASIC SERVER
+
+// Define enum for path types
+enum class path_type_t {
+    GET,
+    POST
+};
+
+// Define request and response types
+struct request {
+    std::string method;
+    std::string path;
+    std::string body;
+};
+
+struct response {
+    int status_code;
+    std::string body;
+};
+
+// Server class definition
+class gmserver_t {
+public:
+    gmserver_t(int port) : port(port), server_fd(-1), running(false) {
+        __functree_call__(__FILE__, __LINE__, gmserver_t::gmserver_t);
+    };
+
+    void run() {
+#if _WIN32 == false
+        __functree_call__(__FILE__, __LINE__, gmserver_t::run);
+        // Create socket
+        int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (server_fd == -1) {
+            gm_log(__FILE__, __LINE__, "Error creating socket");
+            return;
+        }
+
+        // Prepare sockaddr_in structure
+        sockaddr_in address;
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = INADDR_ANY;
+        address.sin_port = htons(port);
+
+        // Bind socket to address
+        // C++ is retarded, bind defaults to std::bind even if the std namespace isn't being used
+        int bind_result = ::bind(server_fd, reinterpret_cast<sockaddr *>(&address), sizeof(address));
+        if (bind_result != 0) {
+            gm_log(__FILE__, __LINE__, "Bind failed");
+            close(server_fd);
+            return;
+        };
+
+        // Listen for incoming connections
+        if (listen(server_fd, 10) < 0) {
+            gm_log(__FILE__, __LINE__, "Listen failed");
+            close(server_fd);
+            return;
+        };
+
+        gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "Server running on port " + v_str(port));
+
+        while (true) {
+            // Accept incoming connection
+            int client_fd = accept(server_fd, nullptr, nullptr);
+            if (client_fd < 0) {
+                gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "accept request failed");
+                continue;
+            }
+
+            // Handle client request
+            handle_request(client_fd);
+
+            // Close client connection
+            close(client_fd);
+        }
+        running = true;
+#endif
+    }
+
+    void create_path(path_type_t type, std::string path, std::function<void(request&, response&)> func) {
+        __functree_call__(__FILE__, __LINE__, gmserver_t::create_path);
+        if (type == path_type_t::GET) {
+            get_paths[path] = func;
+        } else if (type == path_type_t::POST) {
+            post_paths[path] = func;
+        }
+    }
+
+    void stop() {
+        __functree_call__(__FILE__, __LINE__, gmserver_t::stop);
+        running = false;
+        if (server_fd != -1) {
+            close(server_fd);
+            server_fd = -1;
+        }
+    }
+
+private:
+    void handle_request(int client_fd) {
+#if _WIN32 == false
+        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::handle_request);
+        const int max_length = 1024;
+        char buffer[max_length] = {0};
+        int valread = read(client_fd, buffer, max_length - 1);
+
+        if (valread <= 0) {
+            gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "Error reading request");
+            return;
+        }
+
+        // Parse HTTP request
+        request req = parse_request(buffer);
+
+        // Prepare HTTP response
+        response res;
+        res.status_code = 200; // Default status code
+
+        if (req.method == "GET" && get_paths.count(req.path)) {
+            get_paths[req.path](req, res);
+        } else if (req.method == "POST" && post_paths.count(req.path)) {
+            post_paths[req.path](req, res);
+        } else {
+            res.status_code = 404;
+            res.body = "Not Found";
+        }
+
+        // Send HTTP response
+        send_response(client_fd, res);
+#endif
+    }
+
+    request parse_request(const char* buffer) {
+        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::parse_request);
+#if _WIN32 == false
+        request req;
+
+        // Read method
+        const char* end_method = strchr(buffer, ' ');
+        if (!end_method) {
+            gm_slog(Gmeng::YELLOW,"SERVER_"+v_str(port),"Invalid request format");
+            return req;
+        }
+        req.method.assign(buffer, end_method - buffer);
+
+        // Read path
+        const char* start_path = end_method + 1;
+        const char* end_path = strchr(start_path, ' ');
+        if (!end_path) {
+            gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "Invalid request format");
+            return req;
+        }
+        req.path.assign(start_path, end_path - start_path);
+
+        // Read body if present
+        const char* body_start = strstr(buffer, "\r\n\r\n");
+        if (body_start) {
+            req.body = body_start + 4; // Skip "\r\n\r\n"
+        }
+
+        return req;
+#endif
+    }
+
+    void send_response(int client_fd, response& res) {
+#if _WIN32 == false
+        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::send_response);
+        std::string response_str = "HTTP/1.1 " + std::to_string(res.status_code) + " OK\r\n";
+        response_str += "Content-Length: " + std::to_string(res.body.size()) + "\r\n";
+        response_str += "\r\n"; // End of headers
+        response_str += res.body;
+        send(client_fd, response_str.c_str(), response_str.size(), 0);
+#endif
+    }
+
+    int port;
+    int server_fd;
+    std::atomic<bool> running;
+    std::unordered_map<std::string, std::function<void(request&, response&)>> get_paths;
+    std::unordered_map<std::string, std::function<void(request&, response&)>> post_paths;
+};
+
+
+struct GM_SVHOLD {
+    std::string value;
+    std::map<std::string, std::string> params;
+};
+
+std::map<std::string, GM_SVHOLD> _vget_sv_data(const std::string& input) {
+    __functree_call__(__FILE__, __LINE__, _vget_sv_data);
+    std::map<std::string, GM_SVHOLD> result;
+
+    std::istringstream iss(input);
+    std::string line;
+
+    std::string current_tag;
+    bool in_tag = false;
+
+    while (std::getline(iss, line)) {
+        size_t start_pos = line.find('<');
+        size_t end_pos = line.find('>');
+        if (start_pos != std::string::npos && end_pos != std::string::npos) {
+            std::string tag_content = line.substr(start_pos + 1, end_pos - start_pos - 1);
+
+            // Check if it's a closing tag
+            if (tag_content[0] == '/') {
+                std::string closing_tag = tag_content.substr(1);
+                if (closing_tag == current_tag) {
+                    current_tag.clear();
+                    in_tag = false;
+                }
+                continue;
+            }
+
+            // Extract tag name
+            size_t space_pos = tag_content.find(' ');
+            std::string tag_name = (space_pos == std::string::npos) ? tag_content : tag_content.substr(0, space_pos);
+
+            // Remove attributes if present
+            if (space_pos != std::string::npos) {
+                tag_content = tag_content.substr(space_pos + 1);
+            } else {
+                tag_content.clear();
+            }
+
+            // Remove closing '/'
+            if (!tag_content.empty() && tag_content.back() == '/') {
+                tag_content.pop_back();
+            }
+
+            // Check if the tag is open or closed
+            if (tag_content.empty()) {
+                current_tag = tag_name;
+                in_tag = true;
+            } else {
+                // Extract tag content and attributes
+                size_t attr_start_pos = 0;
+                while (attr_start_pos < tag_content.size()) {
+                    size_t eq_pos = tag_content.find('=', attr_start_pos);
+                    if (eq_pos == std::string::npos) break;
+
+                    std::string attr_name = tag_content.substr(attr_start_pos, eq_pos - attr_start_pos);
+                    if (attr_name.back() == ' ') attr_name.pop_back();
+                    if (attr_name.empty()) continue;
+
+                    attr_start_pos = eq_pos + 1;
+
+                    char quote = tag_content[attr_start_pos];
+                    if (quote != '"' && quote != '\'') continue;
+
+                    size_t end_pos = tag_content.find(quote, attr_start_pos + 1);
+                    if (end_pos == std::string::npos) break;
+
+                    std::string attr_value = tag_content.substr(attr_start_pos + 1, end_pos - attr_start_pos - 1);
+                    if (attr_value.empty()) continue;
+
+                    result[tag_name].params[attr_name] = attr_value;
+                    attr_start_pos = end_pos + 1;
+                }
+            }
+        } else {
+            if (in_tag) {
+                result[current_tag].value += line;
+            }
+        }
+    }
+
     return result;
-};
+}
 
-namespace Gmeng {
-    namespace EventPackage {
-        template <typename promise_t>
-        class promise {
-            private:
-                struct refuse { string reason; };
-                struct accept { string reason; };
-            public:
-                bool resolved = false; promise_t resolution; string reason;
-                using pcallback_t = std::function<void( std::function<accept(promise_t)>, std::function<refuse(string)> )>;
-                promise(pcallback_t p) {
-                    auto __func_accept__ = [&](promise_t obj) -> accept { this->resolved = true; this->resolution = obj;    return accept("__accept"); };
-                    auto __func_refuse__ = [&](string reason) -> refuse { this->resolved = true; this->reason     = reason; return refuse(reason);     };
-                    p( __func_accept__, __func_refuse__ );
-                };
-                /// artificially alter the promise. this spoofs the result until an actual resolution is generated.
+#ifndef __GMENG_MODELRENDERER__INIT__
+    #include "../def/renderer.cpp"
+#endif
 
-                void pbreak() { this->resolved = true; };
-                void pcomplete() { this->resolved = true; };
+namespace Gmeng::Networking {
+    namespace conversion {
+        Renderer::drawpoint c_drawpoint(std::string val) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_drawpoint);
+            auto v = g_splitStr(val, ",");
+            return { std::stoi(v[0]), std::stoi(v[1]) };
         };
-        namespace structure {
-            struct pheader {
-                struct header_t {
-                    string name; string value;
-                };
-                std::vector<pheader::header_t> items;
-            };
-            struct pack_t {
-                std::uint64_t  event_type; std::uint8_t perms;   string key;
-                std::string event_cast_by; structure::pheader event_headers;
-            };
-            // cache value
-            struct cached_t {
-                string identifier;
-                std::vector<string> values;
-            };
-            #define cache_types unsigned int
-            struct permission_object {
-              public:
-                bool SEND_PACKAGES       = false; // perms[0] //
-                bool MODIFY_CLIENT_CACHE = false; // perms[1] //
-                bool CREATE_CACHE_MAP    = false; // perms[2] //
-                bool BECOME_PARTIER      = false; // perms[3] //
-                bool UNDEFINED_4         = false; // perms[4] //
-                bool UNDEFINED_5         = false; // perms[5] //
-                bool UNDEFINED_6         = false; // perms[6] //
-                bool UNDEFINED_7         = false; // perms[7] //
-                permission_object(bool perms[8]) {
-                    for (int i = 0; i < 8; i++) {
-                        bool *p;
-                        switch (i) {
-                            case 0: p = &this->SEND_PACKAGES;       break;
-                            case 1: p = &this->MODIFY_CLIENT_CACHE; break;
-                            case 2: p = &this->CREATE_CACHE_MAP;    break;
-                            case 3: p = &this->BECOME_PARTIER;      break;
-                        };
-                        *p = perms[i];
-                    };
-                };
-            };
-            struct cache_request {
-                string key; string category;      cache_types type : 2; /// 00 = modify, 01 = create, 10 = delete, 11 = reset
-                cached_t data; std::uint64_t partier_id; uint8_t perms;
-            };
-            // client cache, holds all cache for the values in a server
-            // only modified if the server sends a __CONTROLLER_CACHE_RESET__( __CACHE_IDENTIFIER__ )
-            class ccache_t {
-                // [cache_key] is for checking packet relativity
-                // its value is shared by all delegates to the server
-                // it is used to check if the request is directed to
-                // the correct client, and removes the possibility
-                // of a security issue when the client is connected to
-                // 2 different servers instead of a singular server.
-                //
-                // [server_key] is for checking packet authenticity
-                // its value is only shared with client and the server
-                // it is used for checking if a packet is sent by the server
-                // if a packet is being spoofed or a fake packet being sent,
-                // this will detect that since no other client has access to it.
-                // while this can still be impersonated it is still a good measure.
-                std::string      cache_key; std::string      server_key;
-                std::vector<std::uint64_t>          registered_partiers;
-                std::map<string, std::map<string, cached_t>> collection;
-                promise<bool> add(cache_request r) {
-                    return promise<bool>([&](auto accept, auto refuse) -> void {
-                        if (r.key != this->cache_key) return refuse("cache packet key is invalid");
-                        permission_object perms(get_perm_int(r.perms));
-                        if (std::find(registered_partiers.begin(), registered_partiers.end(), r.partier_id) == registered_partiers.end()) {
-                            if (!perms.BECOME_PARTIER) return refuse("cache holder has insufficient permissions to become a partier");
-                            this->registered_partiers.push_back(r.partier_id);
-                        };
-                        if (!perms.SEND_PACKAGES) return refuse("cache holder cannot send packages");
-                        if (!perms.MODIFY_CLIENT_CACHE) return refuse("cache holder does not have permissions to partake in client cache");
-                        if (!collection.contains(r.category)) {
-                            if (!perms.CREATE_CACHE_MAP) return refuse("cache holder cannot add to that category");
-                            this->collection[r.category] = {};
-                        };
-                        this->collection[r.category][r.data.identifier] = r.data;
-                        accept(true);
-                    });
-                };
-            };
-        };
-        namespace s = structure;
-        namespace {
-            ///                  Sending Packages
-            // creates a header string from a list of headers
-            // begin; header_t(id,555); header_t(name,catriverr); end_header
-            static string __header_string__(structure::pheader header) {
-                std::vector<string> final;
-                final.push_back("begin_header");
-                for (int i = 0; i < header.items.size() - 1; i++) {
-                    final.push_back("(" + header.items[i].name + "," + header.items[i].value + ")");
-                };
-                return g_joinStr(final, "; header_t") + "; end_header";
-
-            };
-            enum is_array {
-                BaseHeader = 0,
-                ArrayLike = 1
-            };
-            // parses a header from a string
-            static structure::pheader __parse_header__(string header, is_array array_like) {
-                s::pheader final;
-                string data = header;
-                if (array_like == ArrayLike) data.pop_back(), data.pop_back(), data = data.substr(2); // remove '[ ' and ' ]'
-                std::vector<string> spl_data = g_splitStr(data, "; ");
-                bool do_loop = false;
-                if (spl_data[0] == "begin") do_loop = true; // dont begin if its invalid
-                for (int i = 0; (i < spl_data.size()-2) && do_loop; i++) { // -2 since we remove first item
-                    auto v = spl_data[i];
-                    if (v == "end_header") { do_loop = false; continue; };
-                    if (!v.starts_with("header_t")) continue;
-                    v = v.substr(string("header_t(").length());
-                    v.pop_back(); // remove trailing ')'
-                    std::vector<string> spl_namevalue = g_splitStr(v, ",");
-                    final.items.push_back({.name = spl_namevalue[0], .value = spl_namevalue[1]});
-                };
-                return final;
-            };
-            static string create_package(s::pack_t p) {
-                return string(
-                         string("GMENG_NETWORKING ") +
-                         string("#gm/" + Gmeng::version + " ") +
-                         string("%(" + v_str(p.event_type) + ") ") +
-                         string("!(" + v_str(p.perms) + ") ") +
-                         string("*(" + p.event_cast_by + ") ") +
-                         string("[ " + __header_string__(p.event_headers) + " ]")
-                       );
-            };
-            static void send_to_parent(string p) {
-
-            };
-            ///                 Recieving Packages
-
-            // recognizes a package type
-            // for example a PLAYER_JOIN package will have the id of 7540
-            // the event_type is also the first header of the package object
-            // so, recognize() does:
-            // { COMPARE( package->id, package->headers[0] ).is_equal() && package->id && validate(package); } | return;
-            static s::pack_t recognize(string pack) {
-                /// package string structure:
-                ///           GMENG_NETWORKING #gm/version %(type) !(perms) *(caster-uuid) [ HEADERS ] @(cache_key)
-                ///                 ^^            ^^         ^^       ^^         ^^            ^^           ^^
-                ///            log identifier  version      type     perms   event owner    any value,   cache key, asures package authenticity
-                ///                                                                         depends on
-                ///                                                                         the type
-                ///
-                /// examples: GMENG_NETWORKING #gm/7.0.1-d %(7540) !(1110100) *(server-id) [ PLAYER_JOIN,  pos=(0,0), name=catriverr ] @(nv196lv32)
-                ///           GMENG_NETWORKING #gm/7.0.1-d %(7541) !(1110100) *(server-id) [ PLAYER_LEAVE, name=catriverr ] @(nv196lv32)
-            };
-            ///                 Validating Packages
-            static bool validate() {};
+        Renderer::viewpoint c_viewpoint(std::string val) {
+            __functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_viewpoint);
+            auto v = g_splitStr(val, "|");
+            return { c_drawpoint(v[0]), c_drawpoint(v[1]) };
         };
     };
-    namespace Networking {
-        namespace packaging = Gmeng::EventPackage;
-    };
-    namespace net = Networking;
 };

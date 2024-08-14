@@ -23,69 +23,11 @@ namespace Gmeng {
 };
 
 static Gmeng::uicolor_t conv_bgcolor(Gmeng::uicolor_t color) {
+    __functree_call__(__FILE__, __LINE__, Gmeng::conv_bgcolor);
     if ((int) color < 9) return color;
     return (Gmeng::uicolor_t)( (short)color-8 );
 };
 
-static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
-    size_t len1 = wcslen(str1); size_t len2 = wcslen(str2);
-    wchar_t* concatenated = new wchar_t[len1 + len2 + 1];
-    wcscpy(concatenated, str1); wcscat(concatenated, str2);
-    return concatenated;
-};
-
-static wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
-    // Convert std::string to wide character string
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    std::wstring wstr2 = converter.from_bytes(str2);
-
-    // Allocate memory for the concatenated string
-    size_t len1 = wcslen(str1);
-    size_t len2 = wstr2.length();
-    wchar_t* concatenated = new wchar_t[len1 + len2 + 1];
-
-    // Copy str1 into concatenated
-    wcscpy(concatenated, str1);
-
-    // Concatenate wstr2 onto concatenated
-    wcscat(concatenated, wstr2.c_str());
-
-    return concatenated;
-}
-
-static void repeat(int count, std::function<void()> func) {
-    for (int i = 0; i < count; i++) func();
-};
-
-static void repeat(int count, std::function<void(int count)> func) {
-    for (int i = 0; i < count; i++) func(i);
-};
-
-static wchar_t* repeat_wstring(wchar_t* wc, int times) {
-    if (times <= 0) {
-        return L"";
-    };
-    wchar_t* str = new wchar_t[times + 1];
-    for (int i = 0; i < times; ++i) {
-        str[i] = *wc;
-    }
-    str[times] = L'\0'; // Null-terminate the string
-
-    return str;
-};
-
-static wchar_t* repeat_wstring(const wchar_t* wc, int times) {
-    if (times <= 0) {
-        return L"";
-    };
-    wchar_t* str = new wchar_t[times + 1];
-    for (int i = 0; i < times; ++i) {
-        str[i] = *wc;
-    }
-    str[times] = L'\0'; // Null-terminate the string
-
-    return str;
-};
 
 
 
@@ -98,7 +40,7 @@ namespace Gmeng::UI::Interactions {
     };
     enum ButtonInteraction {
         NONE = 0, CLICKED = 1,
-        CONTEXT_MENU = 2, HOVERED = 3
+        CONTEXT_MENU = 2, HOVERED = 3, AUTO = 4
     };
 };
 

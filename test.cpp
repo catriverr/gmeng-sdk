@@ -1,14 +1,44 @@
+#include <atomic>
+#include <sstream>
+#define __GMENG_ALLOW_LOG__ true
+
 #include <chrono>
 #include <iostream>
 #include "./lib/bin/gmeng.hpp"
 #include "./lib/bin/utils/UIElements.cpp"
+#include "./lib/bin/utils/network.cpp"
 #include "lib/bin/def/renderer.cpp"
 #include "lib/bin/utils/UIElements.hpp"
 #include <memory>
 #include <ncurses.h>
 #include <thread>
+#include <chrono>
 
 using namespace Gmeng;
+
+
+int main4() {
+    gmserver_t myserver(7388);
+    myserver.create_path(path_type_t::GET, "/test", [&](auto& req, auto& res) {
+        res.body += "Hello";
+    });
+    myserver.run();
+    return 0;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int main2() {
     initscr();
@@ -36,6 +66,15 @@ int main2() {
     return 0;
 }
 
+void setInterval(std::function<void()> func, unsigned int interval, std::atomic<bool>& stopFlag) {
+    while (!stopFlag.load()) {
+        auto start = std::chrono::high_resolution_clock::now();
+        func();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval) - elapsed);
+    }
+};
 
 int main3() {
     initscr();
@@ -53,7 +92,6 @@ int main3() {
     return 0;
 };
 
-
 namespace instance_container { UI::Screen* instance; };
 using namespace instance_container;
 
@@ -63,13 +101,15 @@ void data_recv(Renderer::drawpoint mpos) {
 
 int main(int argc, char **argv) {
     gm::_uread_into_vgm("./envs/models");
-    bool do_main2, do_main3 = false;
+    bool do_main2, do_net, do_main3 = false;
     for (int i = 0; i < argc; i++) {
         if (std::string(argv[i]) == "-main2") do_main2 = true;
         else if (std::string(argv[i]) == "-charcode_test") do_main3 = true;
+        else if (std::string(argv[i]) == "-network") do_net = true;
     };
     if (do_main2) { main2(); return 0; };
-    if (do_main3) { main3(); return 0; }
+    if (do_main3) { main3(); return 0; };
+    if (do_net)   { main4(); return 0; };
     Gmeng::UI::Screen test;
     instance_container::instance = &test;
     test.initialize();
@@ -93,7 +133,6 @@ int main(int argc, char **argv) {
     menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button1)));
     menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button2)));
     menu1.add_member<UI::Button>(std::make_unique<UI::Button>(std::move(button3)));
-    bool add3 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu1)));
     auto vgm_cake  = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "01_cake_txtr");
     auto vgm_allah = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "allah");
     UI::small_render_t render1(vgm_cake);
@@ -101,20 +140,34 @@ int main(int argc, char **argv) {
     auto hover1 = UI::Hoverable({4,3}, vgm_cake.name, render1, UI_CYAN, UI_YELLOW);
     auto hover2 = UI::Hoverable({4,5}, vgm_allah.name, render2, UI_CYAN, UI_YELLOW);
     auto menu2 = UI::ActionMenu({2,1}, "objects", 20, 25, UI_WHITE, UI_BLUE);
+    auto switch1 = UI::Switch({5,14}, "test", UI_WHITE, UI_CYAN, false);
+    menu2.add_member<UI::Switch>(std::make_unique<UI::Switch>(std::move(switch1)));
+    Gmeng::texture vgm_house = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "ui_map_txtr");
+    UI::small_render_t render3(vgm_house);
+
+    auto image1 = UI::Image({(COLS-(int)render3.width+2)/2,6}, render3, true, UI_BLUE, UI_CYAN);
+    bool add5 = test.add_element<UI::Image>(std::make_unique<UI::Image>(std::move(image1)));
     menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover1)));
     menu2.add_member<UI::Hoverable>(std::make_unique<UI::Hoverable>(std::move(hover2)));
+    /// ADD MENUS
+    bool add3 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu1)));
     bool add4 = test.add_element<UI::ActionMenu>(std::make_unique<UI::ActionMenu>(std::move(menu2)));
-    auto textbox1 = UI::LineTextBox({29,4}, 20, UI_BGWHITE, UI_BGBLUE, true, [&](std::string str, UI::LineTextBox* textbox) {
-        std::vector<std::string> args = g_splitStr(str, " ");
-        if (args[0] == "set_compact") {
-            textbox->compact = !textbox->compact;
-            textbox->height = textbox->compact ? 1 : 2;
-            clear(); test._refresh();
+    int time = GET_TIME();
+    UI::InfoBox::func func1 = [&](UI::InfoBox* box) -> std::string {
+        if (GET_TIME() < time+1000) return "";
+        time = GET_TIME();
+        box->data = "";
+        for (int i = 0; i < box->height-2; i++) {
+            int pos = Gmeng::func_last.size()-box->height-2+i;
+            auto str1 = Gmeng::func_last[pos];
+            auto str = str_replace(str_replace(str_replace(str1, "Gmeng::", ""), "::", "."), "__private__.", "");
+            box->data += v_str(pos) + " " + g_splitStr(str, ">> ")[1] + "\n";
         };
-    });
-    bool add5 = test.add_element<UI::LineTextBox>(std::make_unique<UI::LineTextBox>(std::move(textbox1)));
-    test.report_status = true;
-    test.loopfunction = data_recv;
+        return "";
+    };
+    auto info1 = UI::InfoBox({107, 28}, func1, 36, 10);
+    //bool add6 = test.add_element(std::make_unique<UI::InfoBox>(info1));
+    //_gremote_server_apl(true, "allahyok");
     test.recv_mouse();
     return 0;
 };
