@@ -1,2 +1,2 @@
-g++ --std=c++20 -pthread ./bin/index.cpp -o ./out/gmeng.out `pkg-config --libs --cflags ncursesw` -Wno-switch-bool -Wno-format-security -framework ApplicationServices
+g++ --std=c++20 -pthread ./bin/src/index.cpp -o ./out/gmeng.out `pkg-config --libs --cflags ncursesw` -Wno-switch-bool -Wno-format-security -framework ApplicationServices
 

@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <chrono>
 #include <map>
-#include "../gmeng.hpp"
+#include "../gmeng.h"
 #include <vector>
 #include <sstream>
 
@@ -435,18 +435,18 @@ std::map<std::string, GM_SVHOLD> _vget_sv_data(const std::string& input) {
 }
 
 #ifndef __GMENG_MODELRENDERER__INIT__
-    #include "../def/renderer.cpp"
+    #include "../src/renderer.cpp"
 #endif
 
 namespace Gmeng::Networking {
     namespace conversion {
         Renderer::drawpoint c_drawpoint(std::string val) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_drawpoint);
+            //__functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_drawpoint);
             auto v = g_splitStr(val, ",");
             return { std::stoi(v[0]), std::stoi(v[1]) };
         };
         Renderer::viewpoint c_viewpoint(std::string val) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_viewpoint);
+            //__functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_viewpoint);
             auto v = g_splitStr(val, "|");
             return { c_drawpoint(v[0]), c_drawpoint(v[1]) };
         };

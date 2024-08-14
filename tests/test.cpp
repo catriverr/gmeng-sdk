@@ -4,8 +4,8 @@
 #define __GMENG_LOG_TO_COUT__ true
 #include <iostream>
 #include <algorithm>
-#include "../lib/bin/gmeng.hpp"
-#include "../lib/bin/def/renderer.cpp"
+#include "../lib/bin/gmeng.h"
+#include "../lib/bin/src/renderer.cpp"
 
 #define g_sleep std::this_thread::sleep_for
 #define ms std::chrono::milliseconds

@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../lib/bin/gmeng.hpp"
+#include "../lib/bin/gmeng.h"
 
 using std::endl;
 

@@ -4,11 +4,11 @@
 
 #include <chrono>
 #include <iostream>
-#include "./lib/bin/gmeng.hpp"
-#include "./lib/bin/utils/UIElements.cpp"
-#include "./lib/bin/utils/network.cpp"
-#include "lib/bin/def/renderer.cpp"
-#include "lib/bin/utils/UIElements.hpp"
+#include "lib/bin/gmeng.h"
+#include "lib/bin/utils/interface.cpp"
+#include "lib/bin/utils/network.cpp"
+#include "lib/bin/src/renderer.cpp"
+#include "lib/bin/utils/interface.hpp"
 #include <memory>
 #include <ncurses.h>
 #include <thread>
