@@ -8,7 +8,7 @@
 #include "lib/bin/utils/interface.cpp"
 #include "lib/bin/utils/network.cpp"
 #include "lib/bin/src/renderer.cpp"
-#include "lib/bin/utils/interface.hpp"
+#include "lib/bin/types/interface.h"
 #include <memory>
 #include <ncurses.h>
 #include <thread>

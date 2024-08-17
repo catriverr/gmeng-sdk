@@ -88,6 +88,25 @@ static std::string repeatString(const std::string& str, int times) {
     return result;
 }
 
+template<typename Thing>
+static std::vector<Thing> repeatThing(Thing obj, int times) {
+    std::vector<Thing> Things;
+    for (int i = 0; i < times; i++) Things.push_back(obj);
+    return Things;
+};
+
+template<typename Thing>
+static std::vector<std::vector<Thing>> splitThing(std::vector<Thing> obj, std::function<bool(Thing)> checker) {
+    std::vector<std::vector<Thing>> Things;
+    int vec_c = 0;
+    for (int i = 0; i < obj.size(); i++) {
+        Thing lndx = obj[i];
+        if (vec_c == Things.size()) Things.push_back(std::vector<Thing>{});
+        if (!checker(lndx)) Things[vec_c].push_back(lndx);
+        else vec_c++;
+    };
+    return Things;
+};
 
 static std::string _uconv_1ihx(int value) {
     //__functree_call__(__FILE__, __LINE__, _conv_1ihx);
@@ -182,7 +201,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "8.0.0-d";
+    static std::string version = "8.2.1-b";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -243,6 +262,9 @@ namespace Gmeng {
 	};
     static std::string bgcolors[] = {
         "\x1B[49m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
+    };
+    static std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
+        "\x1B[109m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
     };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";

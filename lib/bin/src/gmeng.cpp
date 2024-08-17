@@ -41,7 +41,8 @@ namespace Gmeng {
 				Gmeng::modifier { .name="cast_events",        .value=1 },
 				Gmeng::modifier { .name="allow_teleporting",  .value=1 },
 				Gmeng::modifier { .name="allow_dev_commands", .value=1 },
-				Gmeng::modifier { .name="allow_writing_plog", .value=1 }
+				Gmeng::modifier { .name="allow_writing_plog", .value=1 },
+                Gmeng::modifier { .name="cubic_render",       .value=0 }
 			}
 		};
 		Objects::G_Entity entitymap[32767] = {};
@@ -85,18 +86,23 @@ namespace Gmeng {
         };
 		inline std::string draw() {
             __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::draw);
-            gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
-			gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
-            gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
+            if (Gmeng::global.dont_hold_back && !Gmeng::global.shush) {
+                gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
+		    	gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
+                gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
+            };
             this->clear_screen();
             std::string final = "";
-			for (int i = 0; i < (this->w*this->h); i++) {
+            int cubic_height = (this->h % 2 == 0) ? (this->h/2) : (this->h/2)+1; // when cubic render is on, in case the height is not even, extend the height by 1 and fill with void.
+            int cc = ( this->has_modifier("cubic_render") ) ? ( this->w*(cubic_height) ) : ( this->w*this->h );
+			for (int i = 0; i < (cc); i++) {
 				if (i % this->w == 0) {
-                    if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "append_newline__" + v_str( (int)(i / this->h) ));
+                    if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "append_newline__" + v_str( (int)(i / cubic_height) ));
 					if (i > 1) final += "\x1B[38;2;246;128;25m",  final += Gmeng::c_unit;
 					final += "\n\x1B[38;2;246;128;25m"; final += Gmeng::c_unit;
 				};
-				final += this->raw_unit_map[i];
+                /// if the unit is empty, make it a void pixel. should not happen though.
+				final += this->raw_unit_map[i].empty() ? colors[BLACK] + Gmeng::c_unit + colors[WHITE] : this->raw_unit_map[i];
 			};
 			std::string __cu = "\x1B[38;2;246;128;25m";
 			std::string __cf = "\x1B[38;2;246;128;25m";
@@ -185,25 +191,33 @@ namespace Gmeng {
 			this->set_curXY(4,0);
 			std::cout << "[ last engine build: $!__BUILD | current framework: 4.0_glvl ]";
         };
-		inline std::string draw_unit(Gmeng::Unit __u) {
+		inline std::string draw_unit(Gmeng::Unit __u, Gmeng::Unit __nu = Unit { .is_entity=1 }, bool prefer_second = false) {
 			Gmeng::Unit current_unit = __u;
+            // check if cubic render is preferred, and a next unit is provided
+            bool nu = this->has_modifier("cubic_render") && !__nu.is_entity;
+            Gmeng::Unit next_unit = __nu;
+            // by default, colors are transparent (void/black)
+            std::string funit_color = Gmeng::colors[current_unit.color];
+            std::string bunit_color = nu ? Gmeng::bgcolors[next_unit.color] : Gmeng::bgcolors[BLACK];
+            if (current_unit.color == next_unit.color) {
+                if (current_unit.color == WHITE) return colors[WHITE] + Gmeng::c_unit + Gmeng::resetcolor;
+                return bgcolors_bright[current_unit.color] + " " + Gmeng::resetcolor;
+            };
+            if (current_unit.special && !prefer_second) {
+                return bgcolors_bright[current_unit.color] + boldcolor + colors[current_unit.special_clr] + current_unit.special_c_unit + resetcolor;
+            } else if (nu && next_unit.special && ( !current_unit.special || prefer_second )) {
+                return bgcolors_bright[next_unit.color] + boldcolor + colors[next_unit.special_clr] + next_unit.special_c_unit + resetcolor;
+            };
 			if (current_unit.transparent) {
-				return Gmeng::colors[7] + Gmeng::c_unit + Gmeng::resetcolor;
-			};
-			if (current_unit.is_player) {
-				std::string final = "\x1B[4"+Gmeng::colorids[this->playerunit.color]+"m" + (this->playerunit.color == 0 ? Gmeng::colors[8] : Gmeng::colors[current_unit.color]) + current_unit.player.c_ent_tag + Gmeng::resetcolor;
-				return final;
-			};
-			if (current_unit.special) {
-				std::string final = "\x1B[4"+Gmeng::colorids[current_unit.color]+"m" + Gmeng::boldcolor + Gmeng::colors[current_unit.special_clr] + current_unit.special_c_unit + Gmeng::resetcolor;
-				return final;
-			};
+				funit_color = Gmeng::colors[7];
+            }; if (nu && next_unit.transparent) {
+                bunit_color = Gmeng::bgcolors[7];
+            };
             if (this->has_modifier("wireframe_render")) {
-                std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
+                std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (nu ? Gmeng::colors[next_unit.color] : "") + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
                 return final;
             };
-			std::string color = Gmeng::colors[current_unit.color];
-			std::string final = color + (Gmeng::c_unit) + Gmeng::resetcolor;
+			std::string final = ( nu ? ( bgcolors_bright[next_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
 			return final;
 		};
 		inline void rewrite_mapping(const std::vector<int>& positions) {

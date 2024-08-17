@@ -96,9 +96,9 @@ int test_renderer() {
     return 0;
 };
 int test_loadglvl() {
-    std::cout << "test_loadglvl job_start" << std::endl;
+    std::cout << "test_loadglvl job_start" << '\n';
     Gmeng::LevelInfo lv_inf = Gmeng::parse_glvl("envs/4.0_test.glvl");
-    std::cout << "c_p1xdp - c_p2dp | vchunk_info" << std::endl;
+    std::cout << "c_p1xdp - c_p2dp | vchunk_info" << '\n';
     Gmeng::Level lv_test;
     lv_test.load_level(lv_inf);
     std::cout << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.start) << " - " << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.end) << endl;
@@ -109,7 +109,7 @@ int test_loadglvl() {
         .c_ent_tag="o"
     }, 1, 0);
     lv_test.draw_camera(0);
-    std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << std::endl;
+    std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << '\n';
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     lv_test.draw_camera(1);
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -118,7 +118,7 @@ int test_loadglvl() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     lv_test.move_player(0, 2);
     lv_test.refresh();
-    std::cout << "chunk id(1) num(2) displayed ^ above & Objects::G_Player attached to camera ~~ works" << std::endl << "~~ no modifiers required" << std::endl;
+    std::cout << "chunk id(1) num(2) displayed ^ above & Objects::G_Player attached to camera ~~ works" << std::endl << "~~ no modifiers required" << '\n';
     std::cout << "player pos: " << lv_test.plcoords.x << "," << lv_test.plcoords.y << endl;
     return 0;
 };
@@ -147,12 +147,12 @@ int test_vgmcontent() {
         std::cout << "drawing texture: ";
         std::cout << tx.name << " | notxtr: " << (Gmeng::notxtr.name == tx.name ? "true" : "false");
         for (int i = 0; i < tx.units.size(); i++) {
-            if ((i % tx.width) == 0) std::cout << std::endl;
+            if ((i % tx.width) == 0) std::cout << '\n';
             std::cout << camera.draw_unit(tx.units[i]);
         };
-        std::cout << std::endl;
+        std::cout << '\n';
     };
-    std::cout << std::endl;
+    std::cout << '\n';
     return 0;
 };
 
@@ -163,7 +163,7 @@ int test_caketxtr() {
     std::cout << tx.name << " | notxtr: " << (Gmeng::notxtr.name == tx.name ? "true" : "false") << endl;
     camera.SetResolution(1, 1);
     for (int i = 0; i < tx.units.size(); i++) {
-        if ( i % tx.width == 0 ) std::cout << std::endl;
+        if ( i % tx.width == 0 ) std::cout << '\n';
         std::cout << camera.draw_unit(tx.units[i]);
     };
     return 0;
@@ -201,7 +201,7 @@ int test_chunkvpoint() {
     level_test.draw_camera(0);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     level_test.draw_camera(1);
-    std::cout << "starting test for __viewpoint_vector_move_camera__" << std::endl;
+    std::cout << "starting test for __viewpoint_vector_move_camera__" << '\n';
     /// bit to check text_data
     gm::global.dev_console = true;
     _udraw_display(Gmeng::logc);
@@ -210,7 +210,7 @@ int test_chunkvpoint() {
 };
 
 int test_vpointrender() {
-    std::cout << "starting test_vpointrender" << std::endl;
+    std::cout << "starting test_vpointrender" << '\n';
     Gmeng::Level level_test = {
         .base = {
             .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
@@ -242,15 +242,15 @@ int test_vpointrender() {
     level_test.draw_camera(0);
     level_test.display.viewpoint = { { 10, 5 }, { 20, 10 } };
     gm_log("__test_chunkvpoint__ (static test) -> __attempt_test__ ; _vcamv_gen_frame tl");
-    std::cout << std::endl;
+    std::cout << '\n';
     std::string __test__ = Gmeng::_vcamv_gen_frame(level_test);
-    std::cout << __test__ << std::endl;
+    std::cout << __test__ << '\n';
     exit(0);
     return 0;
 };
 
 int test_vwhole_renderer() {
-    std::cout << "beginning test" << std::endl;
+    std::cout << "beginning test" << '\n';
     Gmeng::Level lvl = {
         .base = {
             .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
@@ -260,86 +260,105 @@ int test_vwhole_renderer() {
         .name = v_str(g_mkid())
     };
 
-    std::cout << "generate lvl" << std::endl;
-    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
+    std::cout << "generate lvl" << '\n';
+    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(5, 5);
     test_model.position = { 0,5 };
     test_model.name = v_str(g_mkid());
-    std::cout << "generate model1" << std::endl;
+    std::cout << "generate model1" << '\n';
     lvl.load_chunk({
         .vp = { { 0,0 }, { 43,44 } },
         .models = {
             test_model
         }
     });
-    std::cout << "load chunk1" << std::endl;
+    std::cout << "load chunk1" << '\n';
     Gmeng::Renderer::Model test_model_2 = {
         .position = { 20,0 }
     };
-    std::cout << "generate model2" << std::endl;
+    std::cout << "generate model2" << '\n';
     test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
-    std::cout << "texture model2" << std::endl;
+    std::cout << "texture model2" << '\n';
     lvl.load_chunk({
         .vp = { { 44,0 }, { 87,43 } },
         .models = {
             test_model_2
         }
     });
-    std::cout << "load chunk2" << std::endl;
-
-    Gmeng::Renderer::viewpoint def_vp = { { 0,0 }, { 40, 20 } };
-    unsigned int def_c = 30;
-    unsigned int def_ms = 40;
+    std::cout << "load chunk2" << '\n';
+    Gmeng::Renderer::viewpoint def_vp1 = { { 0,0 }, { 78, 43 } };
+    Gmeng::Renderer::viewpoint def_vp = { { 0,0 }, { 20, 20 } };
+    unsigned int def_cx = 30;
+    unsigned int def_cy = 15;
+    unsigned int def_ms = 20;
+    bool paused = false;
     lvl.display.set_resolution(Gmeng::_vcreate_vp2d_deltax(def_vp), Gmeng::_vcreate_vp2d_deltay(def_vp));
-    lvl.display.viewpoint = def_vp;
-    std::vector<std::string> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl);
-    std::cout << "renderscale done" << std::endl;
-    std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale);
-    std::cout << "level_view done" << std::endl;
+    lvl.display.viewpoint = def_vp1;
+    lvl.display.camera.set_modifier("cubic_render", true);
+    std::vector<Unit> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl, true);
+    //g_sleep(ms(5009));
+    std::cout << "renderscale done" << '\n';
+    std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale, true);
+    std::cout << "level_view done" << '\n';
     Gmeng::emplace_lvl_camera(lvl, _lvlview);
-    std::cout << "emplace_lvl_camera done" << std::endl;
+    std::cout << "emplace_lvl_camera done" << '\n';
     lvl.display.camera.clear_screen();
-    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+        std::cout << lvl.display.camera.draw() << '\n';
+    do
+    {
+        cout << '\n' << "Press [enter] to continue...";
+    } while (cin.get() != '\n');
+    lvl.display.camera.clear_screen();
+    lvl.display.viewpoint = def_vp; // normal vp
+    for (int c_counter_t = 0; c_counter_t < def_cx; c_counter_t++) {
+        if (kbhit(65)) paused = !paused;
+        if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x += 1;
         lvl.display.viewpoint.end.x   += 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
         lvl.display.camera.reset_cur();
-        std::cout << lvl.display.camera.draw() << std::endl;
+        std::cout << lvl.display.camera.draw() << '\n';
         g_sleep(ms(def_ms));
     };
     lvl.display.camera.clear_screen();
     g_sleep(ms(500));
     lvl.display.viewpoint = def_vp;
-    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+    for (int c_counter_t = 0; c_counter_t < def_cx; c_counter_t++) {
+        if (kbhit('p')) paused = !paused;
+        if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x -= 1;
         lvl.display.viewpoint.end.x   -= 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
         lvl.display.camera.reset_cur();
-        std::cout << lvl.display.camera.draw() << std::endl;
+        std::cout << lvl.display.camera.draw() << '\n';
         g_sleep(ms(def_ms));
     };
-    std::cout << "X axis movement done" << std::endl;
+    std::cout << "X axis movement done" << '\n';
     g_sleep(ms(1000));
     lvl.display.viewpoint = def_vp;
-    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+    for (int c_counter_t = 0; c_counter_t < def_cy; c_counter_t++) {
+        if (kbhit('p')) paused = !paused;
+        if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.y += 1;
         lvl.display.viewpoint.end.y   += 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
-        std::cout << lvl.display.camera.draw() << std::endl;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        std::cout << lvl.display.camera.draw() << '\n';
         g_sleep(ms(def_ms));
     };
-    std::cout << "Y axis movement done" << std::endl;
+    std::cout << "Y axis movement done" << '\n';
     g_sleep(ms(1000));
     lvl.display.viewpoint = def_vp;
-    for (int c_counter_t = 0; c_counter_t < def_c; c_counter_t++) {
+    for (int c_counter_t = 0; c_counter_t < def_cy; c_counter_t++) {
+        if (kbhit('p')) paused = !paused;
+        if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.y += 1;
         lvl.display.viewpoint.end.y   += 1;
-        lvl.display.viewpoint.start.x += 1;
-        lvl.display.viewpoint.end.x   += 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale));
-        std::cout << lvl.display.camera.draw() << std::endl;
+        lvl.display.viewpoint.start.x += 2;
+        lvl.display.viewpoint.end.x   += 2;
+        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        std::cout << lvl.display.camera.draw() << '\n';
         g_sleep(ms(def_ms));
     };
-    std::cout << "double axis movement done" << std::endl;
+    std::cout << "double axis movement done" << '\n';
     return 0;
 };
 
@@ -381,15 +400,15 @@ int main(int argc, char* argv[]) {
         int total = 0;
         for (int i = 0; i < testids.size(); i++) {
             auto it = std::find(do_list.begin(), do_list.end(), i);
-            if (it == do_list.end()) { std::cout << "skipping test_000" << i << ": since test loader do_list does not include it" << std::endl; continue; };
-            std::cout << "running 000" << i << "_test_nr_" << i << " | heap_at: " << _uconv_1ihx(_uget_addr(testids[i])) << std::endl;
+            if (it == do_list.end()) { std::cout << "skipping test_000" << i << ": since test loader do_list does not include it" << '\n'; continue; };
+            std::cout << "running 000" << i << "_test_nr_" << i << " | heap_at: " << _uconv_1ihx(_uget_addr(testids[i])) << '\n';
             total++;
             if (testids.size() == i) break;
             int value = testids[i]();
-            std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << std::endl;
+            std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << '\n';
         };
         _gthread_catchup();
-        std::cout << "done running tests | total: " << total << std::endl;
+        std::cout << "done running tests | total: " << total << '\n';
         return 0;
     };
 };

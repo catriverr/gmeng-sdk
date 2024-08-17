@@ -12,6 +12,34 @@
 #include <sstream>
 #include "../gmeng.h"
 #include "../src/textures.cpp"
+#include <termios.h>
+#include <sys/select.h>
+#include <unistd.h>
+
+
+bool kbhit(char key) {
+    fd_set read_fds;
+    struct timeval timeout;
+    int result;
+
+    // Clear the file descriptor set
+    FD_ZERO(&read_fds);
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    // Set the timeout to 0 to make the call non-blocking
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Check if there is input available
+    result = select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout);
+    if (result > 0 && FD_ISSET(STDIN_FILENO, &read_fds)) {
+        char ch = getchar();
+        return ch == key;
+    }
+    return false;
+}
+
+
 namespace fs = std::filesystem;
 
 
@@ -959,7 +987,7 @@ namespace Gmeng {
     ///   { "a", "b", "c", "d", "e", "f", "g", "h", "i" }
     /// width = 9units, height: 2rows
     struct __CHROMATIZED_CHUNK_CONTROLLER_VIEWPOINT__ {
-        std::string data;
+        std::vector<Unit> data;
         Renderer::viewpoint vp;
     };
 
@@ -981,64 +1009,68 @@ namespace Gmeng {
     /// example:
     /// { "xxxxxxx",
     ///   "xxxxxxx",
-    ///   "xxxoxxx", } -> VECTOR(string, 3);
-    inline std::vector<std::string> _vconcatenate_lvl_chunks(Gmeng::Level& lvl) {
+    ///   "xxxoxxx", } -> VECTOR(VECTOR<Unit>, 3);
+    inline std::vector<Unit> _vconcatenate_lvl_chunks(Gmeng::Level& lvl, bool cubic_render = true) {
         __functree_call__(__FILE__, __LINE__, Gmeng::_vconcatenate_lvl_chunks);
         gm_log(__FILE__,__LINE__,"Gmeng::_vconcatenate_lvl_chunks *debugger, *0.0, p0,gm:0 :: breakpoint 1");
         std::vector<__CHROMATIZED_CHUNK_CONTROLLER_VIEWPOINT__> v_chunks;
         const int __level_base_width__ = v_static_cast<int>(lvl.base.lvl_template.width);
         unsigned int p = 0; unsigned int rowc = 0;
         std::string t_chunk_partial = "";
-        std::vector<std::vector<std::string>> v_rows;
+        std::vector<std::vector<Gmeng::Unit>> v_rows;
         std::string unit_seperator = v_str((char)0x1F); // hex code of 'UNIT SEPERATOR' (1-byte long)
 
-        for (int __rc = 0; __rc < lvl.base.lvl_template.height; __rc++) v_rows.push_back(g_splitStr(repeatString("\x1F", __level_base_width__), "\x1F"));
+        for (int __rc = 0; __rc < lvl.base.lvl_template.height; __rc++) {
+            std::vector<Gmeng::Unit> current_row;
+            for (int __lc = 0; __lc < lvl.base.lvl_template.width; __lc++) current_row.push_back(Gmeng::Unit{.color=PINK,.special=true,.special_clr=WHITE,.special_c_unit="?"});
+            v_rows.push_back(current_row);
+        }; // v8.2.0 / swapped to Units instead of rendered_units
         for (const Gmeng::r_chunk chunk : lvl.chunks) {
             /// Y location from the start of the deltaY position of the viewpoint
             int vY = chunk.vp.start.y;
             /// X location from the start of the deltaX position of the viewpoint
             int __intlc = 0;
             bool vb_start = true;
+            /// v8.2.0 / cubic_render parameter is unused in this function: moved to get_lvl_view
             for (const auto unit : lvl.v_render_chunk(chunk)) {
                 if (__intlc-1 == _vcreate_vp2d_deltax(chunk.vp)) { vY++; __intlc = 0; vb_start = false; };
                 /// inserts to the ROW of units (y = vY calculation) to the:
                 ///     beggining + chunk coverage boundary start X location + current drawpoint X location
                 /// \x0F is formatter to split units to prepare for trimming at get_lvl_view
-                v_rows[vY].insert(v_rows[vY].begin() + chunk.vp.start.x + __intlc, lvl.display.camera.draw_unit(unit) + "\x0F");
+                v_rows[vY].insert(v_rows[vY].begin() + chunk.vp.start.x + __intlc, unit);
                 if (global.debugger) {
                     if (!vb_start && __intlc == 0) std::cout << std::endl;
                     std::cout << (lvl.display.camera.draw_unit(unit)) + colors[RED];
                 };
                 __intlc++;
-            }; if (global.debugger) std::cout << std::endl;
+            };
+            if (global.debugger) std::cout << std::endl;
         };
 
         unsigned int rc = 0;
-        for (std::vector<string>& row : v_rows) {
-            std::string joined_partial = g_joinStr(row, "");
+        for (std::vector<Unit>& row : v_rows) {
             v_chunks.push_back({
-                joined_partial,
+                row,
                 Renderer::viewpoint { { 0, 0 }, { __level_base_width__, 0 } }
             });
         };
 
         unsigned int p2 = 0;
-        std::string reinterpereted_data = "";
+        std::vector<Unit> reinterpereted_data;
         for (const auto partial : v_chunks) {
-            if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "__throughout_chroma_loop__ :: &chunks spit(*) -> partial :: " + partial.data);
-            if (p2 != 0 && p2 % __level_base_width__ == 0) reinterpereted_data += "\n";
-            if (_vcreate_vp2d_deltax(partial.vp) == lvl.base.lvl_template.width) reinterpereted_data += partial.data;
-            else { reinterpereted_data += repeatString(lvl.display.camera.draw_unit({
+            if (p2 != 0 && p2 % __level_base_width__ == 0) reinterpereted_data.push_back(Unit{.is_entity=true});
+            if (_vcreate_vp2d_deltax(partial.vp) == lvl.base.lvl_template.width)
+                for (int ik = 0; ik < partial.data.size(); ik++) reinterpereted_data.push_back(partial.data[ik]);
+            else { reinterpereted_data.push_back(repeatThing<Unit>((Unit{
                     .color = color_t::PINK, .collidable = false, .special = true,
                     .special_clr = color_t::RED, .special_c_unit = "X"
-                 }), _vcreate_vp2d_deltax(lvl.display.viewpoint)); gm_slog(YELLOW, "DEBUGGER", colors[RED] + "p2 CHUNK WRITE ERROR ( UNMATCH p2 [" + v_str(_vcreate_vp2d_deltax(partial.vp)) + "] WITH lvl_base_with [" + v_str(lvl.base.lvl_template.width) + "] )" + colors[WHITE] + " at p2_of ~(" + v_str(p2) + ") [ partial_of: chunk_" + _uconv_1ihx(_uget_addr(partial)) + "_00" + v_str(p2 / _vcreate_vp2d_deltax(lvl.display.viewpoint)) + " ]"); };
+                 }), _vcreate_vp2d_deltax(lvl.display.viewpoint))[0]); gm_slog(YELLOW, "DEBUGGER", colors[RED] + "p2 CHUNK WRITE ERROR ( UNMATCH p2 [" + v_str(_vcreate_vp2d_deltax(partial.vp)) + "] WITH lvl_base_with [" + v_str(lvl.base.lvl_template.width) + "] )" + colors[WHITE] + " at p2_of ~(" + v_str(p2) + ") [ partial_of: chunk_" + _uconv_1ihx(_uget_addr(partial)) + "_00" + v_str(p2 / _vcreate_vp2d_deltax(lvl.display.viewpoint)) + " ]"); };
             p2 += _vcreate_vp2d_deltax(partial.vp);
         };
         if (global.debugger) {
-            gm_slog(YELLOW, "DEBUGGER", "\n" + reinterpereted_data);
             gm_slog(YELLOW, "DEBUGGER", "^^ above is reinterpereted_data from _vconcatenate_lvl_chunks");
         };
-        return g_splitStr(reinterpereted_data, "\n");
+        return reinterpereted_data;
     };
 
     /// returns all drawpoints that are included in a viewpoint as a vector<Gmeng::Renderer::drawpoint>.
@@ -1062,35 +1094,58 @@ namespace Gmeng {
     /// It will trace_chunk_vector(&lvl) and render it completely. It should be used as a base image.
     /// Only use this when a chunk's models, textures are updated. Player and entity movement are handled
     /// automatically, so there is no need to put this method in any loops.
-    inline std::vector<std::string> _vget_renderscale2dpartial_scalar(Gmeng::Level& level_t) {
+    inline std::vector<Unit> _vget_renderscale2dpartial_scalar(Gmeng::Level& level_t, bool cubic_render = true) {
         __functree_call__(__FILE__, __LINE__, Gmeng::_vget_renderscale2dpartial_scalar);
-        std::vector<std::string> v_concat_chunks = _vconcatenate_lvl_chunks(level_t);
-        if (global.debugger) {
-            gm_slog(YELLOW, "DEBUGGER", "\n" + g_joinStr(v_concat_chunks, "\n"));
-        };
+        std::vector<Unit> v_concat_chunks = _vconcatenate_lvl_chunks(level_t, cubic_render);
         return v_concat_chunks;
     };
+    /// Draws a line of units
+    /// vector<Unit> -> "[][][][]"
+    inline std::string draw_line_units(std::vector<Unit> line) {
+        CameraView<1,1> camera;
+        /// ensure resolution - fix v8.2.0-d
+        camera.SetResolution(1,1);
+        std::string __final__ = "";
+        for (const auto unit : line )
+            __final__ += camera.draw_unit(unit);
+        return __final__;
+    };
     /// returns the camera of the current level, with drawpoints included in level_t->display.viewpoint
-    inline std::string get_lvl_view(Gmeng::Level& level_t, std::vector<std::string> concat_chunks) {
+    inline std::string get_lvl_view(Gmeng::Level& level_t, std::vector<Unit> concat_chunks, bool cubic_render = true) {
         __functree_call__(__FILE__, __LINE__, Gmeng::get_lvl_view);
         gm_log(__FILE__,__LINE__,"get_lvl_view -> tracing viewpoint from level->display.vp");
         /// splits each unit including its colorcode ascii characters, using the formatter \x0F defined
         /// in _vget_renderscale2dpartial_scalar() ~ _vconcatenate_lvl_chunks().
-        std::vector<std::string> trimmed_units = g_splitStr(g_joinStr(concat_chunks, ""), "\x0F");
+        std::vector<std::vector<Unit>> trimmed_units = splitThing<Unit>(concat_chunks, [&](Unit u) -> bool {
+            return u.is_entity == true; // (x == true) operator is required because u.is_entity can be NULL
+        }); /// TRIMMED_UNITS == line of units. trimmed_units[0] = vector<Unit>(LINE_0)
         if (global.debugger) {
             gm_slog(GREEN, "DEBUGGER_RENDERENGINE", "inspection of trimmed_units:");
-            unsigned int cc = 0;
+            /*unsigned int cc = 0;
             for ( const auto unit : trimmed_units ) {
                 if (cc % v_static_cast<int>(level_t.base.lvl_template.width) == 0) std::cout << std::endl;
-                std::cout << unit;
+                std::cout << level_t.display.camera.draw_unit(unit);
                 cc++;
-            };
+            };*/ // v8.2.0 -> swap to vector<Unit> disables this functionality for the time being
+            gm_slog(GREEN, "DEBUGGER_RENDERENGINE", colors[RED] + "< currently disabled >");
         };
+        /// TODO: create arbitrary return type for get_lvl_view
+        /// returning this response as a string is inefficient
         std::string __final__ = "";
         unsigned int ptr = 0;
         gm_log(__FILE__,__LINE__,"get_lvl_view -> expanding viewpoint of level_t's camera");
+        /// expand the viewpoint to a vector of drawpoints
         auto resource = _vexpand_viewpoint(level_t.display.viewpoint);
+        // for cubic_render, skips the Y position for already-drawn lines
+        int skip_y_position = -1;
+        bool notified = false;
+        /// loop through each drawpoint in the camera.
         for (const auto dp : resource) {
+            if (dp.y == skip_y_position) {
+                if (!notified && global.dont_hold_back) gm_log(__FILE__,__LINE__, " { cubic_render } advancing to next Y position / seek_drawn( ++dp.Y )");
+                ptr++; // still count the unit number
+                continue;
+            }; notified = false;
             if (global.dont_hold_back) gm_log(__FILE__,__LINE__," :::: get_lvl_view -> CURR_DP: " + Gmeng::Renderer::conv_dp(dp) + " *(p): " + v_str(ptr));
             if (global.debugger) {
                 gm_slog(YELLOW, "DEBUGGER", "current drawpoint: " + v_str(dp.x) + "," + v_str(dp.y));
@@ -1108,20 +1163,53 @@ namespace Gmeng {
             ///------------------------------------------------------------------------------------------------
             /// fallback in case the viewpoint is out of bounds or extends out of the base level wrapper,
             /// otherwase the application would crash due to heap-extreme-overflow-access-unallocated-mem SEGV.
-            if ( dp.x < 0                                || dp.y < 0                                ||
-                 dp.x >= level_t.base.lvl_template.width || dp.y >= level_t.base.lvl_template.height ) {
+            #define out_of_bounds(dp) (dp.x < 0 || dp.y < 0 || dp.x >= level_t.base.lvl_template.width || dp.y >= level_t.base.lvl_template.height)
+            #define out_of_cbounds(dp) (dp.x < 0 || dp.y < 0 || dp.x >= level_t.base.lvl_template.width || dp.y >= (level_t.base.lvl_template.height/2))
+            if ( out_of_bounds(dp) ) {
                 if (global.debugger) gm_slog(RED, "DEBUGGER", colors[YELLOW] + "E_NO_UNIT" + colors[WHITE] + ": drawpoint out-of-bound, replace with placeholder");
+                int the_depths = (ptr % 2 == 0) == 0 ? ((dp.y % 2 == 0) ? BLACK : WHITE) : ((dp.y % 2 == 0) ? WHITE : BLACK);
                 __final__ += level_t.display.camera.draw_unit({
-                    .color = (ptr % 2 == 0) ? BLACK : WHITE,
+                    .color = the_depths,
                     .special = true, .special_clr = RED,
                     .special_c_unit = "?"
-                }) + "\x0F"; ptr++;
+                }) + "\x0F"; ptr++; // v7.1.0 - filler unit for out-of-bounds drawpoint, to prevent crashes
                 continue;
             } else {
                 if (global.debugger) gm_slog(RED, "DEBUGGER", "dp.x: " + v_str(dp.x) + " lvl.width: " + v_str(level_t.base.lvl_template.width) + " dp.y: " + v_str(dp.y) + " lvl.height: " + v_str(level_t.base.lvl_template.height));
-                __final__ += trimmed_units[ _vpos ] + "\x0F";
+                if (dp.y == trimmed_units.size()) { gm_log("!! ** ooga-booga problem: trimmed_size(" + v_str(trimmed_units.size()) + ") = dp.y(" + v_str(dp.y) + ") "); continue; };
+                Unit __unit;
+                /// v8.2.0 / vpos scales with each unit, % operator will chromatize to the current X position
+                int true_position = _vpos % level_t.base.lvl_template.width;
+                try { __unit = trimmed_units.at(dp.y).at(true_position); } catch(const std::out_of_range& e) {
+                    gm_log(__FILE__, __LINE__, "FAULTY_POS: _vpos -> " + v_str(true_position) + " | dp.y -> " + v_str(dp.y) + " | units_size -> " + v_str(trimmed_units.size()));
+#if __GMENG_LOG_TO_COUT__
+                    gm_log(__FILE__, __LINE__, "FATAL_STOP: " + v_str(_vpos) + "," + v_str(true_position));
+#endif
+                    continue;
+                };
+                /// v8.2.0 / cubir_render -> real pixel-scale 1x1 unit rendering
+                if (cubic_render) {
+                    /// fallback if fetching the lower-unit fails
+                    /// should not happen though, bounds check is performed before this operation
+                    Unit __fallback__ = Unit {.color=PINK,.special=true,.special_clr=WHITE,.special_c_unit="?"};
+                    Unit __next_unit = __fallback__;
+                    #define _draw level_t.display.camera.draw_unit
+                    try { __next_unit = trimmed_units.at(dp.y+1).at(true_position); } catch (const std::out_of_range& e) {
+                        __final__ += _draw(__fallback__);
+                        continue;
+                    };
+                    /// double-render in one character size
+                    /*if (__unit.color == __next_unit.color) {
+                        /// same color, does not require different pixels
+                    };*/ // v8.1.1 / draw_unit() automatically handles same colors
+                    __final__ += _draw(__unit, __next_unit);
+                } else {
+                    __final__ += level_t.display.camera.draw_unit(__unit);
+                };
+                __final__ += "\x0F"; // v8.2.1-d / delimeter fix lol
             };
             ptr++;
+            if (cubic_render) skip_y_position = dp.y+1; // v8.2.1-d / skip repeating already-drawn line
         };
         gm_log(__FILE__,__LINE__,"get_lvl_view -> level view rendered");
         if (global.debugger) {

@@ -19,15 +19,15 @@
 
 /* files */
 #include "objects.cpp"
-#include "gmeng.h"
-#include "src/textures.cpp"
-#include "types/map.h"
+#include "../gmeng.h"
+#include "textures.cpp"
+#include "../types/map.h"
 
 /* index */
 // this file is for the game code. Current code allows for tsgmeng & gmeng child_process connection
 // to test the engine. this may also be implemented into something of a game itself, similar to gary's mod
 // where the game engine just loads maps and modifications to use it to the fullest instead of giving out copies 
-// for the game engine, which sounds boring anyways. 
+// for the game engine, which sounds boring anyways.
 using std::endl;
 
 int main( int argc, char** argv ) {
