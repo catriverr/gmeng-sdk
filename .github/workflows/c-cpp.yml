@@ -14,7 +14,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: configure
-      run: make
+      run: |
+        brew install pkg-config
+        brew install ncurses
     - name: make
       run: make
     - name: make
