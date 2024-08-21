@@ -15,6 +15,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: configure
       run: |
+        export PKG_CONFIG_PATH="$(brew --prefix ncurses)/lib/pkgconfig"
         brew install pkg-config
         brew install ncurses
     - name: make
