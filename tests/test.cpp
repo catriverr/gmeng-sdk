@@ -13,7 +13,7 @@
 using std::endl;
 
 int test_loadtexture() {
-    Gmeng::texture test; Gmeng::CameraView<2, 2> wmap;
+    Gmeng::texture test; Gmeng::Camera<2, 2> wmap;
     test = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_test1");
     return 0;
 };
@@ -140,7 +140,7 @@ int main1() {
 
 int test_vgmcontent() {
     std::cout << "vgm_defaults size: " << Gmeng::vgm_defaults::vg_textures.size() << endl;
-    Gmeng::CameraView<1, 1> camera;
+    Gmeng::Camera<1, 1> camera;
     camera.SetResolution(1, 1);
         for (int j = 0; j < Gmeng::vgm_defaults::vg_textures.size(0); j++) {
         auto tx = Gmeng::vgm_defaults::vg_textures.indx(j);
@@ -158,7 +158,7 @@ int test_vgmcontent() {
 
 int test_caketxtr() {
     gm::texture tx = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "01_cake_txtr");
-    Gmeng::CameraView<1, 1> camera;
+    Gmeng::Camera<1, 1> camera;
     std::cout << "drawing texture: ";
     std::cout << tx.name << " | notxtr: " << (Gmeng::notxtr.name == tx.name ? "true" : "false") << endl;
     camera.SetResolution(1, 1);
@@ -273,7 +273,7 @@ int test_vwhole_renderer() {
     });
     std::cout << "load chunk1" << '\n';
     Gmeng::Renderer::Model test_model_2 = {
-        .position = { 20,0 }
+        .position = { 20,0 } // position is within the chunk, so the second chunks' 20th X position. Not overall.
     };
     std::cout << "generate model2" << '\n';
     test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
@@ -285,7 +285,7 @@ int test_vwhole_renderer() {
         }
     });
     std::cout << "load chunk2" << '\n';
-    Gmeng::Renderer::viewpoint def_vp1 = { { 0,0 }, { 78, 43 } };
+    Gmeng::Renderer::viewpoint def_vp1 = { { 0,0 }, { 87, 43 } };
     Gmeng::Renderer::viewpoint def_vp = { { 0,0 }, { 20, 20 } };
     unsigned int def_cx = 30;
     unsigned int def_cy = 15;
@@ -305,7 +305,7 @@ int test_vwhole_renderer() {
         std::cout << lvl.display.camera.draw() << '\n';
     do
     {
-        cout << '\n' << "Press [enter] to continue...";
+        cout << "Press [enter] to continue...";
     } while (cin.get() != '\n');
     lvl.display.camera.clear_screen();
     lvl.display.viewpoint = def_vp; // normal vp
@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
     std::vector<int> do_list = {};
     bool do_main1 = false;
     gm_log("test.cpp",__LINE__,"gmeng_tests -> SPAWN(1)");
-    gm::global.dev_console = true;
+    gm::global.dev_console = false;
     _gargv_patch_global(argc, argv);
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];

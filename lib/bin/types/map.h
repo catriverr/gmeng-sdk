@@ -61,8 +61,8 @@ namespace Gmeng {
 		};
 
 		template <std::size_t __wd, std::size_t __hg>
-		inline Gmeng::CameraView<__wd, __hg> LoadAsset(std::string __f, const std::size_t _w1 = 0, const std::size_t _h1 = 0) {
-			Gmeng::CameraView<__wd, __hg> map;
+		inline Gmeng::Camera<__wd, __hg> LoadAsset(std::string __f, const std::size_t _w1 = 0, const std::size_t _h1 = 0) {
+			Gmeng::Camera<__wd, __hg> map;
 			std::size_t _w = __wd; std::size_t _h = __hg;
 			if (_w1 != 0 && _h1 != 0) { map.SetResolution(_w1, _h1); _w = _w1; _h = _h1; };
 			std::string cntnt = g_readFile(__f);

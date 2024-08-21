@@ -258,13 +258,13 @@ namespace Gmeng {
     static std::stringstream logstream;
     static std::stringstream completelog;
 	static std::string colors[] = {
-		"\x1B[39m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
+		"\x1B[37m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
     static std::string bgcolors[] = {
-        "\x1B[49m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
+        "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
     };
     static std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
-        "\x1B[109m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
+        "\x1B[107m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
     };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";

@@ -31,7 +31,7 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
 
 namespace Gmeng {
 	template<std::size_t _w, std::size_t _h>
-	class CameraView {
+	class Camera { /// v8.2.1: Camera, v4.1.0: CameraView, v1.0.0: WorldMap
 	  public:
 		Gmeng::ModifierList modifiers = {
 			.values = std::vector<Gmeng::modifier> {
@@ -42,7 +42,7 @@ namespace Gmeng {
 				Gmeng::modifier { .name="allow_teleporting",  .value=1 },
 				Gmeng::modifier { .name="allow_dev_commands", .value=1 },
 				Gmeng::modifier { .name="allow_writing_plog", .value=1 },
-                Gmeng::modifier { .name="cubic_render",       .value=0 }
+                Gmeng::modifier { .name="cubic_render",       .value=1 } // enabled since v8.2.2-d
 			}
 		};
 		Objects::G_Entity entitymap[32767] = {};
@@ -55,18 +55,18 @@ namespace Gmeng {
 		bool player_init = false;
 		int entitytotal = 0;
 		inline void SetResolution(std::size_t w, std::size_t h) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::SetResolution);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::SetResolution);
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
 		};
 		inline void constructor(Gmeng::Unit unitmap[_w*_h]) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::constructor);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::constructor);
 			for (int i = 0; i < (w*h); i++) {
 				this->display_map.unitmap[i] = unitmap[i];
 			};
 		};
 		inline void update() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::update);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::update);
 			for (int i = 0; i < this->h; i++) {
 				for (int j = 0; j < this->w; j++) {
 					if (i*j == this->h*this->w) break;
@@ -78,18 +78,18 @@ namespace Gmeng {
 			};
 		};
         inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::temp_displacement);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::temp_displacement);
             this->set_curXY(__pX, __pY);
             int pos_in_map = (__pY * this->w) + __pX;
             this->raw_unit_map[pos_in_map] = this->draw_unit(u);
             this->rewrite_mapping({ pos_in_map });
         };
 		inline std::string draw() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::draw);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::draw);
             if (Gmeng::global.dont_hold_back && !Gmeng::global.shush) {
-                gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
-		    	gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
-                gm_log(__FILE__,__LINE__,"Gmeng::CameraView job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
+                gm_log(__FILE__,__LINE__,"Gmeng::Camera job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
+		    	gm_log(__FILE__,__LINE__,"Gmeng::Camera job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
+                gm_log(__FILE__,__LINE__,"Gmeng::Camera job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
             };
             this->clear_screen();
             std::string final = "";
@@ -111,19 +111,19 @@ namespace Gmeng {
 			final = __cu + "" + final + "\n" + __cf;
 			return final;
 		};
-		inline bool has_modifier(std::string name) {  for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
+		inline bool has_modifier(std::string name) { for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
 		inline void update_modifier(Gmeng::modifier& modifier, int value) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::update_modifier);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::update_modifier);
             modifier.value = value;
         };
 		inline void set_modifier(std::string name, int value) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_modifier);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::set_modifier);
 			int vi = g_find_modifier(this->modifiers.values, name);
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
-			__functree_call__(__FILE__, __LINE__, Gmeng::CameraView::SetPlayer);
+			__functree_call__(__FILE__, __LINE__, Gmeng::Camera::SetPlayer);
             for (int i = 0; i < this->entitytotal; i++) {
 				Objects::G_Entity entity = this->entitymap[i];
 				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
@@ -145,15 +145,15 @@ namespace Gmeng {
 			this->player_init = true;
 		};
 		inline void AddEntity(int entityId, Objects::G_Entity entity) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::__no_impl__::AddEntity);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::__no_impl__::AddEntity);
 			//working on
 		};
 		inline void RemoveEntity(int entityId) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::__no_impl__::RemoveEntity);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::__no_impl__::RemoveEntity);
 			//working on
 		};
 		inline Objects::coord GetPos(int entityId) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::GetPos);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::GetPos);
 			bool exists;
 			Objects::G_Entity entity;
 			for (int i = 0; i < this->entitytotal; i++) {
@@ -165,21 +165,21 @@ namespace Gmeng {
 			return entity.coords;
 		};
 		inline void set_curXY(int x, int y) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_curXY);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::set_curXY);
    			 std::cout << "\033[" << x+2 << ";" << y+2 << "H"; return; // extra numbers account for the border around the map.
 		};
 		inline void reset_cur() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::reset_cur);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::reset_cur);
 			this->set_curXY(-3, this->h);
 		};
 		inline Objects::coord get_xy(int __p1) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::get_xy);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::get_xy);
 			int __p1_x = __p1 / this->w;
 			int __p1_y = __p1 % this->w;
 			return { .x=__p1_x,.y=__p1_y };
 		};
         inline void draw_info() {
-            /// __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::draw_info);
+            /// __functree_call__(__FILE__, __LINE__, Gmeng::Camera::draw_info);
             this->set_curXY(0,0);
             std::cout << "[ pos: " << std::to_string(this->player.coords.x) << "," << std::to_string(this->player.coords.y) << " ] ";
             this->set_curXY(1,0);
@@ -199,9 +199,12 @@ namespace Gmeng {
             // by default, colors are transparent (void/black)
             std::string funit_color = Gmeng::colors[current_unit.color];
             std::string bunit_color = nu ? Gmeng::bgcolors[next_unit.color] : Gmeng::bgcolors[BLACK];
-            if (current_unit.color == next_unit.color) {
+            /*if (current_unit.color == next_unit.color) {
                 if (current_unit.color == WHITE) return colors[WHITE] + Gmeng::c_unit + Gmeng::resetcolor;
                 return bgcolors_bright[current_unit.color] + " " + Gmeng::resetcolor;
+            };*/ // v8.2.2-d: this expects the units to be in Y-index ordered
+            if (current_unit.color == next_unit.color) {
+                return bgcolors_bright[current_unit.color] + colors[current_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + Gmeng::c_outer_unit + Gmeng::resetcolor;
             };
             if (current_unit.special && !prefer_second) {
                 return bgcolors_bright[current_unit.color] + boldcolor + colors[current_unit.special_clr] + current_unit.special_c_unit + resetcolor;
@@ -217,11 +220,11 @@ namespace Gmeng {
                 std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (nu ? Gmeng::colors[next_unit.color] : "") + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
                 return final;
             };
-			std::string final = ( nu ? ( bgcolors_bright[next_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
+			std::string final = ( nu ? ( (next_unit.color == WHITE ? bgcolors_bright[WHITE] : bgcolors_bright[next_unit.color]) + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
 			return final;
 		};
 		inline void rewrite_mapping(const std::vector<int>& positions) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::rewrite_mapping);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::rewrite_mapping);
 			for (std::size_t i=0;i<positions.size();i++) {
 				int curid = positions[i];
 				Objects::coord cpos = this->get_xy(curid);
@@ -232,26 +235,26 @@ namespace Gmeng {
 			this->reset_cur();
 		};
 		inline void clear_screen() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::clear_screen);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::clear_screen);
 			std::cout << "\033[2J\033[1;1H";
 		};
         inline void set_entTag(std::string __nt) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::set_entTag);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::set_entTag);
             this->player.c_ent_tag = __nt;
         };
         inline std::string get_entTag() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::get_entTag);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::get_entTag);
             return this->player.c_ent_tag;
         };
 		inline void rewrite_full() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::rewrite_full);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::rewrite_full);
 			this->clear_screen();
 			this->update();
             std::cout << repeatString("\n", 20) << endl;
 			std::cout << this->draw() << std::endl;
 		};
 		inline void MovePlayer(int entityId, int width, int height) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::MovePlayer);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::MovePlayer);
 			int move_to_in_map = (height*this->w)+width;
 			bool exists = false;
 			Objects::G_Player entity;
@@ -288,7 +291,7 @@ namespace Gmeng {
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};
 		inline void MoveEntity(int entityId, int width, int height) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::CameraView::MoveEntity);
+            __functree_call__(__FILE__, __LINE__, Gmeng::Camera::MoveEntity);
 			int move_to_in_map = (height*this->w)+width;
 			bool exists = false;
 			Objects::G_Entity entity;
@@ -306,9 +309,9 @@ namespace Gmeng {
 		};
 	};
 	template<std::size_t _w, std::size_t _h>
-	inline CameraView<_w, _h> UseRenderer(Gmeng::G_Renderer<_w, _h> __r) {
+	inline Camera<_w, _h> UseRenderer(Gmeng::G_Renderer<_w, _h> __r) {
         __functree_call__(__FILE__, __LINE__, Gmeng::UseRenderer);
-		Gmeng::CameraView<_w, _h> wrldmp;
+		Gmeng::Camera<_w, _h> wrldmp;
 		wrldmp.w = __r.width; wrldmp.h = __r.height;
 		wrldmp.constructor(__r.display.unitmap);
 		for (int i = 0; i < __r.height; i++) {

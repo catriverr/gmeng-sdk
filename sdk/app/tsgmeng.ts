@@ -69,6 +69,7 @@ export namespace builder {
     };
     export async function texture4_0(name: string = null): Promise<TSGmeng.fw4_texture> {
         process.stdout.write('\x1b[?25l'); // hide cursor
+        let cubic_render = true;
         console.clear();
         /// v! important - transparent units
         let vt_name = name ?? lv_objname("txtr");
@@ -107,17 +108,31 @@ export namespace builder {
         };
         let prev_curpos = v2d_curpos;
         let v1d_curpos = () => { return (v2d_curpos.y*texture.width)+v2d_curpos.x; };
-        function _urender1(val: TSGmeng.Unit): string { return _urender_basic_unit(val) };
+        function _urender1(val: TSGmeng.Unit, val2: TSGmeng.Unit = null): string { return _urender_basic_unit(val, val2) };
         function _urender(): string { let final_ = ``; for (let i = 0; i < texture.units.length; i++) {  final_ += _urender1(texture.units[i]); }; return final_; };
         console.clear();
         function _uplace_cursor() {
+            let redone_texture_units = texture.units;
             let minw  = texture.width+1; // +(2-1) is border c_unit and coord_pointers (since /2, we do /2 to +4) | -1 is offset_value for ceil operation
             let v_pos = Math.ceil((process.stdout.columns - minw) / 2);
-            process.stdout.cursorTo(0, process.stdout.rows-2);
-            console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()])} | id: ${v1d_curpos()}`)
-            process.stdout.cursorTo(v_pos+v2d_curpos.x, 4 + v2d_curpos.y);
-            if (texture.units[v1d_curpos()].color == cur_unit.color) return process.stdout.write(TSGmeng.bgcolors[cur_unit.color] + TSGmeng.colors[0] +  "+" + TSGmeng.resetcolor);
-            process.stdout.write(_urender_basic_unit(cur_unit));
+            if (cubic_render) {
+                let vindx = v2d_curpos.y >= 3 ? (texture.width*3) : 0;
+                let pl = v2d_curpos.y % 2 != 0 && v2d_curpos.y==0 ? (texture.width) : (-texture.width);
+                let drawn_unit = [redone_texture_units[v1d_curpos()-vindx],redone_texture_units[v1d_curpos()+(v2d_curpos.y!=0?pl:0)-vindx]];
+                console.log(`unit at cursor: ${_urender_basic_unit(drawn_unit[0],drawn_unit[1])} | id: ${v1d_curpos()}`)
+                let selector = 1;
+                if (v2d_curpos.y % 2 == 0) selector = 0;
+                let dagkurdu = drawn_unit[selector];
+                drawn_unit[selector] = cur_unit;
+                process.stdout.cursorTo(v_pos+v2d_curpos.x,4+Math.floor(v2d_curpos.y/2));
+                process.stdout.write(_urender_basic_unit(drawn_unit[0],drawn_unit[1]));
+            } else {
+                process.stdout.cursorTo(0, process.stdout.rows-2);
+                console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()],texture.units[v1d_curpos()+texture.width])} | id: ${v1d_curpos()}`)
+                process.stdout.cursorTo(v_pos+v2d_curpos.x, 4 + v2d_curpos.y);
+                if (texture.units[v1d_curpos()].color == cur_unit.color) return process.stdout.write(TSGmeng.bgcolors[cur_unit.color] + TSGmeng.colors[0] +  "+" + TSGmeng.resetcolor);
+                process.stdout.write(_urender_basic_unit(cur_unit));
+            }
         };
         let _gu_modifiers = [
             {name: `color`, selected: false},
@@ -171,11 +186,16 @@ export namespace builder {
         let _udrawl = (): string[] => {
             let final = [];
             let ln = ``;
+            let skip_to = -1;
             texture.units.forEach((u, i) => {
-                if (i == 0) { ln += _urender1(u); return; };
-                if (i == texture.units.length - 1) { ln += _urender1(u); final.push(ln); return; };
-                if (i % texture.width == 0) final.push(ln), ln = ``;
-                ln += _urender1(u);
+                let y = Math.floor(i / texture.width);
+                if (y != 0 && y % 2 == 0) return;
+                let nx_unit = texture.units[i + texture.width];
+                if (i == 0) { ln += _urender1(u,nx_unit); return; };
+                if (i == texture.units.length - 1) { ln += _urender1(u,nx_unit); final.push(ln); return; };
+                if (i % texture.width == 0) { final.push(ln), ln = ``; };
+                if (!cubic_render) ln += _urender1(u);
+                else ln += _urender1(u, nx_unit);
             });
             return final;
         };
@@ -193,15 +213,15 @@ export namespace builder {
             if (!specification) {
                 (border(_udrawl(), texture.width)).split(`\n`).forEach((ln: string, indx: number) => {
                     if (indx == 0 || indx == (texture.height+1)) return console.log(tui.center_align(ln));
-                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
-                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-(cubic_render?0:1)).toString()} `));
+                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-(cubic_render?0:1)).toString()}`));
                     console.log(tui.center_align((v_lnidx) + ln + v2_lnidx));
                 }); 
             } else {
                 (border(_udrawl(), texture.width)).split(`\n`).forEach((ln: string, indx: number) => {
                     if (indx == 0 || indx == (texture.height+1)) return console.log(tui.center_align(ln));
-                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-1).toString()} `));
-                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-1).toString()}`));
+                    let v_lnidx  = ((indx - 1) %  10 == 0 || indx == 1) ? ((`${chalk.bold.underline.white(indx-1).toString()} `)) : chalk.dim((`${(indx-(cubic_render?0:1)).toString()} `));
+                    let v2_lnidx = ((indx - 1) %  10 == 0 || indx == 1) ? ((` ${chalk.bold.underline.white(indx-1).toString()}`)) : chalk.dim((` ${(indx-(cubic_render?0:1)).toString()}`));
                     console.log(tui.center_align((v_lnidx) + (specification[indx] ? tui.clr(tui.remove_colorcodes(ln), specification[indx]) : ln) + v2_lnidx));
                 });
             };
@@ -249,11 +269,11 @@ export namespace builder {
                     process.exit(1);
                     break;
                 case `space`:
-                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].color = cur_unit.color;
-                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special = cur_unit.special;
-                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special_clr = cur_unit.special_clr;
-                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].special_c_unit = cur_unit.special_c_unit;
-                    texture.units[v2d_curpos.y*texture.width+v2d_curpos.x].transparent = cur_unit.transparent;
+                    texture.units[(v2d_curpos.y-(cubic_render&&v2d_curpos.y>=1?1:0))*texture.width+v2d_curpos.x].color = cur_unit.color;
+                    texture.units[(v2d_curpos.y-(cubic_render&&v2d_curpos.y>=1?1:0))*texture.width+v2d_curpos.x].special = cur_unit.special;
+                    texture.units[(v2d_curpos.y-(cubic_render&&v2d_curpos.y>=1?1:0))*texture.width+v2d_curpos.x].special_clr = cur_unit.special_clr;
+                    texture.units[(v2d_curpos.y-(cubic_render&&v2d_curpos.y>=1?1:0))*texture.width+v2d_curpos.x].special_c_unit = cur_unit.special_c_unit;
+                    texture.units[(v2d_curpos.y-(cubic_render&&v2d_curpos.y>=1?1:0))*texture.width+v2d_curpos.x].transparent = cur_unit.transparent;
                     process.stdout.cursorTo(0, 3);
                     console.log(texture.units.findIndex(v=>v.color==cur_unit.color), texture.units.find(v=>v.color==cur_unit.color));
                     await tui.await_keypress();
@@ -361,14 +381,39 @@ export namespace builder {
     /**
      * renders a basic unit (does not support special colors or c_ent_tags \ players \ entities \ etc)
      */
-    export function _urender_basic_unit(v: TSGmeng.Unit): string {
-        if (v.special && v.special_clr != null && v.special_c_unit != null) {
-            return TSGmeng.bgcolors[v.special_clr] + v.special_c_unit + TSGmeng.resetcolor;
-        };
-        if (v.transparent) {
-            return TSGmeng.colors[4] + TSGmeng.bgcolors[7] + `#` + TSGmeng.resetcolor;
-        };
-        return TSGmeng.colors[v.color] + (TSGmeng.c_unit) + TSGmeng.resetcolor;
+    export function _urender_basic_unit(v: TSGmeng.Unit, v2: TSGmeng.Unit = null): string {
+        let currentUnit = v;
+        let nextUnit = v2;
+        let nu =  v2 != null;
+        let preferSecond = false;
+        // By default, colors are transparent (void/black)
+        let funitColor = TSGmeng.colors[currentUnit.color];
+        let bunitColor = nu ? TSGmeng.bgcolors[nextUnit.color] : TSGmeng.bgcolors[0]; // BLACK is assumed to be index 0
+        
+        // Handling special cases
+        if (nu && currentUnit.color == nextUnit.color) {
+            return (currentUnit.color != 7 ? TSGmeng.bgcolors_bright[currentUnit.color] : TSGmeng.bgcolors[7]) + " " + TSGmeng.resetcolor;
+        }
+        
+        if (currentUnit.special && !preferSecond) {
+            return (v.color != 7 ? TSGmeng.bgcolors_bright[currentUnit.color] : TSGmeng.bgcolors[7]) + chalk.bold(TSGmeng.colors[currentUnit.special_clr]) + currentUnit.special_c_unit + TSGmeng.resetcolor;
+        } else if (nu && nextUnit.special && (!currentUnit.special || preferSecond)) {
+            return TSGmeng.bgcolors_bright[nextUnit.color] + chalk.bold(TSGmeng.colors[nextUnit.special_clr]) + nextUnit.special_c_unit + TSGmeng.resetcolor;
+        }
+        
+        // Handling transparency
+        if (currentUnit.transparent) {
+            funitColor = TSGmeng.colors[7]; // Assuming index 7 is the transparent color
+        }
+        if (nu && nextUnit.transparent) {
+            bunitColor = TSGmeng.bgcolors[7];
+        }
+        // Default rendering logic
+        let final = nu ? 
+            ((nextUnit.color == 7 ? TSGmeng.bgcolors[7] : TSGmeng.bgcolors_bright[nextUnit.color]) + TSGmeng.colors[currentUnit.color] + ( currentUnit.color != 7 ? chalk.bold(TSGmeng.c_outer_unit_floor):TSGmeng.c_outer_unit_floor )) :
+            (TSGmeng.colors[v.color] + TSGmeng.c_unit);
+        
+        return final + TSGmeng.resetcolor;
     };
     export function border(text: string[], width: number): string {
         let final = ``;
@@ -387,7 +432,7 @@ export namespace builder {
     
     this framework is the recommended and preferred way to handle maps.
     it uses chunking to divide a big 'skybox'-like texture's width-height information into a display.
-    a display then renders a chunk and displays it to the screen with a CameraView instance.
+    a display then renders a chunk and displays it to the screen with a Camera instance.
     This provides the ability to infinitely expand levels, instead of a hard-capped 300x300 top-down view limit on the `gm1.1-sdk` framework.
 
     note - use the `TSGmeng.install_glvl()` method to set-up a .glvl file (gmeng-level)
@@ -763,7 +808,7 @@ export namespace builder {
 
     (world.mpd - unit data)
 
-    This framework handles maps (wmap.gm -> world.dat, player.dat, world.mpd) as a single top-down CameraView instance.
+    This framework handles maps (wmap.gm -> world.dat, player.dat, world.mpd) as a single top-down Camera instance.
     */
     export async function framework1_1(args: string[]): Promise<void> {
         console.clear();
@@ -1052,6 +1097,9 @@ export namespace TSGmeng {
     ];    
     export const bgcolors: Array<string> = [
         "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m"
+    ];
+    export const bgcolors_bright: Array<string> = [
+        "\x1B[107m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[100m"
     ];
     export const resetcolor = "\x1b[0m";
     export const c_unit = "\u2588";

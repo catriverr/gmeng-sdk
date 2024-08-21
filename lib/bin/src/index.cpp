@@ -30,10 +30,10 @@
 // for the game engine, which sounds boring anyways.
 using std::endl;
 
-int main( int argc, char** argv ) {
+int main2( int argc, char** argv ) {
 	Gmeng::ModifiedWorldData wdata = Gmeng::MapParser::GetInfo("world.dat", "player.dat");
 	const std::size_t _w = 1; const std::size_t _h = 1;
-	Gmeng::CameraView<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
+	Gmeng::Camera<_w, _h> world = Gmeng::MapParser::LoadAsset<1, 1>("world.mpd", wdata._w, wdata._h);
 	world.SetResolution(wdata._w, wdata._h);
 	world.SetPlayer(0, Objects::G_Player { .entityId=0, .textureId=0, .colorId=0, .textured=false, .colored = wdata.player.colored, .c_ent_tag = wdata.player.c_ent_tag }, wdata.player.startDX, wdata.player.startDY);
 	world.update();
@@ -201,4 +201,10 @@ int main( int argc, char** argv ) {
         }
     }
 	return 0;
+};
+
+int main(int argc, char** argv) {
+    _gargv_patch_global(argc, argv);
+    SAY("~b~~r~CLI to be implemented~n~\n");
+    return 0;
 };

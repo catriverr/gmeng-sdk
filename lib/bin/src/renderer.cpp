@@ -16,30 +16,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-
-bool kbhit(char key) {
-    fd_set read_fds;
-    struct timeval timeout;
-    int result;
-
-    // Clear the file descriptor set
-    FD_ZERO(&read_fds);
-    FD_SET(STDIN_FILENO, &read_fds);
-
-    // Set the timeout to 0 to make the call non-blocking
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    // Check if there is input available
-    result = select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout);
-    if (result > 0 && FD_ISSET(STDIN_FILENO, &read_fds)) {
-        char ch = getchar();
-        return ch == key;
-    }
-    return false;
-}
-
-
 namespace fs = std::filesystem;
 
 
@@ -209,7 +185,7 @@ namespace Gmeng {
         class Display {
             private:
             public:
-                Gmeng::CameraView<0, 0> camera; Gmeng::Renderer::viewpoint viewpoint;
+                Gmeng::Camera<0, 0> camera; Gmeng::Renderer::viewpoint viewpoint;
                 std::size_t width; std::size_t height; std::vector<Gmeng::Unit> rendered_units;
                 inline void set_resolution(std::size_t width, std::size_t height) {
                     __functree_call__(__FILE__, __LINE__, Gmeng::Renderer::Display::set_resolution);
@@ -267,7 +243,7 @@ namespace Gmeng {
     // these chunks contain { Gmeng::Renderer::viewpoint vp; } metadata
     // which in Gmeng::Level::Display::draw() are located.
     // The chunk's std::vector<Gmeng::Renderer::Model> models object is recieved
-    // and compiled into a Gmeng::CameraView::unitmap;
+    // and compiled into a Gmeng::Camera::unitmap;
     struct r_chunk {
         Gmeng::Renderer::viewpoint vp;
         std::vector<Gmeng::Renderer::Model> models;
@@ -290,7 +266,7 @@ namespace Gmeng {
         SIDE_BOTTOM = 0, SIDE_TOP  = 1
     };
     /// methods to join RenderBuffer output together
-    /// only linear and horizontal since we dont have to account for a cameraview viewpoint
+    /// only linear and horizontal since we dont have to account for a Camera viewpoint
     /// being bigger than the size of current_chunk in r_chunk->chunks(0) - it is limited.
     /// std::vector<string> as &new_delegate since a single character may have color defining escape codes in it
     inline std::string _ujoin_unit_linear(std::string& current, std::vector<std::string>& new_delegate, LinearRenderBufferPositionController pos) {
@@ -357,7 +333,7 @@ namespace Gmeng {
             gm_nlog("\t\tm_size -> " + v_str(v_mdl.size) + "\n");
             gm_nlog("\t\tm_texture -> " + v_mdl.texture.name + "\n");
             gm_nlog("\t\tpreview:");
-            Gmeng::CameraView<10, 10>* preview_cam = new Gmeng::CameraView<10, 10>();
+            Gmeng::Camera<10, 10>* preview_cam = new Gmeng::Camera<10, 10>();
             std::vector<Gmeng::Unit> v_preview = Gmeng::Renderer::draw_model(v_mdl);
             for (int v_lndx = 0; v_lndx < v_preview.size(); v_lndx++) {
                 if (v_lndx % v_mdl.width == 0) gm_nlog("\n\t\t");
@@ -566,7 +542,7 @@ namespace Gmeng {
 
     class Level {
         private:
-            // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a CameraView instance to render
+            // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a Camera instance to render
             inline std::vector<Gmeng::Unit> render_chunk(Gmeng::r_chunk chunk) {
                 __functree_call__(__FILE__, __LINE__, Gmeng::Level::__private__::render_chunk);
                 // write base_template skybox image to chunk (level 0 of canvas)
@@ -714,7 +690,7 @@ namespace Gmeng {
                 this->display.draw(this->player, this->plcoords);
             };
             // draws chunk in Gmeng::Level::(std::vector<Gmeng::r_chunk>)chunks on position: chunk_id
-            // to the Display::CameraView controller
+            // to the Display::Camera controller
             inline void draw_camera(int chunk_id) {
                 __functree_call__(__FILE__, __LINE__, Gmeng::Level::draw_camera);
                 if (chunk_id < 0 || chunk_id > chunks.size()) throw std::invalid_argument("chunk_id is invalid");
@@ -820,7 +796,7 @@ namespace Gmeng {
     /// traces a chunk's display position in a vector
     inline std::vector<Gmeng::r_chunk> trace_chunk_vector(Gmeng::Level& level_t) {
         __functree_call__(__FILE__, __LINE__, Gmeng::__deprecated_do_not_use__::trace_chunk_vector);
-        std::vector<Gmeng::r_chunk> displays; Gmeng::CameraView<0, 0> *pCamera = &(level_t.display.camera);
+        std::vector<Gmeng::r_chunk> displays; Gmeng::Camera<0, 0> *pCamera = &(level_t.display.camera);
         Gmeng::Renderer::Display *pDisplay = &(level_t.display);
         int __iterator_count__ = 0;
         __iterate_through__: for (const auto& chunk : level_t.chunks) {
@@ -889,10 +865,10 @@ namespace Gmeng {
         return chunks;
     };
     /// compiles a level's display viewpoint into a vector of units
-    /// (splicing different parts of r_chunk renderbuffers into one cameraview instance)
+    /// (splicing different parts of r_chunk renderbuffers into one Camera instance)
     inline std::vector<Gmeng::Unit> _vgen_camv_fv2cv(Gmeng::Level &level_t) {
         __functree_call__(__FILE__, __LINE__, Gmeng::__deprecated_do_not_use__::_vgen_camv_fv2cv);
-        Gmeng::Renderer::Display *pDisplay = &level_t.display; Gmeng::CameraView<0,0> *pCamera = &level_t.display.camera;
+        Gmeng::Renderer::Display *pDisplay = &level_t.display; Gmeng::Camera<0,0> *pCamera = &level_t.display.camera;
         std::vector<r_chunk> chunks = Gmeng::trace_chunk_vector(level_t);
         std::vector<Unit> units = Gmeng::splice_render_buffers(chunks, level_t);
         std::vector<Unit> v_units_final;
@@ -952,7 +928,7 @@ namespace Gmeng {
         gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__ ) -> args: &__this_function__::forward(params) : attempting method _vgen_camv_fv2cv");
         std::vector<Unit> units = Gmeng::_vgen_camv_fv2cv(level_t);
         gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__) -> static parameter returned v_success ; vector unit compiled");
-        Gmeng::CameraView<0, 0>* pCameraRenderer = &level_t.display.camera;
+        Gmeng::Camera<0, 0>* pCameraRenderer = &level_t.display.camera;
         gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *draw_vunits -> looping through DELTA( *(level)->display.vpoint.forward(x,y) ");
         for (int y = 0; y < Gmeng::_vcreate_vp2d_deltay(level_t.display.viewpoint); y++) {
             gm_log(__FILE__,__LINE__,"_vcam_gen_frame() job_render *draw_vunits -> __ROW__ display row #" + v_str(y));
@@ -1102,7 +1078,7 @@ namespace Gmeng {
     /// Draws a line of units
     /// vector<Unit> -> "[][][][]"
     inline std::string draw_line_units(std::vector<Unit> line) {
-        CameraView<1,1> camera;
+        Camera<1,1> camera;
         /// ensure resolution - fix v8.2.0-d
         camera.SetResolution(1,1);
         std::string __final__ = "";
@@ -1259,7 +1235,7 @@ struct textblob_t {
                 return false;
             return true;
         };
-        Gmeng::CameraView<0,0> cam_hide;
+        Gmeng::Camera<0,0> cam_hide;
         bool placed = false;
         bool hidestate = false;
     public:
@@ -1272,7 +1248,7 @@ struct textblob_t {
             : contents(text), title(title), colors({text_color, blob_color}), max_line_width(max_line_width), position(pos) {}
 
         // Emplace function
-        inline void emplace(Gmeng::CameraView<0,0>& cam) {
+        inline void emplace(Gmeng::Camera<0,0>& cam) {
             this->cam_hide = cam;
             this->placed = true;
             if (!this->checkspace(cam.w, cam.h)) {
@@ -1293,7 +1269,7 @@ struct textblob_t {
         };
 
         // Remove function
-        inline void remove(Gmeng::CameraView<0, 0>& cam) {
+        inline void remove(Gmeng::Camera<0, 0>& cam) {
             this->cam_hide = cam;
             if (!this->placed || this->hidestate) { if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "ignored textblob_t.remove() call  because the text is already hidden or is not placed."); return; };
             /// TODO: implement
@@ -1303,7 +1279,7 @@ struct textblob_t {
     // textarea, creates a blob to emplace text
     // turns units surrounding text in the specified position to special,
     // and surrounds it with outer_c_unit characters
-inline textblob_t textarea(Gmeng::CameraView<0, 0> cam, Renderer::drawpoint pos, std::string text, std::string title = "$__NO_TITLE", std::size_t max_line_width = 10, color_t text_color = WHITE, color_t blob_color = BLACK) {
+inline textblob_t textarea(Gmeng::Camera<0, 0> cam, Renderer::drawpoint pos, std::string text, std::string title = "$__NO_TITLE", std::size_t max_line_width = 10, color_t text_color = WHITE, color_t blob_color = BLACK) {
     textblob_t blob(text, title, max_line_width, pos, text_color, blob_color);
     blob.emplace(cam);
     return blob;

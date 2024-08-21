@@ -233,6 +233,27 @@ std::vector<Unit> scale_image(const std::vector<Unit>& units, int original_width
     return scaled_units;
 }
 
+bool kbhit(char key) {
+    fd_set read_fds;
+    struct timeval timeout;
+    int result;
+
+    // Clear the file descriptor set
+    FD_ZERO(&read_fds);
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    // Set the timeout to 0 to make the call non-blocking
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Check if there is input available
+    result = select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout);
+    if (result > 0 && FD_ISSET(STDIN_FILENO, &read_fds)) {
+        char ch = getchar();
+        return ch == key;
+    }
+    return false;
+}
 namespace Gmeng {
     namespace UI {
         const wchar_t* wc_unit             = L"\u2588";
