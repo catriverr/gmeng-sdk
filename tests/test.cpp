@@ -294,7 +294,7 @@ int test_vwhole_renderer() {
     lvl.display.set_resolution(Gmeng::_vcreate_vp2d_deltax(def_vp), Gmeng::_vcreate_vp2d_deltay(def_vp));
     lvl.display.viewpoint = def_vp1;
     lvl.display.camera.set_modifier("cubic_render", true);
-    std::vector<Unit> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl, true);
+    std::vector<gmeng::Unit> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl, true);
     //g_sleep(ms(5009));
     std::cout << "renderscale done" << '\n';
     std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale, true);
