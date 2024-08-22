@@ -1,4 +1,5 @@
 # Gmeng Development Kit
+![builds](https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg)
 
 Gmeng SDK is a development kit for Gmeng - a 2D game engine for the terminal - that includes the required utilities for developing a game in Gmeng.
 following 2.0, the original gmeng repository is no longer up-to-date with the SDK version. please use this version instead of the legacy version.
