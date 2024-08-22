@@ -310,7 +310,6 @@ int test_vwhole_renderer() {
     lvl.display.camera.clear_screen();
     lvl.display.viewpoint = def_vp; // normal vp
     for (int c_counter_t = 0; c_counter_t < def_cx; c_counter_t++) {
-        if (kbhit(65)) paused = !paused;
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x += 1;
         lvl.display.viewpoint.end.x   += 1;
@@ -323,7 +322,6 @@ int test_vwhole_renderer() {
     g_sleep(ms(500));
     lvl.display.viewpoint = def_vp;
     for (int c_counter_t = 0; c_counter_t < def_cx; c_counter_t++) {
-        if (kbhit('p')) paused = !paused;
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x -= 1;
         lvl.display.viewpoint.end.x   -= 1;
@@ -336,7 +334,6 @@ int test_vwhole_renderer() {
     g_sleep(ms(1000));
     lvl.display.viewpoint = def_vp;
     for (int c_counter_t = 0; c_counter_t < def_cy; c_counter_t++) {
-        if (kbhit('p')) paused = !paused;
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.y += 1;
         lvl.display.viewpoint.end.y   += 1;
@@ -348,7 +345,6 @@ int test_vwhole_renderer() {
     g_sleep(ms(1000));
     lvl.display.viewpoint = def_vp;
     for (int c_counter_t = 0; c_counter_t < def_cy; c_counter_t++) {
-        if (kbhit('p')) paused = !paused;
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.y += 1;
         lvl.display.viewpoint.end.y   += 1;
