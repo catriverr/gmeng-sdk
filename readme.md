@@ -9,7 +9,7 @@
 
 ## Building
 
-This project uses the gnu-make build system for an easy building process. Currently, <img src="assets/readme-logo.png" style="width: 12%; vertical-align: -2px;"> only runs on `Darwin (MacOS)` systems.
+This project uses the gnu-make build system for an easy building process. Currently, Gmeng only runs on `Darwin (MacOS)` systems.
 
 ### Requirements
 ```cmake
@@ -44,7 +44,7 @@ options:
 - The `no-ncurses` option disables the auto-imports to `utils/interface.cpp` and `types/interface.h` from the `gmeng.h` header.
 
 ## Debugging
-<img src="assets/readme-logo.png" style="width: 12%; vertical-align: -2px;"> is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
+Gmeng is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
 ```sh
 make test2; lldb ./tests/out/test.o
 ```
