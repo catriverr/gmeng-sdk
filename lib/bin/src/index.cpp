@@ -205,6 +205,7 @@ int main2( int argc, char** argv ) {
 
 int main(int argc, char** argv) {
     patch_argv_global(argc, argv);
-    SAY("~b~~r~CLI to be implemented~n~\n");
+    SAY("~h~~r~CLI to be implemented~n~\n");
+    SAY("~h~contribute to ~b~https://github.com/catriverr/gmeng-sdk~n~\n");
     return 0;
 };
