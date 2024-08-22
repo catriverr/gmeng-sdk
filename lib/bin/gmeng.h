@@ -701,8 +701,11 @@ static void patch_argv_global(int argc, char* argv[]) {
 #include "types/map.h"
 #if _WIN32 == false
 #include "utils/network.cpp"
-#include "types/interface.h"
-#include "utils/interface.cpp"
+#ifndef GMENG_NO_CURSES
+    #include "types/interface.h"
+    #include "utils/interface.cpp"
+    /// for github build workflow
+#endif
 #endif
 namespace g = Gmeng;
 namespace gm = Gmeng;

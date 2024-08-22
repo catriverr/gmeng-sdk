@@ -8,6 +8,11 @@ ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
 	CXXFLAGS += -g
 endif
 
+ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
+    CXXFLAGS += -DGMENG_NO_CURSES
+endif
+
+
 # Default target builds lib/bin/src/index.cpp
 all: lib/bin/out/gmeng
 
@@ -27,5 +32,9 @@ test2: tests/test.cpp
 debug:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out debug,$(MAKECMDGOALS))
 
+no-ncurses:
+	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out no-ncurses,$(MAKECMDGOALS))
+
+
 # Phony targets
-.PHONY: all test test2 debug
+.PHONY: all test test2 debug no-ncurses
