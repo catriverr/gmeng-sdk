@@ -1,39 +1,69 @@
-# Gmeng Development Kit
-![builds](https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg)
+<p align="center">
+    <img src ="assets/readme-logo.png" style="width: 100%;"><br/>
+    <p3>A Powerful, Terminal-Based 2D Game Engine written in C++.</p3>
+</p>
+<hr/>
+<center>
+<img src="https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg">
+</center>
 
-Gmeng SDK is a development kit for Gmeng - a 2D game engine for the terminal - that includes the required utilities for developing a game in Gmeng.
-following 2.0, the original gmeng repository is no longer up-to-date with the SDK version. please use this version instead of the legacy version.
+## Building
 
-## Installation 
+This project uses the gnu-make build system for an easy building process. Currently, <img src="assets/readme-logo.png" style="width: 12%; vertical-align: -2px;"> only runs on `Darwin (MacOS)` systems.
 
-installation is easy. Clone the repository with:
+### Requirements
+```cmake
+Systems:
+- gnu-make
+- Node.JS 19.8.1 or later
+- npm 9.2.0 or later
+- g++ with stdc++20 or gnu++20
+- homebrew
+
+Frameworks:
+- ncurses/ncursesw 6.5 or later
+- pkg-config 0.29.2 or later
+- libcurl 8.4.0 or later
+- ApplicationServices
+```
+
+To get started, clone the repository with
 ```sh
-$ git clone https://github.com/catriverr/gmeng-sdk
+git clone https://github.com/catriverr/gmeng-sdk
 ```
-However, there are a few requirements.
+you may use the following build options:
+```make
+builds:
+    make all (builds engine and cli)
+    make test (builds interface tests / test.cpp)
+    make test2 (builds unit tests / tests/test.cpp)
+options:
+    make [debug] [no-ncurses] [all/test/test2]
 ```
-- Node.js & npm
-- ts-node (npm install ts-node -g)
-- gcc & g++ (required for building the engine source)
-```
-There are a few prebuilt executables, but it is recommended to build from source, as it is the most reliable way.
+- The `debug` option adds the `-g -O0 -fsanitize=address` flags to the compiler.
+- The `no-ncurses` option disables the auto-imports to `utils/interface.cpp` and `types/interface.h` from the `gmeng.h` header.
 
-## Launching 
-
-To launch the application, use:
+## Debugging
+<img src="assets/readme-logo.png" style="width: 12%; vertical-align: -2px;"> is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
 ```sh
-$ ./start 
+make test2; lldb ./tests/out/test.o
 ```
-this will launch the application, that by default will load the map in the file `test.gm`, so do not change directories or remove the file.
-If you wish to launch the map builder, use:
+to run different tests, add the `-l=0,1,2,3..8` flag to the `run` command in lldb.
+refer to the [Unit Tests](tests/test.cpp) file to see different tests and what they do.
+
+## Flags & Command-line Arguments
+For **Gmeng**'s command-line arguments, refer to the `help` page in the command-line interface via:
 ```sh
-$ ./start -b
+make; ./gmeng -help
 ```
-This will launch the map editor. If you wish to edit an already-existant file, just state the name of the file (without the .gm extension) to the editor's file name selection screen.
-If you would like to create a new map, continue the editors instructions and it will lead you to the editor.
 
-**Remember that `map size` and `player starting position` are variables that can not be changed after your initial input.**
+Gmeng takes the following preprocessor definitions:
+```cpp
+#define GMENG_NO_CURSES // false by default, for no ncurses imports, same as the make no-ncurses parameter
+#define __GMENG_LOG_TO_COUT__ // false by default, streams gm_log() calls to the std::cout stream.
+#define __GMENG_ALLOW_LOG__ // true by default, allows logging
+#define __GMENG_DRAW_AFTER_LOG__ // false, by default draws the dev-c console
+```
 
-
-### Thank you for checking out this repository.
-
+## Contact
+you may contact me on  discord via `@catriverr`, or e-mail me at `nehir@mybutton.org`.
