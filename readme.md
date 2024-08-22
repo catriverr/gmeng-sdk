@@ -9,7 +9,7 @@
 
 ## Building
 
-This project uses the gnu-make build system for an easy building process. Currently, Gmeng only runs on `Darwin (MacOS)` systems.
+This project uses the [**GNU Make**](https://www.gnu.org/software/make/) build system for an easy building process. Currently, Gmeng only runs on `Darwin (MacOS)` systems.
 
 ### Requirements
 ```cmake
