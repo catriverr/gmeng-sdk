@@ -1,7 +1,13 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -lcurl -g --std=c++20 -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security -framework ApplicationServices
+CXXFLAGS := -lcurl --std=c++20 -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security -framework ApplicationServices
 OUTFILE := -o gmeng
+
+ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
+    CXXFLAGS += -fsanitize=address
+	CXXFLAGS += -g
+endif
+
 # Default target builds lib/bin/src/index.cpp
 all: lib/bin/out/gmeng
 
@@ -17,5 +23,9 @@ test: test.cpp
 test2: tests/test.cpp
 	$(CXX) $(CXXFLAGS) -o tests/out/test.o tests/test.cpp
 
+# Target for building with the debug flag
+debug:
+	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out debug,$(MAKECMDGOALS))
+
 # Phony targets
-.PHONY: all test test2
+.PHONY: all test test2 debug

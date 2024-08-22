@@ -204,7 +204,7 @@ int main2( int argc, char** argv ) {
 };
 
 int main(int argc, char** argv) {
-    _gargv_patch_global(argc, argv);
+    patch_argv_global(argc, argv);
     SAY("~b~~r~CLI to be implemented~n~\n");
     return 0;
 };

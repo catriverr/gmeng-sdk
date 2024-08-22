@@ -461,10 +461,10 @@ static std::vector<std::string> bgcolornames = {
 
 static std::string colorformat(std::string data) {
     std::string formatted = data;
-    for (int i = 0; i < sizeof(Gmeng::colors); i++) {
+    for (int i = 0; i < (sizeof(Gmeng::colors)/sizeof(*Gmeng::colors)); i++) {
         formatted = str_replace(formatted, "~" + colornames[i] + "~", Gmeng::colors[i]);
     };
-    for (int i = 0; i < sizeof(Gmeng::bgcolors); i++) {
+    for (int i = 0; i < (sizeof(Gmeng::bgcolors)/sizeof(*Gmeng::bgcolors)); i++) {
         formatted = str_replace(formatted, "~" + bgcolornames[i] + "~", Gmeng::bgcolors[i]);
     };
     formatted = str_replace(formatted, "~h~", "\033[1m");
@@ -649,9 +649,9 @@ static void __explain_why_i_cannot_run_to_dumbass_using_windows() {
     exit(1);
 };
 
-static void _gargv_patch_global(int argc, char* argv[]) {
-    __annot__(_gargv_patch_global, "patches the Gmeng::global variable with the command-line arguments.");
-    __functree_call__(__FILE__, __LINE__, _gargv_patch_global);
+static void patch_argv_global(int argc, char* argv[]) {
+    __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
+    __functree_call__(__FILE__, __LINE__, patch_argv_global);
     #if _WIN32
         __explain_why_i_cannot_run_to_dumbass_using_windows();
         return;
@@ -666,7 +666,7 @@ static void _gargv_patch_global(int argc, char* argv[]) {
             ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
             int times = size.ws_col-11;
             __gmeng_write_log__("gmeng.log", "command-line argument requested help menu\n");
-            SAY("~Br~\x0F~h~~y~GMENG " + (Gmeng::version) + "~n~ | " + Gmeng::colors[6] + "Terminal-Based 2D Game Engine~n~ | Help Menu\n");
+            SAY("~Br~\x0F~h~\x0F~y~GMENG " + (Gmeng::version) + "~n~ | " + Gmeng::colors[6] + "Terminal-Based 2D Game Engine~n~ | Help Menu\n");
             SAY("~_~~st~" + repeatString("-", times+11) + "~n~\n");
             SAY("~h~~r~Gmeng~n~ is a standalone terminal-based game engine, utilizing ~y~pthread~n~ and the ~b~C++ Standard library~n~.\n");
             SAY("~_~Currently, Gmeng is only available to MacOS and Linux users while on its active development phase.\n");

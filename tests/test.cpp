@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
     bool do_main1 = false;
     gm_log("test.cpp",__LINE__,"gmeng_tests -> SPAWN(1)");
     gm::global.dev_console = false;
-    _gargv_patch_global(argc, argv);
+    patch_argv_global(argc, argv);
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
