@@ -3,9 +3,9 @@
     <p3>A Powerful, Terminal-Based 2D Game Engine written in C++.</p3>
 </p>
 <hr/>
-<center>
+<p align="center">
 <img src="https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg">
-</center>
+</p>
 
 ## Building
 
