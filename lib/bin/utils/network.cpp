@@ -198,7 +198,7 @@ public:
         // Create socket
         int server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd == -1) {
-            gm_log(__FILE__, __LINE__, "Error creating socket");
+            gm_log( "Error creating socket");
             return;
         }
 
@@ -212,14 +212,14 @@ public:
         // C++ is retarded, bind defaults to std::bind even if the std namespace isn't being used
         int bind_result = ::bind(server_fd, reinterpret_cast<sockaddr *>(&address), sizeof(address));
         if (bind_result != 0) {
-            gm_log(__FILE__, __LINE__, "Bind failed");
+            gm_log( "Bind failed");
             close(server_fd);
             return;
         };
 
         // Listen for incoming connections
         if (listen(server_fd, 10) < 0) {
-            gm_log(__FILE__, __LINE__, "Listen failed");
+            gm_log( "Listen failed");
             close(server_fd);
             return;
         };

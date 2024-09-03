@@ -12,6 +12,11 @@ ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
     CXXFLAGS += -DGMENG_NO_CURSES
 endif
 
+ifeq ($(filter use-external,$(MAKECMDGOALS)), use-external)
+	CXXFLAGS += `pkg-config --libs --cflags sdl2_ttf`
+    CXXFLAGS += -DGMENG_SDL
+endif
+
 
 # Default target builds lib/bin/src/index.cpp
 all: lib/bin/out/gmeng
@@ -34,7 +39,8 @@ debug:
 
 no-ncurses:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out no-ncurses,$(MAKECMDGOALS))
-
+use-external:
+	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out use-external,$(MAKECMDGOALS))
 
 # Phony targets
 .PHONY: all test test2 debug no-ncurses

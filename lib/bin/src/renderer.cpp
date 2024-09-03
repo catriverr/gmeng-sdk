@@ -104,15 +104,15 @@ namespace Gmeng {
         std::vector<Gmeng::Unit> draw_model(Gmeng::Renderer::Model __m) {
             __functree_call__(__FILE__, __LINE__, Gmeng::Renderer::draw_model);
             std::vector<Gmeng::Unit> unitmap;
-            gm_log(__FILE__,__LINE__,"job_render *draw_model -> MODEL * size: " + v_str(__m.width * __m.height) + " units | TEXTURE * size: " + v_str(__m.texture.units.size()) + " units");
+            if (Gmeng::global.dont_hold_back) gm_log("job_render *draw_model -> MODEL * size: " + v_str(__m.width * __m.height) + " units | TEXTURE * size: " + v_str(__m.texture.units.size()) + " units");
                 for ( int i = 0; i < __m.height; i++ ) {
                     for ( int j = 0; j < __m.width; j++ ) {
                         int vpos = (i*__m.width)+j; unitmap.push_back(__m.texture.units[vpos]);
-                        gm_log(__FILE__,__LINE__,"job_render *draw_model (_vlinear_draw=true) -> vp_compileUnit (from<texture>->units to<unitmap>->vector) : unit * vpos = " + v_str(vpos+1) + " / " + v_str(__m.texture.units.size()));
+                        if (Gmeng::global.dont_hold_back) gm_log("job_render *draw_model (_vlinear_draw=true) -> vp_compileUnit (from<texture>->units to<unitmap>->vector) : unit * vpos = " + v_str(vpos+1) + " / " + v_str(__m.texture.units.size()));
                     };
                 };
 
-            gm_log(__FILE__,__LINE__,"job_render (draw_model -> vp_compileUnit v_success) v_static_cast<std::vector<units>> total_size : " + v_str(unitmap.size()));
+            if (Gmeng::global.dont_hold_back) gm_log("job_render (draw_model -> vp_compileUnit v_success) v_static_cast<std::vector<units>> total_size : " + v_str(unitmap.size()));
             return unitmap;
         };
         /// returns size of a drawpoint in total amount of units (NOT FOR X,Y POSITIONS)
@@ -140,7 +140,7 @@ namespace Gmeng {
         // returns placement coordinates for each coordinate of object at __p with size of __s in mapsize of __ws
         std::vector<Gmeng::Renderer::drawpoint> get_placement(drawpoint __p, drawpoint __s, drawpoint __ws, bool _vlinear_render = false) {
             __functree_call__(__FILE__, __LINE__, Gmeng::Renderer::get_placement);
-            gm_log(__FILE__,__LINE__,"gm::v_renderer -> get_placement : pvalues = 1: " + conv_dp(__p) + " 2: " + conv_dp(__s) + " 3: " + conv_dp(__ws));
+            gm_log("gm::v_renderer -> get_placement : pvalues = 1: " + conv_dp(__p) + " 2: " + conv_dp(__s) + " 3: " + conv_dp(__ws));
             if (getsize(__p) > getsize(__ws) || getsize(__s) > getsize(__ws)) throw std::invalid_argument("placement parameters invalid");
             std::vector<Gmeng::Renderer::drawpoint> vec;
             if (_vlinear_render) {
@@ -219,7 +219,7 @@ namespace Gmeng {
                     this->refresh();
                     if (!this->camera.player_init) this->camera.SetPlayer(0, pl, plcoords.y, plcoords.x, true);
                     else this->camera.MovePlayer(0, plcoords.y, plcoords.x);
-                    gm_log(__FILE__,__LINE__,"Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
+                    gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
                     for (int i = 0; i < this->rendered_units.size(); i++) {
                         if (this->camera.display_map.unitmap[i].is_player) {
                             this->camera.playerunit.color = this->rendered_units[i].color; /// fix for __gtransparent_unit__ background
@@ -380,7 +380,7 @@ namespace Gmeng {
         __functree_call__(__FILE__, __LINE__, Gmeng::vd_find_texture);
         int ccount = 0;
         for (const auto& val : dict.v_getrelative()) {
-            gm_log(__FILE__,__LINE__,"gm::vd_find_texture() -> v_searchAddr: v_dictl<gm::texture> vgm_defaults asumed | addr: " + _uconv_1ihx(ccount) + " -> relative_value = " + val.data.name + " , search_value = " + name + " , match = " + std::string(val.data.name == name ? "yes" : "no"));
+            if (Gmeng::global.dont_hold_back) gm_log("gm::vd_find_texture() -> v_searchAddr: v_dictl<gm::texture> vgm_defaults asumed | addr: " + _uconv_1ihx(ccount) + " -> relative_value = " + val.data.name + " , search_value = " + name + " , match = " + std::string(val.data.name == name ? "yes" : "no"));
             if (val.data.name == name) return val.data;
             ccount++;
         };
@@ -396,13 +396,13 @@ namespace Gmeng {
         // we wait until all textures are in vgm_defaults before we load any models
         // afterwards we loop through the vector and load them into Gmeng::vgm_defaults::vg_rdmodels
         std::vector<std::string> q_modelindx;
-        gm_log(__FILE__,__LINE__,"_uread_into_vgm() : job_readfile *loop -> ffolder:name = " + folder);
+        if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : job_readfile *loop -> ffolder:name = " + folder);
         try {
             for (const auto& entry : fs::directory_iterator(folder)) {
-                gm_log(__FILE__,__LINE__,"_uread_into_vgm() : reading file " + entry.path().string() + " - size: " + v_str(entry.file_size()) + "B | " + v_str(entry.file_size() / 1024) + "KB | " + v_str(entry.file_size() / 1024 / 1000) + " MB");
+                if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : reading file " + entry.path().string() + " - size: " + v_str(entry.file_size()) + "B | " + v_str(entry.file_size() / 1024) + "KB | " + v_str(entry.file_size() / 1024 / 1000) + " MB");
                 if (entry.is_regular_file()) {
                     v_title fname = (entry.path().string());
-                    gm_log(__FILE__,__LINE__,"_uread_into_vgm() : status_update -> entryAt = " + folder = " | filename: " + entry.path().filename().string());
+                    if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : status_update -> entryAt = " + folder = " | filename: " + entry.path().filename().string());
                     if (endsWith(fname, ".gmdl")) { std::string fcontent = g_readFile(fname); q_modelindx.push_back(fcontent); continue; };
                     vgm_defaults::vg_textures.addb_l(Gmeng::LoadTexture(fname));
                 };
@@ -449,37 +449,37 @@ namespace Gmeng {
         /// conf | with the method vgm_include(const v_title& ffolder) -> auto;
         std::string f_content = g_readFile(__fn); Gmeng::LevelInfo info;
         std::vector<std::string> lines = g_splitStr(f_content, "\n");
-        gm_log(__FILE__,__LINE__,"parsing glvl file: " + __fn + " -> Gmeng::LevelInfo");
+        gm_log("parsing glvl file: " + __fn + " -> Gmeng::LevelInfo");
         std::map<std::string, Gmeng::texture> textures;
         std::map<std::string, Gmeng::Renderer::Model> models;
         Gmeng::_uread_into_vgm("./envs/models");
         Gmeng::_uwritevgm_to_maps(models, textures);
         std::vector<int> resolution = {5, 5};
-        gm_log(__FILE__,__LINE__,"glvl_v vector_init -> success");
+        gm_log("glvl_v vector_init -> success");
         int indx = 0;
-        gm_log(__FILE__,__LINE__,"glvl_v inl loadF load_file start");
+        gm_log("glvl_v inl loadF load_file start");
         for ( const auto& ln : lines ) {
             /// indx equ ln_num
             if (startsWith(ln, ";")) continue;
             std::string ln_vcomments = g_splitStr(ln, ";")[0];
             std::vector<std::string> params = g_splitStr(ln_vcomments, " ");
-            gm_log(__FILE__,__LINE__,__fn + ": gl_v->line @ " + v_str(indx) + ": " + ln);
-                 if ( indx == 0 ) { info.name = params[0].substr(5); gm_log(__FILE__,__LINE__,"glvl->name : SETNAME = " + params[0] + " -> success\n"); }
-            else if ( indx == 1 ) { info.description = params[0].substr(5); gm_log(__FILE__,__LINE__,"glvl->desc : SETDESC = " + params[0] + " -> success\n"); }
+            gm_log(__fn + ": gl_v->line @ " + v_str(indx) + ": " + ln);
+                 if ( indx == 0 ) { info.name = params[0].substr(5); gm_log("glvl->name : SETNAME = " + params[0] + " -> success\n"); }
+            else if ( indx == 1 ) { info.description = params[0].substr(5); gm_log("glvl->desc : SETDESC = " + params[0] + " -> success\n"); }
             else if ( indx == 2 ) {
-                gm_log(__FILE__,__LINE__,"glvl->base.template : SETTEXTURE = " + params[0] + " -> proc.init() -> success");
+                gm_log("glvl->base.template : SETTEXTURE = " + params[0] + " -> proc.init() -> success");
                 std::string vp_name = params[0].substr(13);
                 Gmeng::texture vp_gtx;
                 if (textures.find(vp_name) != textures.end()) vp_gtx = textures[vp_name];
                 else vp_gtx = Gmeng::LoadTexture(vp_name);
-                gm_log(__FILE__,__LINE__,"glvl->base.tx = " + vp_name + " -> LOADTEXTURE -> success");
-                gm_log(__FILE__,__LINE__,"glvl->base.template >> vp_info:");
+                gm_log("glvl->base.tx = " + vp_name + " -> LOADTEXTURE -> success");
+                gm_log("glvl->base.template >> vp_info:");
                 Gmeng::log_vpu(vp_gtx.units, vp_gtx.width);
                 info.base.width = vp_gtx.width;
                 info.base.height = vp_gtx.height;
                 info.base.lvl_template = vp_gtx;
             }
-            else if ( indx == 3 ) { gm_log(__FILE__,__LINE__,"glvl->p_xy : initl() -> start"); std::vector<std::string> p_xy = g_splitStr(params[0].substr(11), ","); gm_nlog("v_chunksize -> " + params[0].substr(11) + "\nv_chX -> " + p_xy[0] + "\nv_chY -> " + p_xy[1]); resolution[0] = std::stoi(p_xy[0]); resolution[1] = std::stoi(p_xy[1]); };
+            else if ( indx == 3 ) { gm_log("glvl->p_xy : initl() -> start"); std::vector<std::string> p_xy = g_splitStr(params[0].substr(11), ","); gm_nlog("v_chunksize -> " + params[0].substr(11) + "\nv_chX -> " + p_xy[0] + "\nv_chY -> " + p_xy[1]); resolution[0] = std::stoi(p_xy[0]); resolution[1] = std::stoi(p_xy[1]); };
             if ( indx >  3 && ln.length() > 0) {
                 std::string keyword = params[0];
                 if ( keyword == "#model" ) {
@@ -499,13 +499,13 @@ namespace Gmeng {
                         .texture=_m_texture,
                         .id=g_mkid()
                     };
-                    gm_log(__FILE__,__LINE__,"glvl->models : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
+                    gm_log("glvl->models : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
                 }
                 else if ( keyword == "#texture" ) {
                     if (params.size() < 2) { std::cerr << "gm:0/c_err: Gmeng::parse_glvl -> kw_texture : ERR_PARAMS: at(line="+ v_str(indx) +",ch="+v_str(ln.length())+") -> expected 2 params, got " + v_str(params.size()) + "." << endl; indx++; continue; };
                     if (textures.find(params[2]) != textures.end()) textures[params[1]] = textures[params[2]];
                     else textures[params[1]] = Gmeng::LoadTexture(params[2]);
-                    gm_log(__FILE__,__LINE__,"glvl->textures : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
+                    gm_log("glvl->textures : push_back() -> v_static_cast<std::size_t> : *m_texture:load *m_metadata:load v_status -> success");
                 }
                 else if ( keyword == "#chunk" ) {
                     /// rest | #chunk p1x=0 p1y=0 p2x=4 p2y=4 model_name1,model_name2
@@ -520,7 +520,7 @@ namespace Gmeng {
                         },
                         .models = ls_models
                     });
-                    gm_log(__FILE__,__LINE__,"glvl->chunks : push_back() -> v_static @ this->trace_1dp(v_static_cast<std::size_t>) : v_static @ this->trace_1dp(v_static_cast<Gmeng::r_chunk>) -> gm_conv_1dc() & r_chunk # v_status -> success");
+                    gm_log("glvl->chunks : push_back() -> v_static @ this->trace_1dp(v_static_cast<std::size_t>) : v_static @ this->trace_1dp(v_static_cast<Gmeng::r_chunk>) -> gm_conv_1dc() & r_chunk # v_status -> success");
                 }
                 else {
                     if (params.size() > 0) std::cerr << "gm:0/c_err: Gmeng::parse_glvl() -> ERR_INVALID_KEYWORD: at(line=" + v_str(indx) +",ch=0)" << endl;
@@ -548,77 +548,78 @@ namespace Gmeng {
                 // write base_template skybox image to chunk (level 0 of canvas)
                 // base_template's viewpoint relative to the chunks viewpoint will be drawn as a base 'skybox' like image
                 Gmeng::texture* base_map = &this->base.lvl_template; std::vector<Gmeng::Unit> units;
-                gm_log(__FILE__,__LINE__,"init OK" );
-                gm_log(__FILE__,__LINE__,"base_map -> WIDTH: " + v_str(base_map->width) + " - HEIGHT: " + v_str(base_map->height) );
+                gm_log("init OK" );
+                gm_log("base_map -> WIDTH: " + v_str(base_map->width) + " - HEIGHT: " + v_str(base_map->height) );
                 std::vector<Gmeng::Renderer::drawpoint> wrapper = Gmeng::Renderer::get_displacement(chunk.vp, Renderer::drawpoint {.x=static_cast<int>(base_map->width),.y=static_cast<int>(base_map->height)});
-                gm_log(__FILE__,__LINE__,"get_displacement OK" );
-                gm_log(__FILE__,__LINE__,"chunk viewpoint -> start -> x: " + v_str(chunk.vp.start.x) + " - y: " + v_str(chunk.vp.start.y) + " | end -> x: " + v_str(chunk.vp.end.x) + " - y: " + v_str(chunk.vp.end.y) );
-                gm_log(__FILE__,__LINE__,"wrapper viewpoints -> " + v_str(wrapper.size()) );
-                gm_log(__FILE__,__LINE__,"get_displacement -> " + v_str(wrapper.size()) + " drawpoints" );
-                gm_log(__FILE__,__LINE__,"BASE_MAP_LENGTH: " + v_str(base_map->units.size()));
+                gm_log("get_displacement OK" );
+                gm_log("chunk viewpoint -> start -> x: " + v_str(chunk.vp.start.x) + " - y: " + v_str(chunk.vp.start.y) + " | end -> x: " + v_str(chunk.vp.end.x) + " - y: " + v_str(chunk.vp.end.y) );
+                gm_log("wrapper viewpoints -> " + v_str(wrapper.size()) );
+                gm_log("get_displacement -> " + v_str(wrapper.size()) + " drawpoints" );
+                gm_log("BASE_MAP_LENGTH: " + v_str(base_map->units.size()));
+                ASSERT("pref.log", Assertions::vd_assert::OFF);
                 for ( const auto& dp : wrapper ) {
                     int vpos = (dp.y * base_map->width)+dp.x;
                     Gmeng::Unit v_unit = base_map->units[vpos];
                     units.push_back(v_unit);
-                    gm_log(__FILE__,__LINE__,"job_render *render_chunk -> v_chunkwrapper vpos at("+v_str(vpos)+") out of vp_chunk::constl::base_template");
+                    if (Gmeng::global.dont_hold_back) gm_log("job_render *render_chunk -> v_chunkwrapper vpos at("+v_str(vpos)+") out of vp_chunk::constl::base_template");
                 };
-                gm_log(__FILE__,__LINE__,"job_render *render_chunk -> v_chunkwrapper compileUnits: v_success\ncl_preview:");
+                if (Gmeng::global.dont_hold_back) gm_log("job_render *render_chunk -> v_chunkwrapper compileUnits: v_success\ncl_preview:");
                 int v_compl_t = 0;
                 bool va_start = true;
-                gm_log(__FILE__,__LINE__,"\n\t");
+                if (Gmeng::global.dont_hold_back) gm_log("\n\t");
                 for ( const auto& un : units ) {
-                    if (global.dev_console || !global.debugger) { gm_log(__FILE__,__LINE__,"preview not available inside dev_console or while not in debugger"); break; };
+                    if (global.dev_console || !global.debugger) { gm_log("preview not available inside dev_console or while not in debugger"); break; };
                     if (v_compl_t == (chunk.vp.end.x - chunk.vp.start.x)) { va_start = false; v_compl_t = 0; };
                     if (!va_start && v_compl_t == 0) std::cout << std::endl;
                     std::cout << (this->display.camera.draw_unit(un));
                     v_compl_t++;
                 };
-                gm_log(__FILE__,__LINE__,"write_drawpoint -> base_map.units OK" );
+                if (Gmeng::global.dont_hold_back) gm_log("write_drawpoint -> base_map.units OK" );
                 // compile models into std::vector<Gmeng::Unit> unitmaps and write them to x,y coordinates
                 // within the r_chunk by getting placement positions with Gmeng::Renderer::get_placement
                 for ( const auto& model : chunk.models ) {
                     Gmeng::Renderer::drawpoint dp = model.position;
-                    gm_log(__FILE__,__LINE__,"dp_loadmodel " + v_str(model.id) + " OK" );
-                    gm_log(__FILE__,__LINE__,"dp -> x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
-                    gm_log(__FILE__,__LINE__,"p2 -> x: " + v_str(model.width) + " - y: " + v_str(model.height) );
+                    gm_log("dp_loadmodel " + v_str(model.id) + " OK" );
+                    gm_log("dp -> x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
+                    gm_log("p2 -> x: " + v_str(model.width) + " - y: " + v_str(model.height) );
                     std::vector<Gmeng::Renderer::drawpoint> displacement = Gmeng::Renderer::get_placement(dp, {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)}, {.x=(chunk.vp.end.x - chunk.vp.start.x),.y=(chunk.vp.end.y - chunk.vp.start.y)});
                     for ( auto dp : displacement ) {
-                        gm_log(__FILE__,__LINE__,"displacement_log = x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
+                        if (Gmeng::global.dont_hold_back) gm_log("displacement_log = x: " + v_str(dp.x) + " - y: " + v_str(dp.y) );
                     };
-                    gm_log(__FILE__,__LINE__,"total_drawpoints: " + v_str(displacement.size()) );
-                    gm_log(__FILE__,__LINE__,"get_placement OK" );
+                    gm_log("total_drawpoints: " + v_str(displacement.size()) );
+                    gm_log("get_placement OK" );
                     std::vector<Gmeng::Unit> unitmap = Gmeng::Renderer::draw_model(model);
-                    gm_log(__FILE__,__LINE__,"draw_model OK: unitmap.size(): " + v_str(unitmap.size()) );
+                    gm_log("draw_model OK: unitmap.size(): " + v_str(unitmap.size()) );
                     int lndx = 0;
                     int i2 = 0;
                     for ( const auto& unit : unitmap ) {
                         if (unit.transparent) { lndx++; continue; };
-                        gm_log(__FILE__,__LINE__,v_str(lndx) +" <- pos_vdp: rendering_model_unit PREVIEW: " + this->display.camera.draw_unit(unit) );
+                        gm_log(v_str(lndx) +" <- pos_vdp: rendering_model_unit PREVIEW: " + this->display.camera.draw_unit(unit) );
                         int _vdp_pos = ((displacement[lndx].y)*(chunk.vp.end.x - chunk.vp.start.x + 1))+displacement[lndx].x;
                         if (_vdp_pos < (displacement).size()) {
-                            gm_log(__FILE__,__LINE__,"_vdp_pos find: " + v_str(_vdp_pos) +" OK" );
-                            gm_log(__FILE__,__LINE__,"_vdp_current -> x: " + v_str(displacement[_vdp_pos].x) + " - y: " + v_str(displacement[_vdp_pos].y) );
-                            gm_log(__FILE__,__LINE__,"_vdp_current_addr -> " + this->display.camera.draw_unit(units[_vdp_pos]) );
-                            gm_log(__FILE__,__LINE__,"swap_unit: at(" + v_str(_vdp_pos) +") -> PREVIEW: " + this->display.camera.draw_unit(units[_vdp_pos]) + " TO unit() -> PREVIEW: " + this->display.camera.draw_unit(unit) );
+                            gm_log("_vdp_pos find: " + v_str(_vdp_pos) +" OK" );
+                            gm_log("_vdp_current -> x: " + v_str(displacement[_vdp_pos].x) + " - y: " + v_str(displacement[_vdp_pos].y) );
+                            gm_log("_vdp_current_addr -> " + this->display.camera.draw_unit(units[_vdp_pos]) );
+                            gm_log("swap_unit: at(" + v_str(_vdp_pos) +") -> PREVIEW: " + this->display.camera.draw_unit(units[_vdp_pos]) + " TO unit() -> PREVIEW: " + this->display.camera.draw_unit(unit) );
                         } else {
-                            gm_log(__FILE__,__LINE__,Gmeng::colors[YELLOW] + "WARN!" + Gmeng::colors[WHITE] + " possible invalid _vdp_pos, clarification methods disabled");
-                            gm_log(__FILE__,__LINE__,Gmeng::colors[CYAN] + "TRACE to pointer of " + Gmeng::colors[GREEN] + "_vdp_pos" + Gmeng::colors[CYAN] + ":");
-                            gm_log(__FILE__,__LINE__,"@== " + Gmeng::colors[PINK] + "_vdp_pos" + Gmeng::colors[CYAN] + " ==@");
-                            gm_log(__FILE__,__LINE__,colors[WHITE] + "\t#0 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement)) + " " + Gmeng::colors[GREEN] + "displacement(" + v_str(displacement.size()) + ") [ lndx ]");
-                            gm_log(__FILE__,__LINE__,colors[WHITE] + "\t#1 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].x)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.y_pointer [" + v_str(displacement[lndx].y)+ "] * this->display.width [ " + v_str(this->display.width) + " ] " + colors[PINK] + "== " + colors[WHITE] + v_str(displacement[lndx].y * this->display.width));
-                            gm_log(__FILE__,__LINE__,colors[WHITE] + "\t#2 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].y)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.x_pointer [" + v_str(displacement[lndx].x) +"]");
-                            gm_log(__FILE__,__LINE__,colors[CYAN] + "@== formulae -> " + Gmeng::colors[GREEN] + "(displacement[lndx].y*this->display.width)+displacement[lndx].x" + Gmeng::colors[CYAN] + " ==@");
-                            gm_log(__FILE__,__LINE__,colors[YELLOW] + "WARN!" + colors[WHITE] + " consider investigation of this ccode, since it may occur when _vdp_pos is outbound from sizeof(displacement)");
+                            gm_log(Gmeng::colors[YELLOW] + "WARN!" + Gmeng::colors[WHITE] + " possible invalid _vdp_pos, clarification methods disabled");
+                            gm_log(Gmeng::colors[CYAN] + "TRACE to pointer of " + Gmeng::colors[GREEN] + "_vdp_pos" + Gmeng::colors[CYAN] + ":");
+                            gm_log("@== " + Gmeng::colors[PINK] + "_vdp_pos" + Gmeng::colors[CYAN] + " ==@");
+                            gm_log(colors[WHITE] + "\t#0 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement)) + " " + Gmeng::colors[GREEN] + "displacement(" + v_str(displacement.size()) + ") [ lndx ]");
+                            gm_log(colors[WHITE] + "\t#1 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].x)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.y_pointer [" + v_str(displacement[lndx].y)+ "] * this->display.width [ " + v_str(this->display.width) + " ] " + colors[PINK] + "== " + colors[WHITE] + v_str(displacement[lndx].y * this->display.width));
+                            gm_log(colors[WHITE] + "\t#2 " + Gmeng::colors[WHITE] + _uconv_1ihx(_uget_addr(displacement[lndx].y)) + "\t" + Gmeng::colors[CYAN] + "*(self) || coord.x_pointer [" + v_str(displacement[lndx].x) +"]");
+                            gm_log(colors[CYAN] + "@== formulae -> " + Gmeng::colors[GREEN] + "(displacement[lndx].y*this->display.width)+displacement[lndx].x" + Gmeng::colors[CYAN] + " ==@");
+                            gm_log(colors[YELLOW] + "WARN!" + colors[WHITE] + " consider investigation of this ccode, since it may occur when _vdp_pos is outbound from sizeof(displacement)");
                         };
-                        gm_log(__FILE__,__LINE__,v_str(unitmap.size()) + " ACCESS_TO_INDEX: " + v_str(lndx) + " APPLIED_FROM_SIZED: " + v_str(_vdp_pos) + " TO_SIZED_VECTOR_OF: " + v_str(units.size()));
+                        gm_log(v_str(unitmap.size()) + " ACCESS_TO_INDEX: " + v_str(lndx) + " APPLIED_FROM_SIZED: " + v_str(_vdp_pos) + " TO_SIZED_VECTOR_OF: " + v_str(units.size()));
                         units[_vdp_pos] = unitmap[lndx];
-                        gm_log(__FILE__,__LINE__,"set_unit_at(id: " + v_str(_vdp_pos) + ") OK" );
+                        gm_log("set_unit_at(id: " + v_str(_vdp_pos) + ") OK" );
                         lndx++;
                     };
                 };
-                gm_log(__FILE__,__LINE__,"job_render *render_chunk completed, status: v_success");
-                gm_log(__FILE__,__LINE__,"logs:");
-                gm_log(__FILE__,__LINE__,"v_units -> size() : " + v_str(units.size()));
+                gm_log("job_render *render_chunk completed, status: v_success");
+                gm_log("logs:");
+                gm_log("v_units -> size() : " + v_str(units.size()));
                 return units;
             };
             inline Gmeng::r_chunk get_chunk(int id) {
@@ -653,7 +654,7 @@ namespace Gmeng {
             inline void load_level(Gmeng::LevelInfo __glvl) {
                 __functree_call__(__FILE__, __LINE__, Gmeng::Level::load_level);
                 int i,j = 0;
-                gm_log(__FILE__,__LINE__,"vp_loadlevel: __glvl chunks v_size: " + v_str(__glvl.chunks.size()));
+                gm_log("vp_loadlevel: __glvl chunks v_size: " + v_str(__glvl.chunks.size()));
                 for (const auto& chunk : __glvl.chunks) {
                     Gmeng::log_vpc(chunk);
                     if (i >= this->chunks.size()) { this->load_chunk(chunk); continue; };
@@ -666,12 +667,12 @@ namespace Gmeng {
                 this->base.lvl_template.collidable = __glvl.base.lvl_template.collidable;
                 this->base.lvl_template.height = __glvl.base.height;
                 this->base.lvl_template.width  = __glvl.base.width;
-                gm_log(__FILE__,__LINE__,"class Model { ... } : load_level(...) -> base_template @ h+w = " + v_str(__glvl.base.height) + "," + v_str(__glvl.base.width));
+                gm_log("class Model { ... } : load_level(...) -> base_template @ h+w = " + v_str(__glvl.base.height) + "," + v_str(__glvl.base.width));
                 this->base.lvl_template.name   = __glvl.base.lvl_template.name;
                 for ( const auto& _v_unit : __glvl.base.lvl_template.units ) {
                     if (j >= this->base.lvl_template.units.size()) { this->base.lvl_template.units.push_back(_v_unit); j++; continue; };
                     this->base.lvl_template.units[j] = _v_unit;
-                    gm_log(__FILE__,__LINE__,"class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.template_units LOAD at("+v_str(j)+")");
+                    gm_log("class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.template_units LOAD at("+v_str(j)+")");
                     j++;
                 };
                 this->desc = __glvl.description;
@@ -695,13 +696,13 @@ namespace Gmeng {
                 __functree_call__(__FILE__, __LINE__, Gmeng::Level::draw_camera);
                 if (chunk_id < 0 || chunk_id > chunks.size()) throw std::invalid_argument("chunk_id is invalid");
                 Gmeng::r_chunk chunk = this->chunks[chunk_id];
-                gm_log(__FILE__,__LINE__,"render_chunk start" );
+                gm_log("render_chunk start" );
                 std::vector<Gmeng::Unit> vr_unit = this->render_chunk(chunk);
-                for (const auto& cv_unit : vr_unit) { gm_log(__FILE__,__LINE__,"render_chunk -> result:success v_success -> preview_units: " + this->display.camera.draw_unit(cv_unit)); };
-                gm_log(__FILE__,__LINE__,"render_chunk end" );
+                for (const auto& cv_unit : vr_unit) { gm_log("render_chunk -> result:success v_success -> preview_units: " + this->display.camera.draw_unit(cv_unit)); };
+                gm_log("render_chunk end" );
                 int v_camview = 0;
                 for (const auto& v_unit : vr_unit) {
-                    gm_log(__FILE__,__LINE__,"class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.rendered_units LOAD at("+v_str(v_camview)+")");
+                    gm_log("class Gmeng::Level { ... } : load_level(...) -> status v_success : job_push_back, cntrl.display.rendered_units LOAD at("+v_str(v_camview)+")");
                     if (v_camview >= this->display.rendered_units.size()) { this->display.rendered_units.push_back(v_unit); v_camview++; continue; };
                     this->display.rendered_units[v_camview] = v_unit;
                     v_camview++;
@@ -726,7 +727,7 @@ namespace Gmeng {
                 __functree_call__(__FILE__, __LINE__, Gmeng::Level::set_player);
                 if (this->display.camera.player_init) this->display.nplunit(this->plcoords);
                 this->player = p; this->plcoords = { .x=x, .y=y };
-                gm_log(__FILE__,__LINE__,"r_level::set_player *inline,static -> v_success ; r_level::player (Objects::G_Player).coords = @pos(" + v_str(this->player.coords.x)+","+v_str(this->player.coords.y)+")");
+                gm_log("r_level::set_player *inline,static -> v_success ; r_level::player (Objects::G_Player).coords = @pos(" + v_str(this->player.coords.x)+","+v_str(this->player.coords.y)+")");
                 this->move_player(x, y);
             };
             inline void move_player(int x, int y) {
@@ -922,18 +923,18 @@ namespace Gmeng {
     ///         -> _vcreate_vp2d_deltay, _vcreate_vp2d_deltax, _vcreate_vu2d_delta_xy
     inline std::string _vcamv_gen_frame(Gmeng::Level level_t) {
         __functree_call__(__FILE__, __LINE__, Gmeng::__deprecated_do_not_use__::_vcamv_gen_frame);
-        gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() -> registering job_render to process queue [ __gmeng_invoke_expr__, __gmeng_vcamv_gen_frame__, __gmeng_renderer__ ]");
+        gm_log("_vcamv_gen_frame() -> registering job_render to process queue [ __gmeng_invoke_expr__, __gmeng_vcamv_gen_frame__, __gmeng_renderer__ ]");
         std::string __final__ = "";
-        gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render -> process has been recognized by the thread");
-        gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__ ) -> args: &__this_function__::forward(params) : attempting method _vgen_camv_fv2cv");
+        gm_log("_vcamv_gen_frame() job_render -> process has been recognized by the thread");
+        gm_log("_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__ ) -> args: &__this_function__::forward(params) : attempting method _vgen_camv_fv2cv");
         std::vector<Unit> units = Gmeng::_vgen_camv_fv2cv(level_t);
-        gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__) -> static parameter returned v_success ; vector unit compiled");
+        gm_log("_vcamv_gen_frame() job_render *calc_vunits (static_parameter __ATTEMPT__) -> static parameter returned v_success ; vector unit compiled");
         Gmeng::Camera<0, 0>* pCameraRenderer = &level_t.display.camera;
-        gm_log(__FILE__,__LINE__,"_vcamv_gen_frame() job_render *draw_vunits -> looping through DELTA( *(level)->display.vpoint.forward(x,y) ");
+        gm_log("_vcamv_gen_frame() job_render *draw_vunits -> looping through DELTA( *(level)->display.vpoint.forward(x,y) ");
         for (int y = 0; y < Gmeng::_vcreate_vp2d_deltay(level_t.display.viewpoint); y++) {
-            gm_log(__FILE__,__LINE__,"_vcam_gen_frame() job_render *draw_vunits -> __ROW__ display row #" + v_str(y));
+            gm_log("_vcam_gen_frame() job_render *draw_vunits -> __ROW__ display row #" + v_str(y));
             for (int x = 0; x < Gmeng::_vcreate_vp2d_deltax(level_t.display.viewpoint); x++) {
-                gm_log(__FILE__,__LINE__,"_vcam_gen_frame() job_render *draw_vunits -> __COLUMN__ display column #" + v_str(x));
+                gm_log("_vcam_gen_frame() job_render *draw_vunits -> __COLUMN__ display column #" + v_str(x));
                 __final__ += pCameraRenderer->draw_unit(
                                 units[ _vcreate_vu2d_delta_xy(x, y,
                                        _vcreate_vp2d_deltax(level_t.display.viewpoint)) ]
@@ -988,7 +989,7 @@ namespace Gmeng {
     ///   "xxxoxxx", } -> VECTOR(VECTOR<Unit>, 3);
     inline std::vector<Unit> _vconcatenate_lvl_chunks(Gmeng::Level& lvl, bool cubic_render = true) {
         __functree_call__(__FILE__, __LINE__, Gmeng::_vconcatenate_lvl_chunks);
-        gm_log(__FILE__,__LINE__,"Gmeng::_vconcatenate_lvl_chunks *debugger, *0.0, p0,gm:0 :: breakpoint 1");
+        gm_log("Gmeng::_vconcatenate_lvl_chunks *debugger, *0.0, p0,gm:0 :: breakpoint 1");
         std::vector<__CHROMATIZED_CHUNK_CONTROLLER_VIEWPOINT__> v_chunks;
         const int __level_base_width__ = v_static_cast<int>(lvl.base.lvl_template.width);
         unsigned int p = 0; unsigned int rowc = 0;
@@ -1036,7 +1037,9 @@ namespace Gmeng {
         for (const auto partial : v_chunks) {
             if (p2 != 0 && p2 % __level_base_width__ == 0) reinterpereted_data.push_back(Unit{.is_entity=true});
             if (_vcreate_vp2d_deltax(partial.vp) == lvl.base.lvl_template.width)
-                for (int ik = 0; ik < partial.data.size(); ik++) reinterpereted_data.push_back(partial.data[ik]);
+                for (int ik = 0; ik < partial.data.size(); ik++)
+                    lvl.display.camera.display_map.unitmap[p2] = partial.data[ik],
+                    reinterpereted_data.push_back(partial.data[ik]);
             else { reinterpereted_data.push_back(repeatThing<Unit>((Unit{
                     .color = color_t::PINK, .collidable = false, .special = true,
                     .special_clr = color_t::RED, .special_c_unit = "X"
@@ -1089,7 +1092,7 @@ namespace Gmeng {
     /// returns the camera of the current level, with drawpoints included in level_t->display.viewpoint
     inline std::string get_lvl_view(Gmeng::Level& level_t, std::vector<Unit> concat_chunks, bool cubic_render = true) {
         __functree_call__(__FILE__, __LINE__, Gmeng::get_lvl_view);
-        gm_log(__FILE__,__LINE__,"get_lvl_view -> tracing viewpoint from level->display.vp");
+        gm_log("get_lvl_view -> tracing viewpoint from level->display.vp");
         /// splits each unit including its colorcode ascii characters, using the formatter \x0F defined
         /// in _vget_renderscale2dpartial_scalar() ~ _vconcatenate_lvl_chunks().
         std::vector<std::vector<Unit>> trimmed_units = splitThing<Unit>(concat_chunks, [&](Unit u) -> bool {
@@ -1109,20 +1112,25 @@ namespace Gmeng {
         /// returning this response as a string is inefficient
         std::string __final__ = "";
         unsigned int ptr = 0;
-        gm_log(__FILE__,__LINE__,"get_lvl_view -> expanding viewpoint of level_t's camera");
+        gm_log("get_lvl_view -> expanding viewpoint of level_t's camera");
         /// expand the viewpoint to a vector of drawpoints
         auto resource = _vexpand_viewpoint(level_t.display.viewpoint);
         // for cubic_render, skips the Y position for already-drawn lines
         int skip_y_position = -1;
         bool notified = false;
         /// loop through each drawpoint in the camera.
+        Unit no_un = {
+                        .color = BLACK,
+                        .special = true, .special_clr = RED,
+                        .special_c_unit = "?"
+                     };
         for (const auto dp : resource) {
             if (dp.y == skip_y_position) {
-                if (!notified && global.dont_hold_back) gm_log(__FILE__,__LINE__, " { cubic_render } advancing to next Y position / seek_drawn( ++dp.Y )");
+                if (!notified && global.dont_hold_back) gm_log( " { cubic_render } advancing to next Y position / seek_drawn( ++dp.Y )");
                 ptr++; // still count the unit number
                 continue;
             }; notified = false;
-            if (global.dont_hold_back) gm_log(__FILE__,__LINE__," :::: get_lvl_view -> CURR_DP: " + Gmeng::Renderer::conv_dp(dp) + " *(p): " + v_str(ptr));
+            if (global.dont_hold_back) gm_log(" :::: get_lvl_view -> CURR_DP: " + Gmeng::Renderer::conv_dp(dp) + " *(p): " + v_str(ptr));
             if (global.debugger) {
                 gm_slog(YELLOW, "DEBUGGER", "current drawpoint: " + v_str(dp.x) + "," + v_str(dp.y));
                 gm_slog(YELLOW, "DEBUGGER", "curr_dp potential vexers:");
@@ -1144,11 +1152,7 @@ namespace Gmeng {
             if ( out_of_bounds(dp) ) {
                 if (global.debugger) gm_slog(RED, "DEBUGGER", colors[YELLOW] + "E_NO_UNIT" + colors[WHITE] + ": drawpoint out-of-bound, replace with placeholder");
                 int the_depths = (ptr % 2 == 0) == 0 ? ((dp.y % 2 == 0) ? BLACK : WHITE) : ((dp.y % 2 == 0) ? WHITE : BLACK);
-                __final__ += level_t.display.camera.draw_unit({
-                    .color = the_depths,
-                    .special = true, .special_clr = RED,
-                    .special_c_unit = "?"
-                }) + "\x0F"; ptr++; // v7.1.0 - filler unit for out-of-bounds drawpoint, to prevent crashes
+                __final__ += level_t.display.camera.draw_unit(no_un) + "\x0F"; ptr++; // v7.1.0 - filler unit for out-of-bounds drawpoint, to prevent crashes
                 continue;
             } else {
                 if (global.debugger) gm_slog(RED, "DEBUGGER", "dp.x: " + v_str(dp.x) + " lvl.width: " + v_str(level_t.base.lvl_template.width) + " dp.y: " + v_str(dp.y) + " lvl.height: " + v_str(level_t.base.lvl_template.height));
@@ -1157,9 +1161,9 @@ namespace Gmeng {
                 /// v8.2.0 / vpos scales with each unit, % operator will chromatize to the current X position
                 int true_position = _vpos % level_t.base.lvl_template.width;
                 try { __unit = trimmed_units.at(dp.y).at(true_position); } catch(const std::out_of_range& e) {
-                    gm_log(__FILE__, __LINE__, "FAULTY_POS: _vpos -> " + v_str(true_position) + " | dp.y -> " + v_str(dp.y) + " | units_size -> " + v_str(trimmed_units.size()));
+                    gm_log( "FAULTY_POS: _vpos -> " + v_str(true_position) + " | dp.y -> " + v_str(dp.y) + " | units_size -> " + v_str(trimmed_units.size()));
 #if __GMENG_LOG_TO_COUT__
-                    gm_log(__FILE__, __LINE__, "FATAL_STOP: " + v_str(_vpos) + "," + v_str(true_position));
+                    gm_log( "FATAL_STOP: " + v_str(_vpos) + "," + v_str(true_position));
 #endif
                     continue;
                 };
@@ -1171,7 +1175,7 @@ namespace Gmeng {
                     Unit __next_unit = __fallback__;
                     #define _draw level_t.display.camera.draw_unit
                     try { __next_unit = trimmed_units.at(dp.y+1).at(true_position); } catch (const std::out_of_range& e) {
-                        __final__ += _draw(__fallback__);
+                        __final__ += _draw(__fallback__) + "\x0F";
                         continue;
                     };
                     /// double-render in one character size
@@ -1187,7 +1191,7 @@ namespace Gmeng {
             ptr++;
             if (cubic_render) skip_y_position = dp.y+1; // v8.2.1-d / skip repeating already-drawn line
         };
-        gm_log(__FILE__,__LINE__,"get_lvl_view -> level view rendered");
+        gm_log("get_lvl_view -> level view rendered");
         if (global.debugger) {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
         };
@@ -1200,12 +1204,13 @@ namespace Gmeng {
     /// to create a rendered_viewpoint use Gmeng::_vget_renderscale2dpartial_scalar(level) and put its return value to get_lvl_view(level, value)
     inline void emplace_lvl_camera(Gmeng::Level& level_t, std::string cam_data) {
         __functree_call__(__FILE__, __LINE__, Gmeng::emplace_lvl_camera);
+        ASSERT("pref.log", Assertions::vd_assert::OFF);
         std::string cam_data_raw = cam_data;
-        if (global.dont_hold_back) gm_log(__FILE__,__LINE__,"emplace_lvl_camera -> retrieved viable camera data from rendered_viewpoint");
+        gm_log("emplace_lvl_camera -> retrieved viable camera data from rendered_viewpoint");
         int p = 0;
         level_t.display.set_resolution(_vcreate_vp2d_deltax(level_t.display.viewpoint), _vcreate_vp2d_deltay(level_t.display.viewpoint));
         for (const auto raw_unit : g_splitStr(cam_data_raw, "\x0F")) {
-            gm_log(__FILE__,__LINE__,"emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
+            gm_log("emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
             level_t.display.camera.raw_unit_map[p] = raw_unit + Gmeng::resetcolor;
             p++;
         };

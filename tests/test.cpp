@@ -1,3 +1,4 @@
+#include "SDL2/SDL.h"
 #include <chrono>
 #include <ostream>
 #define __GMENG_ALLOW_LOG__ true
@@ -6,6 +7,9 @@
 #include <algorithm>
 #include "../lib/bin/gmeng.h"
 #include "../lib/bin/src/renderer.cpp"
+
+#include "../lib/bin/types/window.h"
+#include "../lib/bin/utils/window.cpp"
 
 #define g_sleep std::this_thread::sleep_for
 #define ms std::chrono::milliseconds
@@ -302,7 +306,21 @@ int test_vwhole_renderer() {
     Gmeng::emplace_lvl_camera(lvl, _lvlview);
     std::cout << "emplace_lvl_camera done" << '\n';
     lvl.display.camera.clear_screen();
-        std::cout << lvl.display.camera.draw() << '\n';
+    std::cout << lvl.display.camera.draw() << '\n';
+    Gmeng::GameWindow window = Gmeng::create_window("PREVIEW", 800, 600);
+    //window.draw(Gmeng::window_frame(lvl), {0,0});
+    std::cout << sizeof(lvl.display.camera.display_map.unitmap)/sizeof(Gmeng::Unit) << '\n';
+    sImage img;
+    img.width = img.height = 1;
+    img.content[0] = RED;
+    window.draw(img, { 0,0 });
+    SDL_Event e;
+    bool quit = false;
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) quit = true;
+        }
+    };
     do
     {
         cout << "Press [enter] to continue...";
@@ -373,7 +391,7 @@ static std::vector<int (*)()> testids = {
 int main(int argc, char* argv[]) {
     std::vector<int> do_list = {};
     bool do_main1 = false;
-    gm_log("test.cpp",__LINE__,"gmeng_tests -> SPAWN(1)");
+    gm_log("gmeng_tests -> SPAWN(1)");
     gm::global.dev_console = false;
     patch_argv_global(argc, argv);
     for (int i = 0; i < argc; i++) {

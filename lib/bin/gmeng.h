@@ -28,6 +28,68 @@
 
 #ifdef __GMENG_OBJECTINIT__
 
+using std::vector;
+using std::string;
+
+
+namespace Gmeng::Assertions {
+    typedef struct assert_t {
+        enum jWRAP { ON = 0, OFF = 1, NOT_SET = 2 };
+        std::map<string, jWRAP> headers;
+        const char* bound;
+    } vd_assert;
+    typedef struct assert_data_t {
+        string header;
+        assert_t::jWRAP state;
+        const char* bound;
+    } assertable_t;
+    static std::map<const char*, vd_assert> list;
+    static vd_assert to_assert_t(assertable_t data) {
+        vd_assert obj;
+        obj.headers = std::map<string, vd_assert::jWRAP>();
+        obj.bound = data.bound;
+        obj.headers.emplace(data.header, data.state);
+        return obj;
+    };
+    static void set_assert(assertable_t data) {
+        if (!Assertions::list.contains(data.bound)) list.emplace(data.bound, to_assert_t(data));
+        Assertions::list.find(data.bound)->second.headers.insert_or_assign(data.header, data.state);
+    };
+    static vd_assert::jWRAP get_assert(string header, const char* bound) {
+        if (!Assertions::list.contains(bound)) return assert_t::NOT_SET;
+        auto fd = Assertions::list.find(bound)->second.headers;
+        return fd.contains(header) ? fd.find(header)->second : assert_t::NOT_SET;
+    };
+};
+
+struct GMENG_NULL_T {
+    void* content;
+};
+
+template<typename T = int>
+struct not_nullptr_t {
+    T val = 1;
+};
+
+static not_nullptr_t<int> not_nullptr_ref = { 1 };
+static not_nullptr_t<int>* not_nullptr = &not_nullptr_ref;
+
+#define ASSERT(x,y) Gmeng::Assertions::set_assert(  \
+            {                                       \
+                .header = x,                        \
+                .state = y,                         \
+                .bound = __FUNCTION__               \
+            }                                       \
+        )
+
+#define PREF(x) Gmeng::Assertions::get_assert(      \
+            x,                                      \
+            __FUNCTION__                            \
+        )
+
+#define IS_SET Gmeng::Assertions::vd_assert::ON ==
+
+
 #define vl_get_name(x) #x
 #define vl_filename(path) (strrchr(path, '/') ? strrchr(path, '/') + 1 : path)
 
@@ -478,14 +540,20 @@ static std::string colorformat(std::string data) {
 #define SAY std::cout << colorformat
 #define INF std::cout << "\033[1m" + Gmeng::colors[Gmeng::BLUE] + "(i) >> \033[0m" + Gmeng::colors[Gmeng::WHITE] + colorformat
 
+static std::string get_filename(string filepath) {
+    vector<string> fd = g_splitStr(filepath, "/");
+    return fd[fd.size()-1];
+};
 
-static void _gm_log(const char* file, int line, std::string _msg, bool use_endl = true) {
+static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
+    if (Gmeng::Assertions::get_assert("pref.log", func) == Gmeng::Assertions::vd_assert::OFF) return;
+    std::string file = get_filename(std::string(file_)); // remove path, only use filename
     #ifndef __GMENG_ALLOW_LOG__
         __gmeng_write_log__("gmeng.log", "logging is disallowed");
         return;
     #endif
     #if __GMENG_ALLOW_LOG__ == true
-        std::string msg = std::string(file) + ":" + v_str(line) + " | " + _msg;
+        std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
         #if __GMENG_LOG_TO_COUT__ == true
             if (Gmeng::global.log_stdout) std::cout << msg << std::endl;
         #endif
@@ -500,19 +568,21 @@ static void _gm_log(const char* file, int line, std::string _msg, bool use_endl 
     #endif
 };
 
-static void gm_log(const char* file, int line, std::string _msg, bool use_endl = true) {
+static void dgm_log(const char* file, int line, std::string _msg, bool use_endl = true) {
     if (Gmeng::global.shush) return;
-    _gm_log(file, line, _msg, use_endl);
+    _gm_log(file, line, "UNKNOWN_SOURCE", _msg, use_endl);
 };
 
-static void gm_log(std::string _msg, bool use_endl = true) {
+static void dgm_log(std::string _msg, bool use_endl = true) {
     if (Gmeng::global.shush) return;
-    _gm_log(":",0,_msg,use_endl);
+    _gm_log(":",0,"UNKNOWN_SOURCE",_msg,use_endl);
 };
+
+#define gm_log(x) _gm_log(__FILE__, __LINE__, __FUNCTION__, x)
 
 static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
     if (Gmeng::global.shush) return;
-    gm_log(":", 0, Gmeng::colors[color] + title + " " + Gmeng::colors[Gmeng::WHITE] + text);
+    _gm_log(":", 0, "UNKNOWN_SOURCE", Gmeng::colors[color] + title + " " + Gmeng::colors[Gmeng::WHITE] + text);
 };
 
 namespace Gmeng {
@@ -527,7 +597,7 @@ namespace Gmeng {
     };
     static void _ujoin_threads () {
         __functree_call__(__FILE__, __LINE__, Gmeng::_ujoin_threads);
-        for (auto& thread : Gmeng::v_threads) { gm_log(FILENAME, __LINE__, "Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); try { if (thread.joinable()) thread.join(); _uclear_threads(); } catch (std::exception& e) { std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping..."); gm_log(FILENAME, __LINE__, " :::: error cause -> " + std::string(e.what())); }; };
+        for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); try { if (thread.joinable()) thread.join(); _uclear_threads(); } catch (std::exception& e) { std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping..."); gm_log(" :::: error cause -> " + std::string(e.what())); }; };
     };
 }
 
@@ -546,7 +616,7 @@ static void _gupdate_logc_intvl(int ms = 250) {
                 Gmeng::completelog << Gmeng::logstream.str();
                 Gmeng::logstream.str(""); /// flush sstream
                _uflush_display(Gmeng::logc, 5);
-               gm_log(FILENAME, __LINE__, "t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
+               gm_log("t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
             };
             _udraw_display(Gmeng::logc);
             std::this_thread::sleep_for(std::chrono::milliseconds(ms));
@@ -559,7 +629,7 @@ static void _gupdate_logc_intvl(int ms = 250) {
 static void _gthread_catchup() {
     __annotation__(_gthread_catchup, "Gmeng::_uthread catchup function, attaches to all threads and clears them.");
     __functree_call__(__FILE__, __LINE__, _gthread_catchup);
-    gm_log(FILENAME, __LINE__, "_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
+    gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
     Gmeng::_ujoin_threads();
 };
 
@@ -693,7 +763,6 @@ static void patch_argv_global(int argc, char* argv[]) {
 #endif
 };
 
-
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
 #include "src/textures.cpp"
 #include "src/gmeng.cpp"
@@ -705,6 +774,10 @@ static void patch_argv_global(int argc, char* argv[]) {
     #include "types/interface.h"
     #include "utils/interface.cpp"
     /// for github build workflow
+#if GMENG_SDL
+    #include "types/window.h"
+    #include "utils/window.cpp"
+#endif
 #endif
 #endif
 namespace g = Gmeng;

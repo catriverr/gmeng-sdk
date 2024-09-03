@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <fstream>
 
-#ifdef __GMENG_INIT__
+#include "../gmeng.h"
 
 #define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
@@ -30,7 +30,7 @@ namespace Gmeng {
         std::vector<std::string> lines; std::string line;
         while (std::getline(file, line)) { lines.push_back(line); };
         file.close(); int i = 0;
-        __gmeng_write_log__("gmeng.log", g_joinStr(lines, "\n"));
+        if (Gmeng::global.dont_hold_back) __gmeng_write_log__("gmeng.log", g_joinStr(lines, "\n"));
         for ( const auto& ln : lines ) {
             // break if all units have been rendered
             // fixes broken textures and also allows copying
@@ -87,4 +87,3 @@ namespace Gmeng {
 };
 
 #define __GMENG_TEXTUREMGR_INIT__ true
-#endif

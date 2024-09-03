@@ -741,7 +741,7 @@ namespace Gmeng {
                         break;
                 };
                 if (this->title.length() > 25 || this->title.find("\n", 0) != std::string::npos) {
-                    gm_log(__FILE__,__LINE__,"could not refresh BUTTON instance, '" + this->title + "' is invalid. Max 25 characters allowed. Newlines are disallowed.");
+                    gm_log("could not refresh BUTTON instance, '" + this->title + "' is invalid. Max 25 characters allowed. Newlines are disallowed.");
                     return;
                 };
                 short applied_fg = modifiers.highlight  ? this->foreground_color_highlight : this->foreground_color;
