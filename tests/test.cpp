@@ -1,4 +1,6 @@
+#if GMENG_SDL
 #include "SDL2/SDL.h"
+#endif
 #include <chrono>
 #include <ostream>
 #define __GMENG_ALLOW_LOG__ true
@@ -8,8 +10,10 @@
 #include "../lib/bin/gmeng.h"
 #include "../lib/bin/src/renderer.cpp"
 
+#if GMENG_SDL
 #include "../lib/bin/types/window.h"
 #include "../lib/bin/utils/window.cpp"
+#endif
 
 #define g_sleep std::this_thread::sleep_for
 #define ms std::chrono::milliseconds
