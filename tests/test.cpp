@@ -311,6 +311,7 @@ int test_vwhole_renderer() {
     std::cout << "emplace_lvl_camera done" << '\n';
     lvl.display.camera.clear_screen();
     std::cout << lvl.display.camera.draw() << '\n';
+#if GMENG_SDL
     Gmeng::GameWindow window = Gmeng::create_window("PREVIEW", 800, 600);
     //window.draw(Gmeng::window_frame(lvl), {0,0});
     std::cout << sizeof(lvl.display.camera.display_map.unitmap)/sizeof(Gmeng::Unit) << '\n';
@@ -325,6 +326,7 @@ int test_vwhole_renderer() {
             if (e.type == SDL_QUIT) quit = true;
         }
     };
+#endif
     do
     {
         cout << "Press [enter] to continue...";
