@@ -1,7 +1,18 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -lcurl --std=c++20 -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security -framework ApplicationServices
+CXXFLAGS := -lcurl --std=c++2a -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 OUTFILE := -o gmeng
+
+UNAME_S := $(shell uname -s)
+
+
+ifeq ($(UNAME_S), Darwin)
+	CXXFLAGS += -framework ApplicationServices
+endif
+
+ifeq ($(UNAME_S), Linux)
+	CXXFLAGS += -DGMENG_NO_CURSES
+endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
     CXXFLAGS += -fsanitize=address
@@ -39,6 +50,7 @@ debug:
 
 no-ncurses:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out no-ncurses,$(MAKECMDGOALS))
+
 use-external:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out use-external,$(MAKECMDGOALS))
 

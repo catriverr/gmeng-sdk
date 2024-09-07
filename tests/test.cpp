@@ -313,12 +313,11 @@ int test_vwhole_renderer() {
     std::cout << lvl.display.camera.draw() << '\n';
 #if GMENG_SDL
     Gmeng::GameWindow window = Gmeng::create_window("PREVIEW", 800, 600);
-    //window.draw(Gmeng::window_frame(lvl), {0,0});
     std::cout << sizeof(lvl.display.camera.display_map.unitmap)/sizeof(Gmeng::Unit) << '\n';
     sImage img;
-    img.width = img.height = 1;
-    img.content[0] = RED;
-    window.draw(img, { 0,0 });
+    img.width = 88; img.height = 44;
+    img.content.push_back(RED);
+    window.draw(Gmeng::window_frame(lvl), {0,0});
     SDL_Event e;
     bool quit = false;
     while (!quit) {

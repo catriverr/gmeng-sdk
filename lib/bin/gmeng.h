@@ -88,7 +88,11 @@ static not_nullptr_t<int>* not_nullptr = &not_nullptr_ref;
         )
 
 #define IS_SET Gmeng::Assertions::vd_assert::ON ==
+#define DISABLE() Gmeng::Assertions::vd_assert::OFF
+#define ENABLE() Gmeng::Assertions::vd_assert::ON
 
+#define p_no DISABLE()
+#define p_yes ENABLE()
 
 #define vl_get_name(x) #x
 #define vl_filename(path) (strrchr(path, '/') ? strrchr(path, '/') + 1 : path)
@@ -276,6 +280,7 @@ namespace Gmeng {
     };
 	enum CONSTANTS {
 		/// integer values
+        UNITMAP_SIZE = 32767,
 		vl_nomdl_id = 0x0FFFF0, vl_notxtr_id = 0x0FFFF1, vl_nochunk_id = 0x0FFFF2,
 		// C_PlugEvent is event type of 'plugin event',
         // C_InputEvent is event type of 'keyboard/mouse input'
@@ -362,7 +367,7 @@ namespace Gmeng {
 	class DisplayMap {
 		public:
 		int __h = d_width; int __w = d_height;
-		Gmeng::Unit unitmap[32767] = {}; int pool_size = (sizeof unitmap / 8);
+		Gmeng::Unit unitmap[CONSTANTS::UNITMAP_SIZE] = {}; int pool_size = (sizeof unitmap / 8);
 	};
 	template<std::size_t _width, std::size_t _height>
 	class G_Renderer {
@@ -385,6 +390,7 @@ namespace Gmeng {
         bool dev_mode;
         bool dont_hold_back;
         bool shush;
+        std::string executable;
     } __global_object__;
     /// static__ , global_controllers__
     static __global_object__ global;
@@ -493,7 +499,8 @@ static void gm_nlog(std::string msg) {
 #define g_delim ":"
 #define g_line __LINE__
 
-#define FILENAME (std::string(__FILE__).substr(std::string(__FILE__).rfind("/") + 1)).c_str()
+#define GET_FILENAME(x) (std::string(x).substr(std::string(__FILE__).rfind("/") + 1)).c_str()
+#define FILENAME GET_FILENAME(__FILE__)
 
 #define __gmeng_attribute__() ({ \
     std::ostringstream oss; \
@@ -558,7 +565,7 @@ static void _gm_log(const char* file_, int line, const char* func, std::string _
             if (Gmeng::global.log_stdout) std::cout << msg << std::endl;
         #endif
         std::string _uthread = _uget_thread();
-        std::string __vl_log_message__ =  "gm:" + _uthread + " *logger >> " + msg + (use_endl ? "\n" : "");
+        std::string __vl_log_message__ = std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
         Gmeng::logstream << __vl_log_message__;
         __gmeng_write_log__("gmeng.log", __vl_log_message__);
         if (Gmeng::global.dev_console) _utext(Gmeng::logc, __vl_log_message__);
@@ -608,6 +615,7 @@ static void _gupdate_logc_intvl(int ms = 250) {
     #endif
     __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
     __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
+    __gmeng_write_log__("gmeng.log", "Executable Name: " + Gmeng::global.executable + "\n", true);
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
             __functree_call__(__FILE__, __LINE__, _glog_thread_create);
         for ( ;; ) {
@@ -727,6 +735,7 @@ static void patch_argv_global(int argc, char* argv[]) {
         return;
     #endif
 #if _WIN32 == false
+    Gmeng::global.executable = (std::string(argv[0]).substr(std::string(argv[0]).rfind("/") + 1)).c_str();
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
