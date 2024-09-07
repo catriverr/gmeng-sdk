@@ -11,7 +11,7 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 ifeq ($(UNAME_S), Linux)
-	CXXFLAGS += -DGMENG_NO_CURSES
+	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings
 endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
