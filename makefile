@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := `pkg-config --libs --cflags libcurl` --std=c++2a -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
+CXXFLAGS := --std=c++2a -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security `pkg-config --libs --cflags libcurl`
 OUTFILE := -o gmeng
 
 UNAME_S := $(shell uname -s)
