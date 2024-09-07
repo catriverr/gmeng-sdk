@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := --std=c++2a -pthread `pkg-config --libs --cflags ncursesw` -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security `pkg-config --libs --cflags libcurl`
+CXXFLAGS := --std=c++2a -pthread -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security `pkg-config --libs --cflags libcurl`
 OUTFILE := -o gmeng
 
 UNAME_S := $(shell uname -s)
@@ -12,6 +12,8 @@ endif
 
 ifeq ($(UNAME_S), Linux)
 	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings
+else
+	CXXFLAGS += `pkg-config --libs --cflags ncursesw`
 endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
