@@ -36,7 +36,7 @@ all: lib/bin/out/gmeng
 
 # Rule to build lib/bin/src/index.cpp
 lib/bin/out/gmeng: lib/bin/src/index.cpp
-	$(CXX) $(OUTFILE) $(CXXFLAGS) lib/bin/src/index.cpp
+	$(CXX) $(OUTFILE) lib/bin/src/index.cpp $(CXXFLAGS)
 
 # Target for test, builds test.cpp
 test: test.cpp
