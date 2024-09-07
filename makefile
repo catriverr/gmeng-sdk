@@ -1,6 +1,7 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := --std=c++2a -pthread -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security `pkg-config --libs --cflags libcurl`
+CXXWARNINGS :=  -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
+CXXFLAGS := --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
 OUTFILE := -o gmeng
 
 UNAME_S := $(shell uname -s)
@@ -19,6 +20,12 @@ endif
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
     CXXFLAGS += -fsanitize=address
 	CXXFLAGS += -g
+endif
+
+ifeq ($(filter warnings,$(MAKECMDGOALS)), warnings)
+	CXXFLAGS += -Wall
+else
+	CXXFLAGS += $(CXXWARNINGS)
 endif
 
 ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
