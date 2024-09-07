@@ -63,5 +63,10 @@ no-ncurses:
 use-external:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out use-external,$(MAKECMDGOALS))
 
+a = $(shell echo ALL WARNINGS ARE ENABLED, YOUR SHELL WILL BE FILLED WITH WARNINGS.)
+warnings:
+	$(info $(a))
+	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out warnings,$(MAKECMDGOALS))
+
 # Phony targets
-.PHONY: all test test2 debug no-ncurses
+.PHONY: all test test2 debug no-ncurses warnings
