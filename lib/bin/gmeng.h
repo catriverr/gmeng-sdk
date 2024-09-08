@@ -298,6 +298,9 @@ namespace Gmeng {
 		std::string name = ""; int id = 0;
 		std::vector<std::string> params = {};
 	};
+    /// For Gmeng 1.1 Framework
+    /// DEPRECATED, no replacement required.
+    /// Gmeng 4.0 Framework does not require events as it does not rely on Parent Processes.
 	class EventHandler {
 		public:
 		// __etp = event type
@@ -311,7 +314,7 @@ namespace Gmeng {
 				return;
 			};
 			inline std::string gen_estr(Gmeng::event __e) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::EventHandler::gen_estr);
+                //__functree_call__(__FILE__, __LINE__, Gmeng::EventHandler::gen_estr);
                 if (__e.id == Gmeng::CONSTANTS::IE_Type0) return std::string ("[gm0:core/__MOUSECLICK__]");
 				return std::string ("[gm0:core/__EVCAST] " +
 				std::to_string(__e.id) +
@@ -335,9 +338,9 @@ namespace Gmeng {
     };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
-	const char c_unit[4] = "\u2588";
-	const char c_outer_unit[4] = "\u2584";
-	const char c_outer_unit_floor[4] = "\u2580";
+	const char c_unit[4] = "\u2588";             // back when any of you
+	const char c_outer_unit[4] = "\u2584";       // ment something due to
+	const char c_outer_unit_floor[4] = "\u2580"; // somebody talking about you guys
 	struct Unit {
 		public:
 			int color = 1; bool collidable = true; bool is_player = false; bool is_entity = false;
