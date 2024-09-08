@@ -38,10 +38,12 @@ builds:
     make test (builds interface tests / test.cpp)
     make test2 (builds unit tests / tests/test.cpp)
 options:
-    make [debug] [no-ncurses] [all/test/test2]
+    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2]
 ```
 - The `debug` option adds the `-g -O0 -fsanitize=address` flags to the compiler.
 - The `no-ncurses` option disables the auto-imports to `utils/interface.cpp` and `types/interface.h` from the `gmeng.h` header.
+- The `use-external` option enables the auto-imports to `SDL2/SDL.h` headers for SDL-based windows.
+- The `warnings` option enables `-Wall` so all warnings are displayed by the compiler.
 
 ## Debugging
 Gmeng is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
