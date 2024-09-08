@@ -101,7 +101,10 @@ warnings:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out warnings,$(MAKECMDGOALS))
 
 # build requirement checkers
-include make/buildcheck.mk
+
+current_dir = $(shell pwd)
+$(info compiling in $(current_dir))
+include $(current_dir)/make/buildcheck.mk
 
 ifeq ($(filter configure,$(MAKECMDGOALS)),configure)
   ifeq ($(HAS_PKG_CONFIG),no)
