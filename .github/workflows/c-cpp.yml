@@ -19,7 +19,7 @@ jobs:
         brew install pkg-config
         brew install ncurses
     - name: make engine
-      run: make no-ncurses
+      run: make no-ncurses all
     - name: make tests
       run: make no-ncurses test2
     - name: make debug
