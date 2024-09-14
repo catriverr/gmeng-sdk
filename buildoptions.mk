@@ -1,4 +1,4 @@
-USE_NCURSES := false
+USE_NCURSES := true
 USE_EXTERNAL := false
-TARGET_NAME := lib/bin/gmeng.h
+TARGET_NAME := all
 DEBUG_MODE := false
