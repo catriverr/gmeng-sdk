@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
+#include <cstddef>
 #include <stdexcept>
 #include <vector>
 #include <iostream>
@@ -51,7 +52,7 @@ namespace Gmeng {
                 SDL_Quit();
                 return;
             };
-            std::string font_path = "./assets/press_start.ttf";
+            std::string font_path = "press_start.ttf";
             font = TTF_OpenFont(font_path.c_str(), 24); // Default font and size
             if (!font) {
                 throw std::runtime_error("TTF_OpenFont Error: " + std::string(TTF_GetError()));
@@ -65,28 +66,23 @@ namespace Gmeng {
             SDL_Quit();
         };
 
-        void draw(const Gmeng::sImage& img, SDL_Point position, int pixelSize = 10) {
-            this->clear();
-            for (int y = 0; y < img.height; ++y) {
-                for (int x = 0; x < img.width; ++x) {
-                    int index = y * img.width + x;
-                    color_t unit = RED;
-                    try {
-                        unit = img.content.at(index);
-                    } catch (std::out_of_range& e) {
-                        gm_log("!! buffer_overflow (" + v_str(index) + ")");
-                    };
-                    auto& color = rgb_colors[unit];
-                    SDL_SetRenderDrawColor(renderer, color[0], color[1], color[2], 255);
-                    SDL_Rect rect = {
-                        position.x + x * pixelSize,
-                        position.y + y * pixelSize,
-                        pixelSize,
-                        pixelSize
-                    };
-                    SDL_RenderFillRect(renderer, &rect);
-                }
-            }
+        void draw(const Gmeng::sImage& img, SDL_Point position, int pixelSize = 15) {
+            SDL_Texture* txtr = make_texture(this->renderer, img);
+            SDL_Rect source_rect = {0, 0, img.width, img.height};
+            SDL_Rect destination_rect = {position.x, position.y, img.width*pixelSize, img.height*pixelSize};
+            SDL_RenderCopy(renderer, txtr, &source_rect, &destination_rect);
+        };
+
+        void text(string message, SDL_Point pos, SDL_Color color, SDL_Color bgcolor = { 0, 0, 0, 255 }) {
+            SDL_Surface* text_surface = TTF_RenderText_Solid(this->font, message.c_str(), color);
+            SDL_Texture* text_texture = SDL_CreateTextureFromSurface(this->renderer, text_surface);
+            SDL_Rect text_rect = { pos.x, pos.y, text_surface->w, text_surface->h };
+            SDL_FreeSurface(text_surface);
+
+            SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        };
+
+        void refresh() {
             SDL_RenderPresent(renderer);
         };
 
@@ -111,20 +107,6 @@ namespace Gmeng {
         ASSERT("pref.screens", Assertions::vd_assert::ON);
         GameWindow w(title, width, height);
         return w;
-    };
-
-    inline sImage window_frame(Gmeng::Level& lvl) {
-        ASSERT("pref.log", p_yes);
-        sImage image;
-        image.width = lvl.base.width;
-        image.height = lvl.base.height;
-        for (int indx = 0; indx < image.width*image.height; indx++) {
-            Unit fd = { .color = ((indx % 2) + ( (indx % image.height) % 2 == 0 ? 0 : 1 ) == 0 ? RED : BLACK) };
-            if (indx < CONSTANTS::UNITMAP_SIZE) fd = lvl.display.camera.display_map.unitmap[indx];
-            image.content.push_back((color_t)fd.color);
-            gm_log("losing your mind? unit(" + v_str(indx) + ") color: " + v_str(fd.color));
-        };
-        return image;
     };
 };
 

@@ -1,3 +1,5 @@
+#include <arm_neon.h>
+#include <cstdint>
 #if GMENG_SDL
 #include "SDL2/SDL.h"
 #endif
@@ -9,6 +11,7 @@
 #include <algorithm>
 #include "../lib/bin/gmeng.h"
 #include "../lib/bin/src/renderer.cpp"
+#include <math.h>
 
 #if GMENG_SDL
 #include "../lib/bin/types/window.h"
@@ -311,21 +314,6 @@ int test_vwhole_renderer() {
     std::cout << "emplace_lvl_camera done" << '\n';
     lvl.display.camera.clear_screen();
     std::cout << lvl.display.camera.draw() << '\n';
-#if GMENG_SDL
-    Gmeng::GameWindow window = Gmeng::create_window("PREVIEW", 800, 600);
-    std::cout << sizeof(lvl.display.camera.display_map.unitmap)/sizeof(Gmeng::Unit) << '\n';
-    sImage img;
-    img.width = 88; img.height = 44;
-    img.content.push_back(RED);
-    window.draw(Gmeng::window_frame(lvl), {0,0});
-    SDL_Event e;
-    bool quit = false;
-    while (!quit) {
-        while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT) quit = true;
-        }
-    };
-#endif
     do
     {
         cout << "Press [enter] to continue...";
@@ -381,6 +369,43 @@ int test_vwhole_renderer() {
     return 0;
 };
 
+#if GMENG_SDL
+int test_sdl_text() {
+    _uread_into_vgm("./envs/models");
+    Gmeng::GameWindow window = Gmeng::create_window("PREVIEW", 850, 700);
+    SDL_Event e;
+    bool quit = false;
+    Gmeng::sImage img;
+    gm::texture txtr = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "allah");
+    img.width = 88; img.height = 44;
+    for (int i = 0; i < img.width * img.height; i++) {
+        img.content.push_back( (color_t)txtr.units.at(i).color );
+    };
+    Uint32 frame_start, frame_time;
+    float fps = 0;
+    Uint32 last_displayed = 0;
+    Uint32 last_frame_time = 1000;
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) quit = true;
+        }
+        Uint32 tm = SDL_GetTicks();
+        frame_start = tm;
+        window.clear();
+        window.draw(img, { 0, 0 }, 10);
+        window.text("frame time: " + v_str(frame_time) + "ms | fps: " + v_str(1000 / frame_time), {0,600}, {255, 0, 0, 255});
+        window.refresh();
+        frame_time = SDL_GetTicks() - frame_start;
+        if (last_displayed == 0 || tm - last_displayed >= 1000) {
+            last_displayed = tm;
+            last_frame_time = frame_time;
+            fps = 1000 / frame_time;
+        } else fps = 1000 / last_frame_time;
+    };
+    return 0;
+};
+#endif
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,
@@ -390,7 +415,10 @@ static std::vector<int (*)()> testids = {
     &test_loadglvl,
     &test_chunkvpoint,
     &test_vpointrender,
-    &test_vwhole_renderer
+    &test_vwhole_renderer,
+#if GMENG_SDL
+    &test_sdl_text,
+#endif
 };
 
 int main(int argc, char* argv[]) {

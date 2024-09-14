@@ -46,6 +46,11 @@ namespace Gmeng::script_parser_util {
 
         inline object_class* parse_value(string data) {
             object_class* obj = new object_class();
+            string v_data = trim(data);
+            if (v_data.starts_with("\"")) {
+                if (!v_data.ends_with("\"")) throw script_syntax_exception("string not closed, missing '\"' character at the end of string");
+                // make it a string
+            };
             return obj;
         };
     };
