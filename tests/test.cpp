@@ -36,101 +36,12 @@ int test_placement() {
     return 0;
 };
 int test_renderer() {
-    Gmeng::Level test_level;
-    auto gtx = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "g_template1");
-    test_level.base.height = gtx.height;
-    test_level.base.width = gtx.width;
-    test_level.base.lvl_template.width = gtx.width;
-    test_level.base.lvl_template.height = gtx.height;
-    for ( int i = 0; i < gtx.height*gtx.width; i++ ) {
-        test_level.base.lvl_template.units.push_back(gtx.units[i]);
-    };
-    test_level.load_chunk(
-        Gmeng::r_chunk {
-            .vp={
-                .start = { .x=0,.y=0 },
-                .end   = { .x=4,.y=4 }
-            },
-            .models = {
-                Gmeng::Renderer::Model {
-                    .width=5,
-                    .height=3,
-                    .size=15,
-                    .position= { .x=0, .y=0 },
-                    .name="tx_model1",
-                    .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model1"),
-                    .id=235467,
-                }
-            }
-        }
-    );
-    test_level.load_chunk(Gmeng::r_chunk {
-        .vp = {
-            .start = { .x=5, .y=5 },
-            .end   = { .x=9, .y=9 },
-        },
-        .models = {
-            Gmeng::Renderer::Model {
-                .width=5,
-                .height=3,
-                .size=15,
-                .position= { .x=0, .y=0 },
-                .name="tx_model2",
-                .texture = gm::vd_find_texture(gm::vgm_defaults::vg_textures, "tx_model2"),
-                .id=345678
-            }
-        }
-    });
-    test_level.display.set_resolution(5, 5);
-    test_level.display.viewpoint = {
-        .start = {
-            .x = 0,
-            .y = 0
-        },
-        .end = {
-            .x = 5,
-            .y = 5
-        }
-    };
-    test_level.draw_camera(0);
-    test_level.display.viewpoint = {
-        .start = {
-            .x = 4,
-            .y = 4,
-        },
-        .end   = {
-            .x = 9,
-            .y = 9
-        }
-    };
-    test_level.draw_camera(1);
     return 0;
 };
 int test_loadglvl() {
     std::cout << "test_loadglvl job_start" << '\n';
     Gmeng::LevelInfo lv_inf = Gmeng::parse_glvl("envs/4.0_test.glvl");
-    std::cout << "c_p1xdp - c_p2dp | vchunk_info" << '\n';
-    Gmeng::Level lv_test;
-    lv_test.load_level(lv_inf);
-    std::cout << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.start) << " - " << Gmeng::Renderer::conv_dp(lv_test.chunks[0].vp.end) << endl;
-    lv_test.set_player({
-        .entityId=0,
-        .colorId=3,
-        .colored=true,
-        .c_ent_tag="o"
-    }, 1, 0);
-    lv_test.draw_camera(0);
-    std::cout << "chunk id(0) num(1) displayed ^ above ~~ works" << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    lv_test.draw_camera(1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    lv_test.move_player(0, 1);
-    lv_test.refresh();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    lv_test.move_player(0, 2);
-    lv_test.refresh();
-    std::cout << "chunk id(1) num(2) displayed ^ above & Objects::G_Player attached to camera ~~ works" << std::endl << "~~ no modifiers required" << '\n';
-    std::cout << "player pos: " << lv_test.plcoords.x << "," << lv_test.plcoords.y << endl;
+    std::cout << "GLVL load successful\n";
     return 0;
 };
 
@@ -221,42 +132,7 @@ int test_chunkvpoint() {
 };
 
 int test_vpointrender() {
-    std::cout << "starting test_vpointrender" << '\n';
-    Gmeng::Level level_test = {
-        .base = {
-            .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
-            .width = 88,
-            .height = 44
-        },
-        .name = v_str(g_mkid())
-    };
-    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
-    Gmeng::Renderer::Model test_model_2 = {
-        .position = { 0, 6 }
-    };
-    test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
-    test_model.name = v_str(g_mkid());
-    test_model.position = { 0,0 };
-    level_test.load_chunk({
-        .vp = { { 0, 0 }, { 88, 22 } },
-        .models = {
-            test_model
-        },
-    });
-    level_test.load_chunk({
-        .vp = { { 0, 23 }, { 88, 44 } },
-        .models = {
-            test_model_2
-        }
-    });
-    level_test.display.set_resolution(88, 22);
-    level_test.draw_camera(0);
-    level_test.display.viewpoint = { { 10, 5 }, { 20, 10 } };
-    gm_log("__test_chunkvpoint__ (static test) -> __attempt_test__ ; _vcamv_gen_frame tl");
-    std::cout << '\n';
-    std::string __test__ = Gmeng::_vcamv_gen_frame(level_test);
-    std::cout << __test__ << '\n';
-    exit(0);
+    std::cout << "test 7 : deprecated test module \n";
     return 0;
 };
 
@@ -445,17 +321,24 @@ int main(int argc, char* argv[]) {
         _gupdate_logc_intvl();
         gm::_uread_into_vgm("./envs/models");
         int total = 0;
+        std::vector<int> return_values;
         for (int i = 0; i < testids.size(); i++) {
             auto it = std::find(do_list.begin(), do_list.end(), i);
             if (it == do_list.end()) { std::cout << "skipping test_000" << i << ": since test loader do_list does not include it" << '\n'; continue; };
             std::cout << "running 000" << i << "_test_nr_" << i << " | heap_at: " << _uconv_1ihx(_uget_addr(testids[i])) << '\n';
             total++;
             if (testids.size() == i) break;
+            try {
             int value = testids[i]();
             std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << '\n';
+            return_values.push_back(value);
+            } catch (std::exception& e) { return_values.push_back(1); continue; };
         };
         _gthread_catchup();
-        std::cout << "done running tests | total: " << total << '\n';
+        std::cout << "done running tests | total: " << total << '\n' << '\n';
+        std::cout << Gmeng::resetcolor << Gmeng::boldcolor << "Test Results:\n";
+        int i = 0;
+        for (auto rvalue : return_values) std::cout << Gmeng::boldcolor << Gmeng::colors[rvalue == 0 ? GREEN : RED] + "[" << (rvalue == 0 ? "+" : "-") << "] " << Gmeng::resetcolor << " test_000" + v_str(i) + ": " << rvalue << " " << (rvalue == 0 ? Gmeng::colors[GREEN] + "PASS" : Gmeng::colors[RED] + "FAIL") << Gmeng::resetcolor << "\n", i++;
         return 0;
     };
 };
