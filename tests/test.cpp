@@ -297,6 +297,8 @@ static std::vector<int (*)()> testids = {
 #endif
 };
 
+using Gmeng::color_t;
+
 int main(int argc, char* argv[]) {
     std::vector<int> do_list = {};
     bool do_main1 = false;
