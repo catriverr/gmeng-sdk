@@ -54,6 +54,7 @@ ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
 	CXXFLAGS += -g
 endif
 
+
 ifeq ($(filter warnings,$(MAKECMDGOALS)), warnings)
 	CXXFLAGS += -Wall
 else
@@ -65,7 +66,7 @@ ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
 endif
 
 ifeq ($(filter use-external,$(MAKECMDGOALS)), use-external)
-	CXXFLAGS += `pkg-config --libs --cflags sdl2_ttf`
+	CXXFLAGS += `pkg-config --libs --cflags sdl2 sdl2_ttf`
     CXXFLAGS += -DGMENG_SDL
 endif
 
@@ -105,6 +106,22 @@ warnings:
 current_dir = $(shell pwd)
 $(info compiling in $(current_dir))
 include $(current_dir)/make/buildcheck.mk
+
+ifeq ($(DEBUG_MODE),true)
+	$(info DEBUG_MODE set to true in build configuration, using debugger parameters for gcc)
+	CXXFLAGS += -fsanitize=address
+	CXXFLAGS += -g
+endif
+
+ifeq ($(USE_EXTERNAL),true)
+	$(info USE_EXTERNAL set to true in build configuration, using SDL2 parameters)
+	CXXFLAGS += -DGMENG_SDL
+	CXXFLAGS += `pkg-config --cflags --libs sdl2 sdl2_ttf`
+endif
+
+ifeq ($(USE_NCURSES),true)
+	$(info USE_NCURSES set to true in build configuration, using ncurses parameters)
+	CXXFLAGS += `pkg-config --cflags --libs ncursesw`
 
 ifeq ($(filter configure,$(MAKECMDGOALS)),configure)
   ifeq ($(HAS_PKG_CONFIG),no)

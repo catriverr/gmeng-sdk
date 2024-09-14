@@ -1,4 +1,3 @@
-#include <arm_neon.h>
 #include <cstdint>
 #if GMENG_SDL
 #include "SDL2/SDL.h"

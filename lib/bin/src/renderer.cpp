@@ -12,8 +12,10 @@
 #include <sstream>
 #include "../gmeng.h"
 #include "../src/textures.cpp"
+#ifndef _WIN32
 #include <termios.h>
 #include <sys/select.h>
+#endif
 #include <unistd.h>
 
 namespace fs = std::filesystem;
