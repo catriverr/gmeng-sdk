@@ -340,7 +340,7 @@ int main(int argc, char* argv[]) {
         std::cout << "done running tests | total: " << total << '\n' << '\n';
         std::cout << Gmeng::resetcolor << Gmeng::boldcolor << "Test Results:\n";
         int i = 0;
-        for (auto rvalue : return_values) std::cout << Gmeng::boldcolor << Gmeng::colors[rvalue == 0 ? GREEN : RED] + "[" << (rvalue == 0 ? "+" : "-") << "] " << Gmeng::resetcolor << " test_000" + v_str(i) + ": " << rvalue << " " << (rvalue == 0 ? Gmeng::colors[GREEN] + "PASS" : Gmeng::colors[RED] + "FAIL") << Gmeng::resetcolor << "\n", i++;
+        for (auto rvalue : return_values) std::cout << Gmeng::boldcolor << Gmeng::colors[rvalue == 0 ? Gmeng::GREEN : Gmeng::RED] + "[" << (rvalue == 0 ? "+" : "-") << "] " << Gmeng::resetcolor << " test_000" + v_str(i) + ": " << rvalue << " " << (rvalue == 0 ? Gmeng::colors[Gmeng::GREEN] + "PASS" : Gmeng::colors[Gmeng::RED] + "FAIL") << Gmeng::resetcolor << "\n", i++;
         return 0;
     };
 };
