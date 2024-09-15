@@ -16,7 +16,7 @@
 
 namespace Gmeng {
     inline void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2) {
-        __functree_call__(__FILE__, __LINE__, Gmeng::set_texturemap);
+        __functree_call__(Gmeng::set_texturemap);
         int indx = 0;
         for ( const auto& unit : g_tx2.units ) {
             g_tx.units[indx] = unit;
@@ -24,7 +24,7 @@ namespace Gmeng {
         };
     };
     inline Gmeng::texture LoadTexture(std::string __fname) {
-        __functree_call__(__FILE__, __LINE__, Gmeng::LoadTexture);
+        __functree_call__(Gmeng::LoadTexture);
         std::ifstream file(__fname); Gmeng::texture texture;
         if (!file.is_open()) { std::cerr << Gmeng::colors[4] << "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " << __fname << ": e_file_unavailable"; };
         std::vector<std::string> lines; std::string line;

@@ -23,7 +23,7 @@ namespace Gmeng {
 };
 
 static Gmeng::uicolor_t conv_bgcolor(Gmeng::uicolor_t color) {
-    __functree_call__(__FILE__, __LINE__, Gmeng::conv_bgcolor);
+    __functree_call__(Gmeng::conv_bgcolor);
     if ((int) color < 9) return color;
     return (Gmeng::uicolor_t)( (short)color-8 );
 };

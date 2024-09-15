@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #if _WIN32 == false
 #include <curl/curl.h>
@@ -49,7 +48,7 @@ size_t write_callback(char* ptr, size_t size, size_t nmemb, std::string* data) {
 // Function to send an HTTP GET request using libcurl
 response_t send_request(const std::string& url, const std::string& authorization = "NONE") {
 #if _WIN32 == false
-    __functree_call__(__FILE__, __LINE__, send_request);
+    __functree_call__(send_request);
     CURL* curl;
     CURLcode res;
     struct response_t response;
@@ -104,7 +103,7 @@ response_t send_request(const std::string& url, const std::string& authorization
 /// OVERLOAD for post requests
 response_t send_request(const std::string& url, const std::string& authorization = "NONE", const std::string& method = "GET", const std::string& body = "") {
 #if _WIN32 == false
-    __functree_call__(__FILE__, __LINE__, Gmeng::send_request::overload::POST_BODY);
+    __functree_call__(Gmeng::send_request::overload::POST_BODY);
     CURL* curl;
     CURLcode res;
     struct response_t response;
@@ -189,12 +188,12 @@ struct response {
 class gmserver_t {
 public:
     gmserver_t(int port) : port(port), server_fd(-1), running(false) {
-        __functree_call__(__FILE__, __LINE__, gmserver_t::gmserver_t);
+        __functree_call__(gmserver_t::gmserver_t);
     };
 
     void run() {
 #if _WIN32 == false
-        __functree_call__(__FILE__, __LINE__, gmserver_t::run);
+        __functree_call__(gmserver_t::run);
         // Create socket
         int server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd == -1) {
@@ -245,7 +244,7 @@ public:
     }
 
     void create_path(path_type_t type, std::string path, std::function<void(request&, response&)> func) {
-        __functree_call__(__FILE__, __LINE__, gmserver_t::create_path);
+        __functree_call__(gmserver_t::create_path);
         if (type == path_type_t::GET) {
             get_paths[path] = func;
         } else if (type == path_type_t::POST) {
@@ -254,7 +253,7 @@ public:
     }
 
     void stop() {
-        __functree_call__(__FILE__, __LINE__, gmserver_t::stop);
+        __functree_call__(gmserver_t::stop);
         running = false;
         if (server_fd != -1) {
             close(server_fd);
@@ -265,7 +264,7 @@ public:
 private:
     void handle_request(int client_fd) {
 #if _WIN32 == false
-        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::handle_request);
+        __functree_call__(gmserver_t::__private__::handle_request);
         const int max_length = 1024;
         char buffer[max_length] = {0};
         int valread = read(client_fd, buffer, max_length - 1);
@@ -297,7 +296,7 @@ private:
     }
 
     request parse_request(const char* buffer) {
-        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::parse_request);
+        __functree_call__(gmserver_t::__private__::parse_request);
 #if _WIN32 == false
         request req;
 
@@ -330,7 +329,7 @@ private:
 
     void send_response(int client_fd, response& res) {
 #if _WIN32 == false
-        __functree_call__(__FILE__, __LINE__, gmserver_t::__private__::send_response);
+        __functree_call__(gmserver_t::__private__::send_response);
         std::string response_str = "HTTP/1.1 " + std::to_string(res.status_code) + " OK\r\n";
         response_str += "Content-Length: " + std::to_string(res.body.size()) + "\r\n";
         response_str += "\r\n"; // End of headers
@@ -353,7 +352,7 @@ struct GM_SVHOLD {
 };
 
 std::map<std::string, GM_SVHOLD> _vget_sv_data(const std::string& input) {
-    __functree_call__(__FILE__, __LINE__, _vget_sv_data);
+    __functree_call__(_vget_sv_data);
     std::map<std::string, GM_SVHOLD> result;
 
     std::istringstream iss(input);
@@ -441,12 +440,12 @@ std::map<std::string, GM_SVHOLD> _vget_sv_data(const std::string& input) {
 namespace Gmeng::Networking {
     namespace conversion {
         Renderer::drawpoint c_drawpoint(std::string val) {
-            //__functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_drawpoint);
+            //__functree_call__(Gmeng::Networking::conversion::c_drawpoint);
             auto v = g_splitStr(val, ",");
             return { std::stoi(v[0]), std::stoi(v[1]) };
         };
         Renderer::viewpoint c_viewpoint(std::string val) {
-            //__functree_call__(__FILE__, __LINE__, Gmeng::Networking::conversion::c_viewpoint);
+            //__functree_call__(Gmeng::Networking::conversion::c_viewpoint);
             auto v = g_splitStr(val, "|");
             return { c_drawpoint(v[0]), c_drawpoint(v[1]) };
         };

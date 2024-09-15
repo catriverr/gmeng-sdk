@@ -34,7 +34,7 @@
 #endif /// quick little fix for the 5.7 ncurses version. USE G++ PARAMETER: `pkg-config --libs --cflags ncurses`!!!!!!
 
 std::string _gutil_get_terminal() {
-    __functree_call__(__FILE__, __LINE__, _gutil_get_terminal);
+    __functree_call__(_gutil_get_terminal);
     char* term_program = getenv("TERM_PROGRAM");
     if (term_program != nullptr) {
         return std::string(term_program);
@@ -51,7 +51,7 @@ std::string _gutil_get_terminal() {
 using namespace Gmeng;
 
 Renderer::drawpoint get_char_sizes() {
-    __functree_call__(__FILE__, __LINE__, get_char_sizes);
+    __functree_call__(get_char_sizes);
     struct winsize size;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 
@@ -197,7 +197,7 @@ struct transportable_image {
 };
 
 std::vector<Unit> harvest_units(const std::vector<Unit>& units, int original_width, const Renderer::viewpoint& view) {
-    //__functree_call__(__FILE__, __LINE__, harvest_units);
+    //__functree_call__(harvest_units);
     std::vector<Unit> harvested_units;
     if (original_width == _vcreate_vp2d_deltax(view)+1) return units;
     int start_x = view.start.x; int start_y = view.start.y;
@@ -216,7 +216,7 @@ std::vector<Unit> harvest_units(const std::vector<Unit>& units, int original_wid
 
 // dark magic fuckery
 std::vector<Unit> scale_image(const std::vector<Unit>& units, int original_width, int new_width, int new_height) {
-    //__functree_call__(__FILE__, __LINE__, scale_image);
+    //__functree_call__(scale_image);
     // If original width and new width are the same, return original units
     if (original_width == new_width) return units;
     int original_height = static_cast<int>(units.size()) / original_width;
@@ -273,7 +273,7 @@ namespace Gmeng {
             bool __any_modifier__ = false;
             int id = g_mkid();
             static Renderer::viewpoint get_viewpoint(UI::Element& elem) {
-                //__functree_call__(__FILE__, __LINE__, Gmeng::UI::Element::__static__::get_viewpoint);
+                //__functree_call__(Gmeng::UI::Element::__static__::get_viewpoint);
                 return {
                     elem.position,
                     { elem.position.x + (int)elem.width, elem.position.y + (int)elem.height }
@@ -318,12 +318,12 @@ namespace Gmeng {
         std::size_t Screen::height = 0;
         bool Screen::initialized = false;
         void Screen::handle_resize(int sig) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::handle_resize);
+            __functree_call__(Gmeng::UI::Screen::handle_resize);
             Gmeng::UI::Screen::refresh_width_height();
         }
 
         void Screen::refresh_width_height() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::refresh_width_height);
+            __functree_call__(Gmeng::UI::Screen::refresh_width_height);
             auto sizes = get_char_sizes();
             wcharsizex = sizes.x;
             wcharsizey = sizes.y;
@@ -337,7 +337,7 @@ namespace Gmeng {
 
 
         void Screen::initialize() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::initialize);
+            __functree_call__(Gmeng::UI::Screen::initialize);
             if (Gmeng::UI::Screen::initialized) {
                 if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "Screen cannot be initialized, a previous one already exists.");
                 return;
@@ -394,12 +394,12 @@ namespace Gmeng {
         }
 
         void Screen::destroy() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::destroy);
+            __functree_call__(Gmeng::UI::Screen::destroy);
             endwin();
             Gmeng::UI::Screen::initialized = false;
         }
         void Screen::recv_mouse() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::recv_mouse);
+            __functree_call__(Gmeng::UI::Screen::recv_mouse);
             MEVENT event;
             bool mpos_show = false;
             while (true) {
@@ -454,7 +454,7 @@ namespace Gmeng {
         };
 
         Renderer::drawpoint Screen::get_current_pos() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::get_current_pos);
+            __functree_call__(Gmeng::UI::Screen::get_current_pos);
             int x, y;
             getyx(stdscr, y, x);
             std::cout << x << y;
@@ -463,7 +463,7 @@ namespace Gmeng {
         }
 
         void Screen::report_mouse_pos(bool state) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::report_mouse_pos);
+            __functree_call__(Gmeng::UI::Screen::report_mouse_pos);
             this->should_report_mouse = state;
             std::thread t_mousepos = Gmeng::_ucreate_thread([&]() {
                 while (this->should_report_mouse) {
@@ -477,12 +477,12 @@ namespace Gmeng {
         }
 
         Renderer::drawpoint Screen::get_mouse_pointer_pos() {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::get_mouse_pointer_pos);
+            __functree_call__(Gmeng::UI::Screen::get_mouse_pointer_pos);
             return this->mouse_pos;
         };
 
         void Screen::set_cursor(Renderer::drawpoint dp) {
-            //__functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::set_cursor);
+            //__functree_call__(Gmeng::UI::Screen::set_cursor);
             move(dp.y, dp.x);
             this->current_cursor_pos = dp;
         };
@@ -539,7 +539,7 @@ namespace Gmeng {
 
         template<typename T>
         bool Screen::add_element(std::unique_ptr<T> __a) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::add_element);
+            __functree_call__(Gmeng::UI::Screen::add_element);
             // Implementation for creating a menu (subclass)
             // Background color, position, and buttons will be used here
             if (!this->_uhas_space(__a->position, { static_cast<int>(__a->width), static_cast<int>(__a->height) })) {
@@ -563,10 +563,10 @@ namespace Gmeng {
             refresh();
         };
 
-        void Screen::__refresh() { __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::__refresh); refresh(); };
+        void Screen::__refresh() { __functree_call__(Gmeng::UI::Screen::__refresh); refresh(); };
 
         void Screen::check_hover_states(Renderer::drawpoint mpos) {
-            //__functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::check_hover_states);
+            //__functree_call__(Gmeng::UI::Screen::check_hover_states);
             for (auto& elem : this->elements) {
                 if ( viewpoint_includes_dp(UI::Element::get_viewpoint(*elem), mpos) ) {
 
@@ -577,7 +577,7 @@ namespace Gmeng {
         };
 
         void Screen::handle_left_click(Renderer::drawpoint pos) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::__private__::handle_left_click);
+            __functree_call__(Gmeng::UI::Screen::__private__::handle_left_click);
             if (!this->handles_input && this->input_handler != NULL) {
                 if (!viewpoint_includes_dp(UI::Element::get_viewpoint(*this->input_handler), pos)) {
                     this->handles_input = true;
@@ -600,7 +600,7 @@ namespace Gmeng {
         }
 
         void Screen::handle_right_click(Renderer::drawpoint pos) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::__private__::handle_right_click);
+            __functree_call__(Gmeng::UI::Screen::__private__::handle_right_click);
             for (auto& elem : this->elements) {
                 bool v = viewpoint_includes_dp(Element::get_viewpoint(*elem), pos);
                 if (v) { elem->context_menu(this); };
@@ -608,7 +608,7 @@ namespace Gmeng {
         };
 
         void Screen::handle_scroll_up(Renderer::drawpoint pos) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::__private__::handle_scroll_up);
+            __functree_call__(Gmeng::UI::Screen::__private__::handle_scroll_up);
             for (auto& elem : this->elements) {
                 bool v = viewpoint_includes_dp(Element::get_viewpoint(*elem), pos);
                 if (v) { elem->mouse_scroll(this, MouseScroll::UP); break; };
@@ -616,7 +616,7 @@ namespace Gmeng {
         };
 
         void Screen::handle_scroll_down(Renderer::drawpoint pos) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::UI::Screen::__private__::handle_scroll_down);
+            __functree_call__(Gmeng::UI::Screen::__private__::handle_scroll_down);
             for (auto& elem : this->elements) {
                 bool v = viewpoint_includes_dp(Element::get_viewpoint(*elem), pos);
                 if (v) { elem->mouse_scroll(this, MouseScroll::DOWN); break; };
@@ -632,7 +632,7 @@ namespace Gmeng {
           public:
             std::string data = "";
             InfoBox(dp pos, func _func, std::size_t width, std::size_t height) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::InfoBox);
+                __functree_call__(Gmeng::UI::InfoBox);
                 this->position = pos;
                 this->width = width;
                 this->height = height;
@@ -682,7 +682,7 @@ namespace Gmeng {
           public:
             using UI::Element::Element; bool compact = false;
             Button(Renderer::drawpoint pos, std::string title, bool compact, short fg_color, short bg_color, std::function<void(UI::Button* button, UI::Interactions::ButtonInteraction cb)> fn) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Button);
+                __functree_call__(Gmeng::UI::Button);
                 this->position = pos; this->title = title;
                 this->foreground_color = fg_color; this->background_color = bg_color;
                 this->foreground_color_highlight = *(&this->foreground_color);
@@ -697,7 +697,7 @@ namespace Gmeng {
             };
             inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Button::click);
+                __functree_call__(Gmeng::UI::Button::click);
                 this->clicked = button == LEFT ? true : false;
                 switch (button) {
                     case LEFT:
@@ -717,7 +717,7 @@ namespace Gmeng {
             };
 
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::Button::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::Button::hover);
                 this->hovered = state;
                 if (this->clicked) return; // if clicked, ignore hover color.
                 if (state) this->refresh(instance, HOVERED);
@@ -765,7 +765,7 @@ namespace Gmeng {
           public:
             std::size_t width = 2; std::size_t height = 2;
             Gmeng::texture contents = Renderer::generate_empty_texture(this->width, this->height);
-            small_render_t(Gmeng::texture txtr) : width(txtr.width), height(txtr.height), contents(txtr) { __functree_call__(__FILE__, __LINE__, Gmeng::UI::small_render_t); };
+            small_render_t(Gmeng::texture txtr) : width(txtr.width), height(txtr.height), contents(txtr) { __functree_call__(Gmeng::UI::small_render_t); };
             small_render_t() = default;
             enum partial_type {
                 END_OF_HLINE = 0, // end of line, skip to next line
@@ -780,7 +780,7 @@ namespace Gmeng {
                 struct Renderer::drawpoint image_size;
             };
             std::vector<partial_render_obj> get() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::small_render_t::get);
+                __functree_call__(Gmeng::UI::small_render_t::get);
                 std::vector<partial_render_obj> v_partials;
                 for (int i = 0; i < this->contents.height; i++) {
                     for (int j = 0; j < this->contents.width; j++) {
@@ -795,7 +795,7 @@ namespace Gmeng {
                 return v_partials;
             };
             std::vector<partial_render_obj> with_frame() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::small_render_t::with_frame);
+                __functree_call__(Gmeng::UI::small_render_t::with_frame);
                 std::vector<partial_render_obj> v_partials;
                 repeat(this->width+2, [&]() { v_partials.push_back({ UCORNER }); });
                 v_partials.push_back({ END_OF_HLINE });
@@ -823,7 +823,7 @@ namespace Gmeng {
                 std::size_t MAX_WIDTH; std::size_t MAX_HEIGHT;
             } max_values;
             static std::vector<std::vector<viable_unit_transform_t>> do_render(std::vector<partial_render_obj> image, max_values max = {0, 0}) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::small_render_t::__static__::do_render);
+                __functree_call__(Gmeng::UI::small_render_t::__static__::do_render);
                 std::vector<std::vector<viable_unit_transform_t>> render;
                 std::vector<viable_unit_transform_t> p;
                 int c;
@@ -864,7 +864,7 @@ namespace Gmeng {
             operator int() const { return (int)this->enabled; };
             operator std::string() const { return this->enabled ? "YES" : "NO"; };
             Switch(dp pos, std::string name, uicolor_t textcolor = UI_WHITE, uicolor_t textcolor_highlight = UI_CYAN, bool enabled = false) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Switch);
+                __functree_call__(Gmeng::UI::Switch);
                 this->position = pos;
                 this->title = name + " ";
                 this->hidden = false;
@@ -877,11 +877,11 @@ namespace Gmeng {
                 this->foreground_color = this->foreground_color_highlight = this->foreground_color_click = UI_BLACK;
             };
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::Switch::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::Switch::hover);
                 this->hovered = state; this->refresh(instance, this->hovered ? HOVERED : NONE);
             };
             inline void click(UI::Screen* instance, MouseButton) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Switch::click);
+                __functree_call__(Gmeng::UI::Switch::click);
                 this->enabled = !this->enabled;
                 this->refresh(instance, HOVERED);
                 this->change_func(this);
@@ -912,7 +912,7 @@ namespace Gmeng {
             using UI::Element::Element;
             small_render_t render;
             Hoverable(dp pos,std::string title, small_render_t render, uicolor_t color_base, uicolor_t color_hovered) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Hoverable);
+                __functree_call__(Gmeng::UI::Hoverable);
                 this->render = render;
                 this->position = pos;
                 this->hidden = false;
@@ -928,7 +928,7 @@ namespace Gmeng {
             };
             Hoverable() = default;
             inline void click(UI::Screen* instance, Interactions::MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Hoverable::click);
+                __functree_call__(Gmeng::UI::Hoverable::click);
                 /// NO FUNCTIONALITY;
             };
             inline void text_recv(UI::Screen* instance, char ch) override {};
@@ -937,7 +937,7 @@ namespace Gmeng {
                     this->hovered = state;
                     this->refresh(instance, NONE);
                 } else {
-                    __functree_call__(__FILE__, __LINE__, Gmeng::UI::Hoverable::hover);
+                    __functree_call__(Gmeng::UI::Hoverable::hover);
                     this->hovered = state;
                     this->refresh(instance, HOVERED);
                 };
@@ -1042,7 +1042,7 @@ namespace Gmeng {
           public:
             std::string* ptr; bool locked = false;
             TextController(dp pos, std::string* _string, std::size_t max_width = -1, uicolor_t color = UI_WHITE, uicolor_t highlight_color = UI_BLUE) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::TextController);
+                __functree_call__(Gmeng::UI::TextController);
                 this->hidden = false;
                 this->width = max_width == -1 ? _string->length() : max_width;
                 this->clicked = false;
@@ -1052,7 +1052,7 @@ namespace Gmeng {
             };
             inline void hover(UI::Screen*, bool) override {};
             inline void click(UI::Screen* instance, MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::TextController::click);
+                __functree_call__(Gmeng::UI::TextController::click);
                 if (this->clicked || this->locked) return;
                 if (instance->input_handler != NULL) {
                     instance->input_handler->clicked = false;
@@ -1122,7 +1122,7 @@ namespace Gmeng {
           public:
             int* ptr = nullptr; type_t type; bool locked = false;
             NumButton(dp pos, int* ptr, type_t type, uicolor_t color = UI_CYAN, uicolor_t color_highlight= UI_WHITE) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::NumButton);
+                __functree_call__(Gmeng::UI::NumButton);
                 this->hidden = false;
                 this->width = this->height = 1;
                 this->ptr = ptr;
@@ -1142,7 +1142,7 @@ namespace Gmeng {
           public:
             direction_t direction = LEFT; func click_func;
             NavButton(dp pos, direction_t direction, uicolor_t color, uicolor_t color_highlight, uicolor_t color_click, func click_func) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::NavButton);
+                __functree_call__(Gmeng::UI::NavButton);
                 this->position = pos;
                 this->width = 1;
                 this->height = 1;
@@ -1155,12 +1155,12 @@ namespace Gmeng {
             };
             inline void text_recv(UI::Screen*, char) override {};
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::NavButton::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::NavButton::hover);
                 this->hovered = state;
                 this->refresh(instance, HOVERED);
             };
             inline void click(UI::Screen* instance, MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::NavButton::click);
+                __functree_call__(Gmeng::UI::NavButton::click);
                 instance->modify_scr(v_str(g_mkid()) + "YO VAR", UI_WHITE, UI_GREEN, false, {0,LINES-5});
                 this->click_func(this);
             };
@@ -1179,18 +1179,18 @@ namespace Gmeng {
           UI::NavButton nav_l; UI::NavButton nav_r;
           public:
             void hndl_l(NavButton*) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu::page_left);
+                __functree_call__(Gmeng::UI::SettingsMenu::page_left);
                 if (this->mpage-1 < 0) { this->mpage = this->self_elements.size()-1; return; };
                 this->mpage--;
             };
             void hndl_r(NavButton*) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu::page_right);
+                __functree_call__(Gmeng::UI::SettingsMenu::page_right);
                 if (this->mpage+1 >= this->self_elements.size()) { this->mpage = 0; return; };
                 this->mpage++;
             };
             int mpage = 0; int vid = g_mkid();
             SettingsMenu(dp pos, std::string title, std::size_t width, std::size_t height) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu);
+                __functree_call__(Gmeng::UI::SettingsMenu);
                 this->position = pos;
                 this->title = title;
                 this->width = width;
@@ -1202,17 +1202,17 @@ namespace Gmeng {
                 nav_l = navbutton_l; nav_r = navbutton_r;
             };
             inline void add_element(int page, std::unique_ptr<UI::Element> element) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu::add_element);
+                __functree_call__(Gmeng::UI::SettingsMenu::add_element);
                 if (page >= this->self_elements.size()) this->self_elements.push_back({});
                 this->self_elements[page].push_back(std::move(element));
             };
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::SettingsMenu::hover);
                 this->hovered = state;
                 this->refresh(instance, HOVERED);
             };
             inline void click(UI::Screen* instance, MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::SettingsMenu::click);
+                __functree_call__(Gmeng::UI::SettingsMenu::click);
                 this->refresh(instance, CLICKED);
             };
             inline void refresh(UI::Screen* instance, ButtonInteraction type) override {
@@ -1286,7 +1286,7 @@ namespace Gmeng {
             bool dragging; bool with_frame = false; vp viewspace = { {0,0}, {0,0} }; bool show_info = true;
             draginfo_t drag_info; small_render_t image; dp camera = { 0,0 }; bool allow_zoom = true; bool follow_cursor = false;
             Image(dp pos, small_render_t _image, bool with_frame = false, uicolor_t frame_color = UI_CYAN, uicolor_t frame_color_click = UI_BLUE) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Image);
+                __functree_call__(Gmeng::UI::Image);
                 this->position = pos;
                 this->hidden = this->clicked = false;
                 this->image = _image;
@@ -1331,7 +1331,7 @@ namespace Gmeng {
                 this->refresh(instance, CONTEXT_MENU);
             };
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::Image::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::Image::hover);
                 this->hovered = state;
                 if (!state) { this->clicked = false; this->hovered = false; return; };
                 if (state && this->clicked) { // clicked AND hovering
@@ -1351,7 +1351,7 @@ namespace Gmeng {
                 };
             };
             inline void click(UI::Screen* instance, MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Image::click);
+                __functree_call__(Gmeng::UI::Image::click);
                 if (this->jabelahe) return this->clicked = true, this->refresh(instance, CONTEXT_MENU);
                 this->clicked = !this->clicked; /// switch the status, only needed here because other elements handle click() differently
                 if (!this->clicked) { //previously clicked
@@ -1432,7 +1432,7 @@ namespace Gmeng {
                 };
             };
             inline void mouse_scroll(UI::Screen* instance, MouseScroll type) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Image::mouse_scroll);
+                __functree_call__(Gmeng::UI::Image::mouse_scroll);
                 if (!this->allow_zoom) return;
                 this->clicked = true;
                 /// for increasing and decreasing viewpoint
@@ -1451,7 +1451,7 @@ namespace Gmeng {
             };
             inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void context_menu(UI::Screen* instance) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::Image::context_menu);
+                __functree_call__(Gmeng::UI::Image::context_menu);
                 this->clicked = true;
                 if (this->active_context) {
                     this->jabelahe = true;
@@ -1504,7 +1504,7 @@ namespace Gmeng {
           public:
             const std::string* input = &_text; bool compact = false;
             LineTextBox(dp pos, std::size_t max_size, uicolor_t color, uicolor_t highlighted_color, bool compact, tfunc enter_func) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::LineTextBox);
+                __functree_call__(Gmeng::UI::LineTextBox);
                 this->position = pos;
                 this->hidden = false;
                 this->width = max_size;
@@ -1520,7 +1520,7 @@ namespace Gmeng {
                 /// NO FUNCTIONALITY;
             };
             inline void click(UI::Screen* instance, Interactions::MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::LineTextBox::click);
+                __functree_call__(Gmeng::UI::LineTextBox::click);
                 if (this->clicked) return;
                 if (instance->input_handler != NULL) {
                     instance->input_handler->clicked = false;
@@ -1589,7 +1589,7 @@ namespace Gmeng {
             using UI::Element::Element;
             bool extended = false; // show contents, or title of the menu only.
             ActionMenu(Renderer::drawpoint pos, std::string title, std::size_t width, std::size_t height, uicolor_t color, uicolor_t highlight_color) : Element() {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::ActionMenu);
+                __functree_call__(Gmeng::UI::ActionMenu);
                 this->position = pos;
                 this->hidden = false;
                 this->title = title;
@@ -1602,7 +1602,7 @@ namespace Gmeng {
             };
             inline void text_recv(UI::Screen* instance, char ch) override {};
             inline void click(UI::Screen* instance, UI::Interactions::MouseButton button) override {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::ActionMenu::click);
+                __functree_call__(Gmeng::UI::ActionMenu::click);
                 this->clicked = button == LEFT ? true : false;
                 this->refresh(instance, CLICKED);
                 instance->__refresh();
@@ -1612,7 +1612,7 @@ namespace Gmeng {
             };
 
             inline void hover(UI::Screen* instance, bool state) override {
-                if (state && !this->hovered) __functree_call__(__FILE__, __LINE__, Gmeng::UI::ActionMenu::hover);
+                if (state && !this->hovered) __functree_call__(Gmeng::UI::ActionMenu::hover);
                 this->hovered = state;
                 //if (this->clicked) return; // click does not affect ActionMenu elements.
                 if (state) this->refresh(instance, HOVERED);
@@ -1621,7 +1621,7 @@ namespace Gmeng {
 
             template<typename T>
             inline void add_member(std::unique_ptr<T> elem) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::UI::ActionMenu::add_member);
+                __functree_call__(Gmeng::UI::ActionMenu::add_member);
                 this->members.push_back(std::move(elem));
             };
 

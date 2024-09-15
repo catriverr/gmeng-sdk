@@ -1,5 +1,6 @@
 #pragma once
-#include <iostream>
+#include <string>
+
 #define __GMENG_OBJECTINIT__ true
 
 namespace Objects {

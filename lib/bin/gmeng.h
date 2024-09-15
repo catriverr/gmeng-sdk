@@ -129,24 +129,24 @@ static void _functree_vl(char* file, int line, const char* func) {
     Gmeng::func_last.push_back(dat);
 };
 
-#define __functree_call__(file, line, func) _functree_vl(file, line, vl_get_name(func))
+#define __functree_call__(func) _functree_vl(__FILE__, __LINE__, vl_get_name(func))
 
 
 #define v_str std::to_string
 
 template<typename T>
 static uintptr_t _uget_addr(const T& obj) {
-    //__functree_call__(__FILE__, __LINE__, _uget_addr);
+    //__functree_call__(_uget_addr);
     return (reinterpret_cast<uintptr_t>(&obj));
 };
 
 static bool file_exists(std::string f) {
-    __functree_call__(__FILE__, __LINE__, file_exists);
+    __functree_call__(file_exists);
     return std::filesystem::is_directory(f) || std::filesystem::exists(f);
 }
 
 static std::string repeatString(const std::string& str, int times) {
-    //__functree_call__(__FILE__, __LINE__, repeatString);
+    //__functree_call__(repeatString);
     std::string result = "";
     for (int i = 0; i < times; i++) {
         result += str;
@@ -175,14 +175,14 @@ static std::vector<std::vector<Thing>> splitThing(std::vector<Thing> obj, std::f
 };
 
 static std::string _uconv_1ihx(int value) {
-    //__functree_call__(__FILE__, __LINE__, _conv_1ihx);
+    //__functree_call__(_conv_1ihx);
     std::stringstream stream;
     stream << "0x" << std::hex << value;
     return stream.str();
 }
 
 static int g_mkid() {
-    //__functree_call__(__FILE__, __LINE__, g_mkid);
+    //__functree_call__(g_mkid);
     std::random_device rd; // random device to seed the generator
     std::mt19937 gen(rd()); // mersenne twister 19937 generator
     std::uniform_int_distribution<int> distribution(1000000, 9999999); // 7-digit range
@@ -215,14 +215,14 @@ static bool startsWith(const std::string& str, const char* prefix)
 };
 
 static void g_setTimeout(std::function<void()> callback, int delay) {
-    __functree_call__(__FILE__, __LINE__, g_setTimeout);
+    __functree_call__(g_setTimeout);
     std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     callback();
 }
 
 static std::string g_readFile(const string &fileName)
 {
-    __functree_call__(__FILE__, __LINE__, g_readFile);
+    __functree_call__(g_readFile);
     ifstream ifs(fileName.c_str(), ios::in | ios::binary | ios::ate);
 
     ifstream::pos_type fileSize = ifs.tellg();
@@ -235,7 +235,7 @@ static std::string g_readFile(const string &fileName)
 };
 
 static void g_rmChar( string &str, char* charsToRemove ) {
-    __functree_call__(__FILE__, __LINE__, g_rmChar);
+    __functree_call__(g_rmChar);
    for ( unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
       str.erase( remove(str.begin(), str.end(), charsToRemove[i]), str.end() );
    }
@@ -306,7 +306,7 @@ namespace Gmeng {
 		// __etp = event type
 		// __est = event script
 			inline void cast_ev(int __etp, std::string __est) {
-                __functree_call__(__FILE__, __LINE__, Gmeng::EventHandler::cast_ev);
+                __functree_call__(Gmeng::EventHandler::cast_ev);
                 if (__etp < 8500 || __etp > 8599) throw std::invalid_argument("Gmeng::EventHandler->cast_ev(int __etp <- right here | " + std::to_string(__etp) + " is not a valid event type"); 
                 if (__etp == Gmeng::CONSTANTS::C_InputEvent) std::cerr << __est;
 				if (__etp == Gmeng::CONSTANTS::C_PlugEvent) std::cerr << __est;
@@ -314,7 +314,7 @@ namespace Gmeng {
 				return;
 			};
 			inline std::string gen_estr(Gmeng::event __e) {
-                //__functree_call__(__FILE__, __LINE__, Gmeng::EventHandler::gen_estr);
+                //__functree_call__(Gmeng::EventHandler::gen_estr);
                 if (__e.id == Gmeng::CONSTANTS::IE_Type0) return std::string ("[gm0:core/__MOUSECLICK__]");
 				return std::string ("[gm0:core/__EVCAST] " +
 				std::to_string(__e.id) +
@@ -378,7 +378,7 @@ namespace Gmeng {
 		std::size_t width = _width; std::size_t height = _height;
 		int totalObjects; Gmeng::DisplayMap<_width, _height> display; Gmeng::RendererOptions options;
 		inline void setUnits(Unit unitmap[_width * _height]) {
-            __functree_call__(__FILE__, __LINE__, Gmeng::G_Renderer::setUnits);
+            __functree_call__(Gmeng::G_Renderer::setUnits);
 			for (int i = 0; i < _width * _height; i++) {
 				this->display.unitmap[i] = unitmap[i];
 			};
@@ -401,24 +401,24 @@ namespace Gmeng {
 };
 
 inline void controller_set(int index, std::string value) {
-    __functree_call__(__FILE__, __LINE__, controller_set);
+    __functree_call__(controller_set);
     Gmeng::global.indexes.push_back(index);
     Gmeng::global.containers.push_back(value);
 };
 inline void switch_dev_console() {
-    __functree_call__(__FILE__, __LINE__, switch_dev_console);
+    __functree_call__(switch_dev_console);
     Gmeng::global.dev_console = !Gmeng::global.dev_console;
 };
 
 inline std::string _uget_thread() {
-    /// __functree_call__(__FILE__, __LINE__, _uget_thread);
+    /// __functree_call__(_uget_thread);
     static std::atomic<int> counter(0);
     thread_local int threadId = counter.fetch_add(1);
     return std::to_string(threadId);
 };
 
 inline std::string _uthread_id(const std::thread& thread) {
-    /// __functree_call__(__FILE__, __LINE__, _uthread_id);
+    /// __functree_call__(_uthread_id);
     std::thread::id threadId = thread.get_id();
     size_t hashValue = std::hash<std::thread::id>{}(threadId);
     return std::to_string(hashValue);
@@ -434,7 +434,7 @@ inline std::string _uthread_id(const std::thread& thread) {
 #define v_rcol Gmeng::resetcolor
 
 static void gm_err(v_intl type, v_title err_title) {
-    __functree_call__(__FILE__, __LINE__, gm_err);
+    __functree_call__(gm_err);
     switch (type) {
         case 0: // v_gm_err case 0: continue running program
             std::cerr << Gmeng::colors[4] << "gm:0 *error >> " << err_title << v_endl << v_rcol;
@@ -452,13 +452,13 @@ inline Gmeng::Unit g_spike(int color = 0, int bgcolor = 0, bool big = false) {
 	return Gmeng::Unit{.color=color,.collidable=false,.special=true,.special_clr=bgcolor,.special_c_unit=(big ? "X" : "x")};
 };
 inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const std::string& targetName) {
-    __functree_call__(__FILE__, __LINE__, g_find_modifier);
+    __functree_call__(g_find_modifier);
     for (size_t i = 0; i < modifiers.size(); ++i) { if (modifiers[i].name == targetName) { return static_cast<int>(i); }; };
     return -1;
 }
 
 inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
-    __functree_call__(__FILE__, __LINE__, _ulogc_gen1dvfc);
+    __functree_call__(_ulogc_gen1dvfc);
     std::vector<std::string> vector;
     for (int i = 0; i < ln; i++) {
         vector.push_back("\x0b");
@@ -512,7 +512,7 @@ static void gm_nlog(std::string msg) {
 })
 
 static std::string str_replace(const std::string& str, const std::string& from, const std::string& to) {
-    // __functree_call__(__FILE__, __LINE__, str_replace);
+    // __functree_call__(str_replace);
     std::string result = str; std::size_t start_pos = 0;
     while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
         result.replace(start_pos, from.length(), to);
@@ -598,21 +598,21 @@ static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
 namespace Gmeng {
     static std::vector<std::thread> v_threads;
     static std::thread _ucreate_thread(std::function<void()> func) {
-        __functree_call__(__FILE__, __LINE__, Gmeng::_ucreate_thread);
+        __functree_call__(Gmeng::_ucreate_thread);
         return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back());
     };
     static void _uclear_threads() {
-        __functree_call__(__FILE__, __LINE__, Gmeng::_uclear_threads);
+        __functree_call__(Gmeng::_uclear_threads);
         v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end());
     };
     static void _ujoin_threads () {
-        __functree_call__(__FILE__, __LINE__, Gmeng::_ujoin_threads);
+        __functree_call__(Gmeng::_ujoin_threads);
         for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); try { if (thread.joinable()) thread.join(); _uclear_threads(); } catch (std::exception& e) { std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping..."); gm_log(" :::: error cause -> " + std::string(e.what())); }; };
     };
 }
 
 static void _gupdate_logc_intvl(int ms = 250) {
-    __functree_call__(__FILE__, __LINE__, _gupdate_logc_intvl);
+    __functree_call__(_gupdate_logc_intvl);
     #if __GMENG_ALLOW_LOG__ == false
         return;
     #endif
@@ -620,7 +620,7 @@ static void _gupdate_logc_intvl(int ms = 250) {
     __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
     __gmeng_write_log__("gmeng.log", "Executable Name: " + Gmeng::global.executable + "\n", true);
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
-            __functree_call__(__FILE__, __LINE__, _glog_thread_create);
+            __functree_call__(_glog_thread_create);
         for ( ;; ) {
             if (!Gmeng::global.dev_console) continue;
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
@@ -639,7 +639,7 @@ static void _gupdate_logc_intvl(int ms = 250) {
 
 static void _gthread_catchup() {
     __annotation__(_gthread_catchup, "Gmeng::_uthread catchup function, attaches to all threads and clears them.");
-    __functree_call__(__FILE__, __LINE__, _gthread_catchup);
+    __functree_call__(_gthread_catchup);
     gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
     Gmeng::_ujoin_threads();
 };
@@ -721,7 +721,7 @@ static std::string ws2s(const std::wstring& wstr) {
 ///// OS Check for windows
 static void __explain_why_i_cannot_run_to_dumbass_using_windows() {
     __annot__(__explain_why_i_cannot_run_to_dumbass_using_windows, "explains to a user using windows why windows cannot run gmeng.");
-    __functree_call__(__FILE__, __LINE__, __explain_why_i_cannot_run_to_dumbass_using_windows);
+    __functree_call__(__explain_why_i_cannot_run_to_dumbass_using_windows);
     std::cout << Gmeng::colors[4] << "libgmeng-abi: __excuse__" << std::endl;
     std::cout << "INTERNAL: __gmeng_platform__, __gmeng_threading__, __stdlib__, __libc++-abi__, __std_com_apple_main_pthread__" << std::endl;
     std::cout << "Gmeng is not available in a core-platform other than darwin ( apple_kernel )." << std::endl;
@@ -732,7 +732,7 @@ static void __explain_why_i_cannot_run_to_dumbass_using_windows() {
 
 static void patch_argv_global(int argc, char* argv[]) {
     __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
-    __functree_call__(__FILE__, __LINE__, patch_argv_global);
+    __functree_call__(patch_argv_global);
     #if _WIN32
         __explain_why_i_cannot_run_to_dumbass_using_windows();
         return;
@@ -743,7 +743,7 @@ static void patch_argv_global(int argc, char* argv[]) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
-            __functree_call__(__FILE__, __LINE__, __gmeng__help__menu__);
+            __functree_call__(__gmeng__help__menu__);
             struct winsize size;
             ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
             int times = size.ws_col-11;
