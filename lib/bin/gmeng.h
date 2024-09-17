@@ -24,6 +24,39 @@
 #include <sys/ioctl.h> //ioctl() and TIOCGWINSZ
 #endif
 #include <unistd.h> // for STDOUT_FILENO
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <limits.h>
+#endif
+
+/// Gets the current working directory
+static std::string get_cwd() {
+    char buffer[PATH_MAX];
+
+#ifdef _WIN32
+    if (GetCurrentDirectoryA(PATH_MAX, buffer)) {
+        return std::string(buffer);
+    }
+#else
+    if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+        return std::string(buffer);
+    }
+#endif
+    return std::string();
+}
+
+static std::string get_username() {
+    const char* username = nullptr;
+#ifdef _WIN32
+    username = getenv("USERNAME");
+#else
+    username = getenv("USER");
+#endif
+    if (username) return std::string(username);
+    else return std::string();
+};
+
 
 
 #ifdef __GMENG_OBJECTINIT__
@@ -86,8 +119,14 @@ static not_nullptr_t<int>* not_nullptr = &not_nullptr_ref;
             x,                                      \
             __FUNCTION__                            \
         )
+#define GET_PREF(x, f) Gmeng::Assertions::get_assert( \
+            x, f                                      \
+        )
 
 #define IS_SET Gmeng::Assertions::vd_assert::ON ==
+#define IS_DISABLED Gmeng::Assertions::vd_assert::OFF ==
+#define IS_UNKNOWN Gmeng::Assertions::vd_assert::NOT_SET ==
+
 #define DISABLE() Gmeng::Assertions::vd_assert::OFF
 #define ENABLE() Gmeng::Assertions::vd_assert::ON
 
@@ -102,7 +141,8 @@ namespace Gmeng {
     static std::map<std::string, std::string> func_annotations;
     static std::ofstream funclog("gmeng-functree.log");
     static bool functree_init = false;
-    static bool functree_enabled = true;
+    volatile static bool functree_enabled = true;
+    volatile static bool functree_extensive = true;
     static std::vector<std::string> func_last(5000);
 };
 
@@ -117,19 +157,20 @@ static void _func_annot(const char* func, const char* info) {
 
 #define __functree_init__() if (!Gmeng::functree_init) Gmeng::funclog << "-- cleared previous log --\n~~GMENG_FUNCTREE~~\n*** This file is used for diagnostics ***\n", Gmeng::functree_init = true
 
-static void _functree_vl(char* file, int line, const char* func) {
+static void _functree_vl(char* file, int line, const char* func, const char* pretty_func) {
     if (!Gmeng::functree_enabled) return;
     if (!Gmeng::functree_init) __functree_init__();
     std::string func_annot = "";
     auto v = Gmeng::func_annotations.find(func);
     if (v != Gmeng::func_annotations.end()) func_annot = "\t\t/// " + v->second;
-    std::string dat = vl_filename(file) + std::string(":") + std::to_string(line) + " >> " + func + func_annot;
+    std::string pretty_annot = Gmeng::functree_extensive ? std::string(" [ ") + pretty_func + " ]" : "";
+    std::string dat = vl_filename(file) + std::string(":") + std::to_string(line) + " >> " + func + pretty_annot + func_annot;
     Gmeng::funclog << dat << std::endl;
     if (Gmeng::func_last.size() >= Gmeng::func_last.max_size()) Gmeng::func_last.clear();
     Gmeng::func_last.push_back(dat);
 };
 
-#define __functree_call__(func) _functree_vl(__FILE__, __LINE__, vl_get_name(func))
+#define __functree_call__(func) _functree_vl(__FILE__, __LINE__, vl_get_name(func), __PRETTY_FUNCTION__)
 
 
 #define v_str std::to_string
@@ -387,16 +428,22 @@ namespace Gmeng {
     typedef struct {
         std::vector<int> indexes;
         std::vector<std::string> containers;
-        bool dev_console;
-        bool debugger;
-        bool log_stdout;
-        bool dev_mode;
-        bool dont_hold_back;
-        bool shush;
+
+        bool dev_console; bool debugger;
+        bool log_stout; bool dev_mode;
+        bool dont_hold_back; bool shush;
+
         std::string executable;
+        std::string user;
+        std::string pwd;
+
     } __global_object__;
     /// static__ , global_controllers__
-    static __global_object__ global;
+    static __global_object__ global = {
+        .dev_console = false, .debugger = false,
+        .log_stout = false, .dev_mode = false,
+        .dont_hold_back = false, .shush = false
+    };
     static std::ofstream outfile("gmeng.log");
 };
 
@@ -556,16 +603,20 @@ static std::string get_filename(string filepath) {
 };
 
 static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
-    if (Gmeng::Assertions::get_assert("pref.log", func) == Gmeng::Assertions::vd_assert::OFF) return;
-    std::string file = get_filename(std::string(file_)); // remove path, only use filename
+    if ((IS_DISABLED GET_PREF("pref.log", func))
+    && !Gmeng::global.dont_hold_back) {
+        __gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
+        return;
+    };
     #ifndef __GMENG_ALLOW_LOG__
-        __gmeng_write_log__("gmeng.log", "logging is disallowed");
+        __gmeng_write_log__("gmeng.log", "logging is disallowed\n");
         return;
     #endif
+    std::string file = get_filename(std::string(file_)); // remove path, only use filename
     #if __GMENG_ALLOW_LOG__ == true
         std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
         #if __GMENG_LOG_TO_COUT__ == true
-            if (Gmeng::global.log_stdout) std::cout << msg << std::endl;
+            if (Gmeng::global.log_stout) std::cout << msg << std::endl;
         #endif
         std::string _uthread = _uget_thread();
         std::string __vl_log_message__ = std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
@@ -596,18 +647,29 @@ static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
 };
 
 namespace Gmeng {
+    /// i now realise this may not be very secure
     static std::vector<std::thread> v_threads;
     static std::thread _ucreate_thread(std::function<void()> func) {
         __functree_call__(Gmeng::_ucreate_thread);
         return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back());
     };
     static void _uclear_threads() {
+        __annot__(Gmeng::_uclear_threads, "clears all used internal threads to prepare the environment for exiting.");
         __functree_call__(Gmeng::_uclear_threads);
         v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end());
     };
-    static void _ujoin_threads () {
+    static void _ujoin_threads() {
+        __annot__(Gmeng::_ujoin_threads, "joins all used internal threads by Gmeng. Ran before a program closes.");
         __functree_call__(Gmeng::_ujoin_threads);
-        for (auto& thread : Gmeng::v_threads) { gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread)); try { if (thread.joinable()) thread.join(); _uclear_threads(); } catch (std::exception& e) { std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping..."); gm_log(" :::: error cause -> " + std::string(e.what())); }; };
+        for (auto& thread : Gmeng::v_threads) {
+            gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread));
+            try {
+                if (thread.joinable()) thread.join();
+                _uclear_threads();
+            } catch (std::exception& e) {
+                std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping... (pretty big internal error please report / see https://gmeng.org/bug-report)");
+                gm_log(" :::: error cause -> " + std::string(e.what())); };
+        };
     };
 }
 
@@ -618,14 +680,14 @@ static void _gupdate_logc_intvl(int ms = 250) {
     #endif
     __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
     __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
-    __gmeng_write_log__("gmeng.log", "Executable Name: " + Gmeng::global.executable + "\n", true);
+    __gmeng_write_log__("gmeng.log", "----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n", true);
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
             __functree_call__(_glog_thread_create);
         for ( ;; ) {
             if (!Gmeng::global.dev_console) continue;
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
-                Gmeng::completelog << Gmeng::logstream.str();
-                Gmeng::logstream.str(""); /// flush sstream
+               Gmeng::completelog << Gmeng::logstream.str();
+               Gmeng::logstream.str(""); /// flush sstream
                _uflush_display(Gmeng::logc, 5);
                gm_log("t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
             };
@@ -737,6 +799,8 @@ static void patch_argv_global(int argc, char* argv[]) {
         __explain_why_i_cannot_run_to_dumbass_using_windows();
         return;
     #endif
+    Gmeng::global.pwd = get_cwd();
+    Gmeng::global.user = get_username();
 #if _WIN32 == false
     Gmeng::global.executable = (std::string(argv[0]).substr(std::string(argv[0]).rfind("/") + 1)).c_str();
     for (int i = 0; i < argc; i++) {
@@ -768,7 +832,7 @@ static void patch_argv_global(int argc, char* argv[]) {
         if ( argument == "-no-devc" || argument == "-shut-the-fuck-up" ) Gmeng::global.dev_console = false;
         if ( argument == "-shut-the-fuck-up" ) Gmeng::global.shush = true;
         if ( argument == "-debugger" || argument == "-debug" || argument == "--debugger" ) Gmeng::global.debugger = true;
-        if ( argument == "-log-to-cout" || argument == "-lc" ) Gmeng::global.log_stdout = true;
+        if ( argument == "-log-to-cout" || argument == "-lc" ) Gmeng::global.log_stout = true;
         if ( argument == "-devmode" ) Gmeng::global.dev_mode = true;
         if ( argument == "-tell-me-everything" ) Gmeng::global.shush = false, Gmeng::global.dev_mode = true, Gmeng::global.dev_console = true, Gmeng::global.dont_hold_back = true, Gmeng::global.debugger = true;
     };

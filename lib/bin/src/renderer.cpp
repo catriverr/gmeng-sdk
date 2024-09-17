@@ -1199,6 +1199,7 @@ namespace Gmeng {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
         };
         /// remove \n newlines and return base, with formatters to split units
+        //ASSERT("pref.log", DISABLE());
         return g_joinStr(g_splitStr(__final__, "\n"), "");
     };
 
@@ -1207,7 +1208,6 @@ namespace Gmeng {
     /// to create a rendered_viewpoint use Gmeng::_vget_renderscale2dpartial_scalar(level) and put its return value to get_lvl_view(level, value)
     inline void emplace_lvl_camera(Gmeng::Level& level_t, std::string cam_data) {
         __functree_call__(Gmeng::emplace_lvl_camera);
-        ASSERT("pref.log", Assertions::vd_assert::OFF);
         std::string cam_data_raw = cam_data;
         gm_log("emplace_lvl_camera -> retrieved viable camera data from rendered_viewpoint");
         int p = 0;
@@ -1218,6 +1218,7 @@ namespace Gmeng {
             p++;
         };
         gm_slog(GREEN, "emplace_lvl_camera", "-> buffer override complete, the rendered_viewpoint is transfered to the camera");
+        ASSERT("pref.log", DISABLE());
     };
 
 
