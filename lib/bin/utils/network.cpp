@@ -174,9 +174,12 @@ enum class path_type_t {
 
 // Define request and response types
 struct request {
-    std::string method;
-    std::string path;
-    std::string body;
+  using string = std::string;
+  typedef struct { string address; int id; } remote_t;
+
+  public:
+    string method; string path; string body;
+    remote_t remote;
 };
 
 struct response {
@@ -184,11 +187,20 @@ struct response {
     std::string body;
 };
 
+struct prequisite_client {
+    char* IP_ADDRESS;
+    int req_id = g_mkid();
+};
+
 // Server class definition
 class gmserver_t {
 public:
+    int port; int server_fd;
+    std::atomic<bool> exited;
+    std::atomic<bool> running;
+
     gmserver_t(int port) : port(port), server_fd(-1), running(false) {
-        __functree_call__(gmserver_t::gmserver_t);
+        __functree_call__(gmserver_t::__constructor__::gmserver_t);
     };
 
     void run() {
@@ -225,21 +237,36 @@ public:
 
         gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "Server running on port " + v_str(port));
 
-        while (true) {
+        running = true;
+
+        /// while the server is running / atomic bool
+        while (this->running.load()) {
             // Accept incoming connection
-            int client_fd = accept(server_fd, nullptr, nullptr);
+            sockaddr_in client_addr;
+            socklen_t client_len = sizeof (client_addr);
+
+            int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+
             if (client_fd < 0) {
                 gm_slog(Gmeng::YELLOW, "SERVER_"+v_str(port), "accept request failed");
                 continue;
             }
 
+            char ipaddr[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(client_addr.sin_addr), ipaddr, INET_ADDRSTRLEN);
+
+            prequisite_client client_data = {
+                .IP_ADDRESS = ipaddr,
+            };
+
             // Handle client request
-            handle_request(client_fd);
+            handle_request(client_fd, client_data);
 
             // Close client connection
             close(client_fd);
-        }
-        running = true;
+        };
+
+        this->exited = true;
 #endif
     }
 
@@ -254,17 +281,20 @@ public:
 
     void stop() {
         __functree_call__(gmserver_t::stop);
-        running = false;
-        if (server_fd != -1) {
+        this->running = false;
+        if (this->server_fd != -1) {
             close(server_fd);
-            server_fd = -1;
+            this->server_fd = -1;
+            this->exited = true;
+            this->exited = true;
         }
     }
 
 private:
-    void handle_request(int client_fd) {
+    void handle_request(int client_fd, prequisite_client prequisites) {
 #if _WIN32 == false
         __functree_call__(gmserver_t::__private__::handle_request);
+
         const int max_length = 1024;
         char buffer[max_length] = {0};
         int valread = read(client_fd, buffer, max_length - 1);
@@ -275,7 +305,7 @@ private:
         }
 
         // Parse HTTP request
-        request req = parse_request(buffer);
+        request req = parse_request(buffer, prequisites);
 
         // Prepare HTTP response
         response res;
@@ -295,7 +325,7 @@ private:
 #endif
     }
 
-    request parse_request(const char* buffer) {
+    request parse_request(const char* buffer, prequisite_client prequisites) {
         __functree_call__(gmserver_t::__private__::parse_request);
 #if _WIN32 == false
         request req;
@@ -321,7 +351,9 @@ private:
         const char* body_start = strstr(buffer, "\r\n\r\n");
         if (body_start) {
             req.body = body_start + 4; // Skip "\r\n\r\n"
-        }
+        };
+
+        req.remote = { prequisites.IP_ADDRESS, prequisites.req_id };
 
         return req;
 #endif
@@ -338,9 +370,6 @@ private:
 #endif
     }
 
-    int port;
-    int server_fd;
-    std::atomic<bool> running;
     std::unordered_map<std::string, std::function<void(request&, response&)>> get_paths;
     std::unordered_map<std::string, std::function<void(request&, response&)>> post_paths;
 };

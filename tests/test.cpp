@@ -281,6 +281,35 @@ int test_sdl_text() {
 };
 #endif
 
+int test_network() {
+    int PORT = 3333;
+    gmserver_t server (PORT);
+    server.create_path( path_type_t::GET, "/",
+    [&](request& req, response& res) -> void {
+        std::cout << "[TEST_NETWORK] GET request to " << req.path << " from " << req.remote.address << " (" << req.remote.id << ")\n";
+        res.status_code = 200;
+        res.body = "OK";
+        return (void) 0;
+    } );
+
+    server.create_path(path_type_t::GET, "/stop",
+    [&](request& req, response& res) -> void {
+        std::cout << "[TEST_NETWORK] (fd " << server.server_fd <<") stopping server... (request made by " << req.remote.address << ")\n";
+        res.status_code = 200;
+        res.body = "STOPPED";
+        server.stop();
+        return (void) 0;
+    } );
+
+    std::cout << "running in port " << PORT << '\n';
+    server.run();
+    if (!server.running.load() && !server.exited.load()) {
+        std::cout << "[TEST_NETWORK] " << server.exited << ": bind failed, wait a few seconds before restarting the server\n";
+        return 1;
+    };
+    return 0;
+};
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,
@@ -294,6 +323,7 @@ static std::vector<int (*)()> testids = {
 #if GMENG_SDL
     &test_sdl_text,
 #endif
+    &test_network,
 };
 
 using Gmeng::color_t;
@@ -322,7 +352,7 @@ int main(int argc, char* argv[]) {
         _gupdate_logc_intvl();
         gm::_uread_into_vgm("./envs/models");
         int total = 0;
-        std::vector<int> return_values;
+        std::vector<std::vector<int>> return_values;
         for (int i = 0; i < testids.size(); i++) {
             auto it = std::find(do_list.begin(), do_list.end(), i);
             if (it == do_list.end()) { std::cout << "skipping test_000" << i << ": since test loader do_list does not include it" << '\n'; continue; };
@@ -332,14 +362,14 @@ int main(int argc, char* argv[]) {
             try {
             int value = testids[i]();
             std::cout << "test 000" << i << "_test returned heap_value: " << _uconv_1ihx(value) << '\n';
-            return_values.push_back(value);
-            } catch (std::exception& e) { return_values.push_back(1); continue; };
+            return_values.push_back({ value, i });
+            } catch (std::exception& e) { return_values.push_back({ 1, i }); continue; };
         };
         _gthread_catchup();
         std::cout << "done running tests | total: " << total << '\n' << '\n';
         std::cout << Gmeng::resetcolor << Gmeng::boldcolor << "Test Results:\n";
         int i = 0;
-        for (auto rvalue : return_values) std::cout << Gmeng::boldcolor << Gmeng::colors[rvalue == 0 ? Gmeng::GREEN : Gmeng::RED] + "[" << (rvalue == 0 ? "+" : "-") << "] " << Gmeng::resetcolor << " test_000" + v_str(i) + ": " << rvalue << " " << (rvalue == 0 ? Gmeng::colors[Gmeng::GREEN] + "PASS" : Gmeng::colors[Gmeng::RED] + "FAIL") << Gmeng::resetcolor << "\n", i++;
+        for (auto rvalue : return_values) std::cout << Gmeng::boldcolor << Gmeng::colors[rvalue[0] == 0 ? Gmeng::GREEN : Gmeng::RED] + "[" << (rvalue[0] == 0 ? "+" : "-") << "] " << Gmeng::resetcolor << " test_000" + v_str(rvalue[1]) + ": " << rvalue[0] << " " << (rvalue[0] == 0 ? Gmeng::colors[Gmeng::GREEN] + "PASS" : Gmeng::colors[Gmeng::RED] + "FAIL") << Gmeng::resetcolor << "\n", i++;
         return 0;
     };
 };
