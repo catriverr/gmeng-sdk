@@ -821,8 +821,10 @@ static void patch_argv_global(int argc, char* argv[]) {
             SAY("\t    ~y~gmeng ~p~-devc \t\t~_~enables developer console\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-no-devc\t\t~_~disables developer console\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-devmode\t\t~_~enables developer diagnostics\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-log-to-cout\t\t~_~streams logs to stdout\t\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~-log-to-cout\t\t~_~streams logs to stout\t\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~-no-functree\t\t~_~disables the gmeng functree\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-debugger -debug\t~_~enables extensive debug logs\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~-functree-compact\t~_~makes functree logs compact\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-shut-the-fuck-up\t~_~silences all logging\t\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-tell-me-everything\t~_~enables all logging methods\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("~b~" + repeatString(" ", 11) + "~st~" + repeatString("-", times) + "~n~\n");
@@ -835,6 +837,8 @@ static void patch_argv_global(int argc, char* argv[]) {
         if ( argument == "-log-to-cout" || argument == "-lc" ) Gmeng::global.log_stout = true;
         if ( argument == "-devmode" ) Gmeng::global.dev_mode = true;
         if ( argument == "-tell-me-everything" ) Gmeng::global.shush = false, Gmeng::global.dev_mode = true, Gmeng::global.dev_console = true, Gmeng::global.dont_hold_back = true, Gmeng::global.debugger = true;
+        if ( argument == "-no-functree" ) { Gmeng::functree_enabled = false; SAY("~b~\x0F~y~WARN! ~_~it is not recommended to disable the Gmeng Functree.\n"); };
+        if ( argument == "-functree-compact" ) { Gmeng::functree_extensive = false; };
     };
 #endif
 };
