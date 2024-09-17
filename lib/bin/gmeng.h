@@ -605,7 +605,7 @@ static std::string get_filename(string filepath) {
 static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
     if ((IS_DISABLED GET_PREF("pref.log", func))
     && !Gmeng::global.dont_hold_back) {
-        __gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
+        //__gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
         return;
     };
     #ifndef __GMENG_ALLOW_LOG__
