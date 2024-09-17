@@ -924,6 +924,7 @@ namespace Gmeng {
     ///             -> splice_render_buffers( chunks ) => vector< UNIT(0) > units
     ///         -> _vcreate_vp2d_deltay, _vcreate_vp2d_deltax, _vcreate_vu2d_delta_xy
     inline std::string _vcamv_gen_frame(Gmeng::Level level_t) {
+        ASSERT("pref.log", DISABLE());
         __functree_call__(Gmeng::__deprecated_do_not_use__::_vcamv_gen_frame);
         gm_log("_vcamv_gen_frame() -> registering job_render to process queue [ __gmeng_invoke_expr__, __gmeng_vcamv_gen_frame__, __gmeng_renderer__ ]");
         std::string __final__ = "";
