@@ -1211,7 +1211,10 @@ namespace Gmeng {
         std::string cam_data_raw = cam_data;
         gm_log("emplace_lvl_camera -> retrieved viable camera data from rendered_viewpoint");
         int p = 0;
-        level_t.display.set_resolution(_vcreate_vp2d_deltax(level_t.display.viewpoint), _vcreate_vp2d_deltay(level_t.display.viewpoint));
+        auto deltas_x = _vcreate_vp2d_deltax(level_t.display.viewpoint);
+        auto deltas_y = _vcreate_vp2d_deltay(level_t.display.viewpoint);
+        if (level_t.display.width  != deltas_x
+        ||  level_t.display.height != deltas_y) level_t.display.set_resolution(deltas_x, deltas_y);
         for (const auto raw_unit : g_splitStr(cam_data_raw, "\x0F")) {
             if (Gmeng::global.debugger) gm_log("emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
             level_t.display.camera.raw_unit_map[p] = raw_unit + Gmeng::resetcolor;
