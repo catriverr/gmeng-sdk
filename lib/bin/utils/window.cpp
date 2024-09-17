@@ -26,6 +26,7 @@ namespace Gmeng {
         GMENG_NULL_T __ = { not_nullptr };
         GameWindow(const char* title, int width, int height)
             : window(nullptr), renderer(nullptr), width(width), height(height) {
+            __functree_call__(gmeng_external::__optional_utils__::libsdl2::GameWindow::__constructor__::GameWindow);
             if (IS_SET PREF("pref.max_screens_reached")) {
                 gm_log("wont proceed with Window creation, max screens reached");
                 return;
@@ -60,6 +61,7 @@ namespace Gmeng {
         };
 
         ~GameWindow() {
+            __functree_call__(gmeng_external::__optional_utils__::libsdl2::GameWindow::__destroy__);
             TTF_Quit();
             if (renderer) SDL_DestroyRenderer(renderer);
             if (window) SDL_DestroyWindow(window);
@@ -98,6 +100,7 @@ namespace Gmeng {
     };
 
     inline GameWindow create_window(const char* title, int width, int height) {
+        __functree_call__(gmeng_external::__optional_utils__::libsdl2::GameWindow::create_window);
         gm_log("[SDL_FRAME] window creation");
         if (IS_SET PREF("pref.max_screens_reached")) {
             gm_log("[SDL_FRAME] max screens reached assertion is jWRAP::ON, set to OFF or NOT_SET to create this screen. Cancelling GameWindow[constructor]->e");

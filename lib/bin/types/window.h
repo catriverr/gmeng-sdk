@@ -47,6 +47,7 @@ static uint32_t color_to_uint32(const SDL_Color& color) {
 
 // Function to create an SDL texture from a vector of SDL_Color
 static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
+    __functree_call__(gmeng_external::__optional_utils__::libsdl2::make_texture);
     uint32_t width = image.width;
     uint32_t height = image.height;
     std::vector<SDL_Color> units;
@@ -85,6 +86,7 @@ static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
 
 #if GMENG_SDLIMAGE
 static SDL_Texture* from_png(SDL_Renderer* renderer, const char* file_path) {
+    __functree_call__(gmeng_external::__optional_utils__::libsdl2::from_png);
     // Load the PNG file into an SDL_Surface
     SDL_Surface* surface = IMG_Load(file_path);
     if (!surface) {
