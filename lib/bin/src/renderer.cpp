@@ -246,14 +246,14 @@ namespace Gmeng {
     // which in Gmeng::Level::Display::draw() are located.
     // The chunk's std::vector<Gmeng::Renderer::Model> models object is recieved
     // and compiled into a Gmeng::Camera::unitmap;
-    struct r_chunk {
+    struct chunk {
         Gmeng::Renderer::viewpoint vp;
         std::vector<Gmeng::Renderer::Model> models;
     };
     // levelinfo (parsed into Gmeng::Level::load_level after Gmeng::parse_glvl())
     struct LevelInfo {
         Gmeng::Renderer::LevelBase base; std::string name; std::vector<int> display_res;
-        std::vector<Gmeng::r_chunk> chunks; std::string description;
+        std::vector<Gmeng::chunk> chunks; std::string description;
     };
     struct VectorView {
         std::map<int, std::vector<Gmeng::Unit>> vectors; std::size_t width = 1; std::size_t height = 1;
@@ -319,7 +319,7 @@ namespace Gmeng {
         gm_nlog("\n");
     };
     /// logs information about a viewpoint chunk
-    inline void log_vpc(Gmeng::r_chunk vp_chunk) {
+    inline void log_vpc(Gmeng::chunk vp_chunk) {
         __functree_call__(Gmeng::log_vpc);
         gm_nlog("vp_chunk->vpc_info : r_chunk & Gmeng::r_chunk & Gmeng::Renderer::Model & Gmeng::Texture & gm_vpcontrol\n");
         gm_nlog("metadata:\n");
@@ -515,7 +515,7 @@ namespace Gmeng {
                     std::vector<Gmeng::Renderer::Model> ls_models;
                     std::vector<std::string> vp_models = g_splitStr(params[5], ",");
                     for (const auto& vp_model : vp_models ) ls_models.push_back( models[vp_model] );
-                    info.chunks.push_back(Gmeng::r_chunk {
+                    info.chunks.push_back(Gmeng::chunk {
                         .vp = {
                             .start = { .x=std::stoi(params[1].substr(4)), .y=std::stoi(params[2].substr(4)) },
                             .end   = { .x=std::stoi(params[3].substr(4)), .y=std::stoi(params[4].substr(4)) }
@@ -545,7 +545,7 @@ namespace Gmeng {
     class Level {
         private:
             // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a Camera instance to render
-            inline std::vector<Gmeng::Unit> render_chunk(Gmeng::r_chunk chunk) {
+            inline std::vector<Gmeng::Unit> render_chunk(Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::__private__::render_chunk);
                 // write base_template skybox image to chunk (level 0 of canvas)
                 // base_template's viewpoint relative to the chunks viewpoint will be drawn as a base 'skybox' like image
@@ -624,11 +624,11 @@ namespace Gmeng {
                 gm_log("v_units -> size() : " + v_str(units.size()));
                 return units;
             };
-            inline Gmeng::r_chunk get_chunk(int id) {
+            inline Gmeng::chunk get_chunk(int id) {
                 __functree_call__(Gmeng::Level::__private__::get_chunk);
                 return this->chunks[id];
             };
-            inline void set_chunk(int id, Gmeng::r_chunk chunk) {
+            inline void set_chunk(int id, Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::__private__::set_chunk);
                 this->chunks[id] = chunk;
             };
@@ -647,8 +647,8 @@ namespace Gmeng {
             };
         public:
             Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display; Objects::G_Player player = Gmeng::v_base_player; Objects::coord plcoords = { .x=0, .y=0 };
-            std::vector<Gmeng::r_chunk> chunks; std::string desc; std::string name;
-            inline int load_chunk(Gmeng::r_chunk chunk) {
+            std::vector<Gmeng::chunk> chunks; std::string desc; std::string name;
+            inline int load_chunk(Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::load_chunk);
                 this->chunks.push_back(chunk);
                 return (this->chunks.size()-1);
@@ -697,7 +697,7 @@ namespace Gmeng {
             inline void draw_camera(int chunk_id) {
                 __functree_call__(Gmeng::Level::draw_camera);
                 if (chunk_id < 0 || chunk_id > chunks.size()) throw std::invalid_argument("chunk_id is invalid");
-                Gmeng::r_chunk chunk = this->chunks[chunk_id];
+                Gmeng::chunk chunk = this->chunks[chunk_id];
                 gm_log("render_chunk start" );
                 std::vector<Gmeng::Unit> vr_unit = this->render_chunk(chunk);
                 for (const auto& cv_unit : vr_unit) { gm_log("render_chunk -> result:success v_success -> preview_units: " + this->display.camera.draw_unit(cv_unit)); };
@@ -716,7 +716,7 @@ namespace Gmeng {
                 __functree_call__(Gmeng::Level::get_rendered_chunk);
                 return this->render_chunk(this->chunks[id]);
             };
-            inline std::vector<Gmeng::Unit> v_render_chunk(Gmeng::r_chunk chunk) {
+            inline std::vector<Gmeng::Unit> v_render_chunk(Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::v_render_chunk);
                 return this->render_chunk(chunk);
             };
@@ -797,9 +797,9 @@ namespace Gmeng {
         return __partial__;
     };
     /// traces a chunk's display position in a vector
-    inline std::vector<Gmeng::r_chunk> trace_chunk_vector(Gmeng::Level& level_t) {
+    inline std::vector<Gmeng::chunk> trace_chunk_vector(Gmeng::Level& level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::trace_chunk_vector);
-        std::vector<Gmeng::r_chunk> displays; Gmeng::Camera<0, 0> *pCamera = &(level_t.display.camera);
+        std::vector<Gmeng::chunk> displays; Gmeng::Camera<0, 0> *pCamera = &(level_t.display.camera);
         Gmeng::Renderer::Display *pDisplay = &(level_t.display);
         int __iterator_count__ = 0;
         __iterate_through__: for (const auto& chunk : level_t.chunks) {
@@ -812,7 +812,7 @@ namespace Gmeng {
         return displays;
     };
     /// combines render buffers into a list
-    inline std::vector<Unit> splice_render_buffers(std::vector<r_chunk> chunks, Gmeng::Level &level_t) {
+    inline std::vector<Unit> splice_render_buffers(std::vector<chunk> chunks, Gmeng::Level &level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::splice_render_buffers);
         std::vector<Unit> units;
         for (const auto& chunk : chunks) {
@@ -853,9 +853,9 @@ namespace Gmeng {
     };
     /// sorts a chunk vector according to its levels' viewpoints ( correct_formed_list )
     /// @deprecated not used internally, but returns values as expected
-    inline std::vector<r_chunk> _vsort_chunk_vector(Gmeng::Level& level_t) {
+    inline std::vector<chunk> _vsort_chunk_vector(Gmeng::Level& level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::_vsort_chunk_vector);
-        std::vector<r_chunk> chunks;
+        std::vector<chunk> chunks;
         int __base_width__ = level_t.base.width;
         int __iterator_value__ = 0;
         int __next_viewpoint_value__ = 0;
@@ -872,7 +872,7 @@ namespace Gmeng {
     inline std::vector<Gmeng::Unit> _vgen_camv_fv2cv(Gmeng::Level &level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::_vgen_camv_fv2cv);
         Gmeng::Renderer::Display *pDisplay = &level_t.display; Gmeng::Camera<0,0> *pCamera = &level_t.display.camera;
-        std::vector<r_chunk> chunks = Gmeng::trace_chunk_vector(level_t);
+        std::vector<chunk> chunks = Gmeng::trace_chunk_vector(level_t);
         std::vector<Unit> units = Gmeng::splice_render_buffers(chunks, level_t);
         std::vector<Unit> v_units_final;
         int x = 0, y = 0;
@@ -1005,7 +1005,7 @@ namespace Gmeng {
             for (int __lc = 0; __lc < lvl.base.lvl_template.width; __lc++) current_row.push_back(Gmeng::Unit{.color=PINK,.special=true,.special_clr=WHITE,.special_c_unit="?"});
             v_rows.push_back(current_row);
         }; // v8.2.0 / swapped to Units instead of rendered_units
-        for (const Gmeng::r_chunk chunk : lvl.chunks) {
+        for (const Gmeng::chunk chunk : lvl.chunks) {
             /// Y location from the start of the deltaY position of the viewpoint
             int vY = chunk.vp.start.y;
             /// X location from the start of the deltaX position of the viewpoint
