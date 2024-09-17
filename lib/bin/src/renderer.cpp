@@ -1199,7 +1199,7 @@ namespace Gmeng {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
         };
         /// remove \n newlines and return base, with formatters to split units
-        //ASSERT("pref.log", DISABLE());
+        ASSERT("pref.log", DISABLE());
         return g_joinStr(g_splitStr(__final__, "\n"), "");
     };
 
@@ -1213,11 +1213,11 @@ namespace Gmeng {
         int p = 0;
         level_t.display.set_resolution(_vcreate_vp2d_deltax(level_t.display.viewpoint), _vcreate_vp2d_deltay(level_t.display.viewpoint));
         for (const auto raw_unit : g_splitStr(cam_data_raw, "\x0F")) {
-            gm_log("emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
+            if (Gmeng::global.debugger) gm_log("emplace_lvl_camera -> overriding renderunit @ " + v_str(p) + " with cam_viewpoint[" + v_str(p) +"]");
             level_t.display.camera.raw_unit_map[p] = raw_unit + Gmeng::resetcolor;
             p++;
         };
-        gm_slog(GREEN, "emplace_lvl_camera", "-> buffer override complete, the rendered_viewpoint is transfered to the camera");
+        gm_log("buffer override complete, the rendered_viewpoint is transfered to the camera");
         ASSERT("pref.log", DISABLE());
     };
 
