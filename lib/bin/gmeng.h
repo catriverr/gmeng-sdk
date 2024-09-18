@@ -379,9 +379,16 @@ namespace Gmeng {
     };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
-	const char c_unit[4] = "\u2588";             // back when any of you
-	const char c_outer_unit[4] = "\u2584";       // ment something due to
-	const char c_outer_unit_floor[4] = "\u2580"; // somebody talking about you guys
+    // back when any of you
+    // meant something due to
+    // somebody talking about you guys
+
+    // unicode characters for the 'unit' pixel
+    // terminal-only - not used with sdl2 or ncurses
+    // for ncurses, see wc_unit
+    const char c_unit[4] = "\u2588";
+	const char c_outer_unit[4] = "\u2584";
+	const char c_outer_unit_floor[4] = "\u2580";
 	struct Unit {
 		public:
 			int color = 1; bool collidable = true; bool is_player = false; bool is_entity = false;
@@ -432,6 +439,7 @@ namespace Gmeng {
         bool dev_console; bool debugger;
         bool log_stout; bool dev_mode;
         bool dont_hold_back; bool shush;
+        bool weird_ass;
 
         std::string executable;
         std::string user;
@@ -442,7 +450,8 @@ namespace Gmeng {
     static __global_object__ global = {
         .dev_console = false, .debugger = false,
         .log_stout = false, .dev_mode = false,
-        .dont_hold_back = false, .shush = false
+        .dont_hold_back = false, .shush = false,
+        .weird_ass = false,
     };
     static std::ofstream outfile("gmeng.log");
 };
@@ -605,7 +614,7 @@ static std::string get_filename(string filepath) {
 static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
     if ((IS_DISABLED GET_PREF("pref.log", func))
     && !Gmeng::global.dont_hold_back) {
-        //__gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
+        if (Gmeng::global.weird_ass) __gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
         return;
     };
     #ifndef __GMENG_ALLOW_LOG__
@@ -839,6 +848,7 @@ static void patch_argv_global(int argc, char* argv[]) {
         if ( argument == "-tell-me-everything" ) Gmeng::global.shush = false, Gmeng::global.dev_mode = true, Gmeng::global.dev_console = true, Gmeng::global.dont_hold_back = true, Gmeng::global.debugger = true;
         if ( argument == "-no-functree" ) { Gmeng::functree_enabled = false; SAY("~b~\x0F~y~WARN! ~_~it is not recommended to disable the Gmeng Functree.\n"); };
         if ( argument == "-functree-compact" ) { Gmeng::functree_extensive = false; };
+        if ( argument == "-weird" ) Gmeng::global.weird_ass = true;
     };
 #endif
 };

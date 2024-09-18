@@ -9,6 +9,7 @@ class test_command_t : public Gmeng_Commandline::Subcommand {
   public:
     inline void run(vector<string>) override {
         LOG("~g~Hello, World!~n~\nexciting times...");
+        LOG("Current version: " + Gmeng::version);
     };
 
     test_command_t(string _name, string _description) {

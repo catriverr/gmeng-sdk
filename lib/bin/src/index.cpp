@@ -1,4 +1,6 @@
 /* modules */
+#define __GMENG_ALLOW_LOG__ true
+
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -26,6 +28,7 @@ int main(int argc, char** argv) {
 
     patch_argv_global(argc, argv);
     Gmeng_Commandline::patch_argv(argc, argv);
+    _gupdate_logc_intvl(1000);
 
     if (!Gmeng::global.shush) {
       SAY("~h~\x0F~y~WARN! ~_~This CLI is a work-in-progress beta.\n");
@@ -71,5 +74,6 @@ int main(int argc, char** argv) {
         params.erase(params.begin());
         Gmeng_Commandline::get_subcommand(subcmd)->run(params);
     };
+    _gthread_catchup();
     return 0;
 };

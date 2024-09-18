@@ -20,6 +20,7 @@ namespace Gmeng_Commandline {
     static bool init_arguments;
 
     static void patch_argv(int _argc, char** _argv) {
+        __functree_call__(Gmeng_Commandline::patch_argv);
         if (init_arguments) arguments.clear();
         argc = _argc; argv = _argv;
         for (int in = 0; in < _argc; in++)
@@ -28,11 +29,21 @@ namespace Gmeng_Commandline {
     };
 
     static bool check_scaremongerers() {
+        __functree_call__(Gmeng_Commandline::check_scaremongerers);
         bool found;
         for (const auto& val : arguments)
           if (val == "--i-am-a-scaremongerer") { found = true; break; };
         return found;
     };
+
+    struct execution_scope {
+        bool elevated = false;
+        int id; string name;
+        execution_scope(bool _elevated, int _id, string _name) : elevated(_elevated), id(_id), name(_name) {};
+    };
+
+    static const execution_scope gmng_user = execution_scope(false, g_mkid(), get_username() + ":tty");
+    static const execution_scope gmng_internal = execution_scope(true, 0, "gmeng:internal");
 
     class Subcommand {
       protected:
@@ -43,10 +54,12 @@ namespace Gmeng_Commandline {
           };
       public:
         subcmd_info_t info;
+        execution_scope scope = gmng_user;
 
         virtual ~Subcommand() = default;
 
         virtual bool check_arguments(vector<string> arguments) final {
+            __functree_call__(Gmeng_Commandline::Subcommand::__instance_any__::check_arguments);
             if ((this->info.requires_arguments
             &&   this->info.arg_count > 0) && (
             this->info.min_arg_count > arguments.size()
@@ -63,11 +76,17 @@ namespace Gmeng_Commandline {
 
 
         /// Base logger for the current subcommand
-        /// not internal
+        /// not internal / for subsystem logging
+        /// for text-based messages to the console,
+        /// use MSG(x)
         virtual void LOG(std::string data) final {
             std::string text = data;
             replace_all(text, "\n", "\n" + repeatString(" ", 3 + (int)this->info.name.length()  ));
-            SAY("[" + this->info.name + "] " + text + "\n");
+            SAY("(" + this->scope.name + ")[" + this->info.name + "] " + text + "\n");
+        };
+
+        virtual void MSG(std::string data) final {
+            SAY(data);
         };
 
         virtual void run(vector<string> arguments) = 0;
@@ -78,28 +97,24 @@ namespace Gmeng_Commandline {
 
     template<typename T>
     static void register_subcommand(std::unique_ptr<T> cmd) {
+        __functree_call__(Gmeng_Commandline::register_subcommand);
         Gmeng_Commandline::subcommands.insert_or_assign(
             cmd->info.name, std::move( cmd )
         );
     };
 
     static std::shared_ptr<Subcommand> get_subcommand(string name) {
+        __functree_call__(Gmeng_Commandline::get_subcommand);
         if (!Gmeng_Commandline::subcommands.contains(name)) return nullptr;
         auto returned_ob = Gmeng_Commandline::subcommands.find(name)->second.get();
+        if (Gmeng::global.dev_mode) returned_ob->scope = gmng_internal;
         return std::shared_ptr<Subcommand> ( returned_ob, [](Subcommand*) {} );
     };
-
-    struct execution_scope {
-        bool elevated = false;
-        int id; string name;
-        execution_scope(bool _elevated, int _id, string _name) : elevated(_elevated), id(_id), name(_name) {};
-    };
-
-    static const execution_scope gmng_internal = execution_scope(false, 0, "gmeng:internal");
 
     class InterfaceRegistrar {
       public:
           InterfaceRegistrar(std::unique_ptr<Subcommand> cmd) {
+              __functree_call__(Gmeng_Commandline::InterfaceRegistrar::registry_component_update);
               Gmeng_Commandline::register_subcommand( std::move( cmd ) );
           };
     };
