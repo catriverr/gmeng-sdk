@@ -47,7 +47,11 @@ static uint32_t color_to_uint32(const SDL_Color& color) {
 
 // Function to create an SDL texture from a vector of SDL_Color
 static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
-    __functree_call__(gmeng_external::__optional_utils__::libsdl2::make_texture);
+    // __functree_call__(gmeng_external::__optional_utils__::libsdl2::make_texture);
+    // too many calls to this function
+    // will be fixed later as this is a performace drop
+    // it's fine for now though - these methods are not ready to be used within
+    // actual gmeng game instances
     uint32_t width = image.width;
     uint32_t height = image.height;
     std::vector<SDL_Color> units;

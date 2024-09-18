@@ -54,7 +54,9 @@ namespace Gmeng::script_parser_util {
 
         void make_string_type(object_class* obj) {
             obj->name = string.name;
-            
+            obj->variables = string.variables;
+            obj->methods = string.methods;
+            obj->variables.find("content")->second.name = ""; // empty string
         };
     };
 
@@ -76,7 +78,7 @@ namespace Gmeng::script_parser_util {
             vector<string> params = split_string(trim(text.substr(typename_.length())), '=');
             if (params.size() <= 2) throw script_syntax_exception(file->filename + ":" + v_str(file->current_line) + " :: variable declaration requires arguments");
 
-            string varname_  = trim(params[0]), value_ = trim(params[1]);
+            string varname_ = trim(params[0]), value_ = trim(params[1]);
             decltype(this->classes.find(typename_)->second) t_obj;
             t_obj = *this->parse_value(value_);
 
@@ -88,10 +90,13 @@ namespace Gmeng::script_parser_util {
             string v_data = trim(data);
             if (v_data.starts_with("\"")) {
                 if (!v_data.ends_with("\"")) throw script_syntax_exception("string not closed, missing '\"' character at the end of string");
-                obj = builtin::string;
+                builtin::make_string_type(obj); /// turns the object into a string type
+                auto newstr = v_data.substr(1); /// removes the trailing " characters
+                newstr.pop_back(); /// removes the final char ('"') from the string
+                obj->variables.find("content")->second.name = newstr; // set value
             } else if (v_data.starts_with("{")) {
                 if (!v_data.ends_with("}")) throw script_syntax_exception("variable call must follow {var_name} syntax");
-                
+                /// value is a variable
             };
             return obj;
         };
