@@ -30,6 +30,7 @@ Frameworks:
 To get started, clone the repository with
 ```sh
 git clone https://github.com/catriverr/gmeng-sdk
+git submodule update --init --recursive
 ```
 you may use the following build options:
 ```make
