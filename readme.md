@@ -5,6 +5,7 @@
 <hr/>
 <p align="center">
 <img src="https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg">
+<img src="https://github.com/catriverr/liblmf/actions/workflows/c-cpp.yml/badge.svg">
 </p>
 
 ## Documentation
