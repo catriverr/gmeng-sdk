@@ -14,10 +14,20 @@
 namespace Gmeng_Commandline {
   using string = std::string;
 
+    struct execution_scope {
+        bool elevated = false;
+        int id; string name;
+        execution_scope(bool _elevated, int _id, string _name) : elevated(_elevated), id(_id), name(_name) {};
+    };
+
+    static const execution_scope gmng_user = execution_scope(false, g_mkid(), get_username() + ":tty");
+    static const execution_scope gmng_internal = execution_scope(true, 0, "gmeng:internal");    
+
     static int argc = 0;
     static char** argv;
     static vector<string> arguments;
     static bool init_arguments;
+    static execution_scope current_scope = gmng_user;
 
     static void patch_argv(int _argc, char** _argv) {
         __functree_call__(Gmeng_Commandline::patch_argv);
@@ -26,6 +36,7 @@ namespace Gmeng_Commandline {
         for (int in = 0; in < _argc; in++)
           arguments.push_back(_argv[in]);
         init_arguments = true;
+        if (Gmeng::global.dev_mode) current_scope = gmng_internal;
     };
 
     static bool check_scaremongerers() {
@@ -35,15 +46,6 @@ namespace Gmeng_Commandline {
           if (val == "--i-am-a-scaremongerer") { found = true; break; };
         return found;
     };
-
-    struct execution_scope {
-        bool elevated = false;
-        int id; string name;
-        execution_scope(bool _elevated, int _id, string _name) : elevated(_elevated), id(_id), name(_name) {};
-    };
-
-    static const execution_scope gmng_user = execution_scope(false, g_mkid(), get_username() + ":tty");
-    static const execution_scope gmng_internal = execution_scope(true, 0, "gmeng:internal");
 
     class Subcommand {
       protected:
@@ -55,6 +57,12 @@ namespace Gmeng_Commandline {
       public:
         subcmd_info_t info;
         execution_scope scope = gmng_user;
+        Subcommand(string _name, string _description) {
+            this->info = {
+                .name = _name,
+                .description = _description
+            };
+        };
 
         virtual ~Subcommand() = default;
 
@@ -82,11 +90,14 @@ namespace Gmeng_Commandline {
         virtual void LOG(std::string data) final {
             std::string text = data;
             replace_all(text, "\n", "\n" + repeatString(" ", 3 + (int)this->info.name.length()  ));
-            SAY("(" + this->scope.name + ")[" + this->info.name + "] " + text + "\n");
+            std::string msg = "(" + this->scope.name + ")[" + this->info.name + "] " + text;
+            gm_log(msg);
+            if (!check_scaremongerers()) SAY(msg + "\n");
         };
 
         virtual void MSG(std::string data) final {
-            SAY(data);
+            gm_log("[" + this->info.name + "] " + data + "\n");
+            if (!check_scaremongerers()) SAY(data);
         };
 
         virtual void run(vector<string> arguments) = 0;
@@ -123,7 +134,7 @@ namespace Gmeng_Commandline {
 
 #ifndef __GMENG_COMMANDLINE_IMPORTS__
 
-#include "./test.cc"
+#include "./commands.cc"
 
 #define __GMENG_COMMANDLINE_IMPORTS__ true
 
