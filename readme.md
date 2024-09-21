@@ -81,5 +81,8 @@ Gmeng takes the following preprocessor definitions:
 #define __GMENG_DRAW_AFTER_LOG__ // false, by default draws the dev-c console
 ```
 
+## Contributing
+Please refer to [`gmeng-sdk/CONTRIBUTING`](CONTRIBUTING.md) for guidelines on how to contribute.
+
 ## Contact
 you may contact me on  discord via `@catriverr`, or e-mail me at `nehir@mybutton.org`.
