@@ -1,7 +1,7 @@
 # Compiler and flags
 CXX := g++
-CXXWARNINGS :=  -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
+CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
+CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
 OUTFILE := -o gmeng
 
 USE_NCURSES := true
