@@ -1,0 +1,16 @@
+name: Greetings
+
+on: [pull_request_target, issues]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: "Welcome to Gmeng SDK! Please make sure to read [`gmeng.org/goals`](https://gmeng.org/goals), [`gmeng.org/report`](https://gmeng.org/report) for information about issues."
+        pr-message: "Welcome to Gmeng SDK! Please make sure to read [`gmeng.org/goals`](https://gmeng.org/goals), [`gmeng.org/subsystems`](https://gmeng.org/subsystems) and [`gmeng-sdk/CONTRIBUTING`](CONTRIBUTING.md) for information about how to contribute."
