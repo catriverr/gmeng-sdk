@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <array>
@@ -48,12 +49,13 @@ namespace Gmeng {
 		Objects::G_Entity entitymap[32767] = {};
 		std::size_t w = _w; std::size_t h = _h;
 		Gmeng::DisplayMap<_w, _h> display_map;
-		Gmeng::EventHandler event_handler;
+		Gmeng::EventHandler event_handler; /// going to be deprecated
 		std::string raw_unit_map[32767];
-		Objects::G_Player player = {};
-		Gmeng::Unit playerunit = {};
-		bool player_init = false;
-		int entitytotal = 0;
+		Objects::G_Player player = {}; /// going to be deprecated
+		Gmeng::Unit playerunit = {}; /// going to be deprecated
+		bool player_init = false; /// going to be deprecated
+		uint32_t entitytotal = 0; /// going to be deprecated
+        uint32_t frame_time = 0;
 		inline void SetResolution(std::size_t w, std::size_t h) {
             __functree_call__(Gmeng::Camera::SetResolution);
 			display_map.__h = h; display_map.__w = w;
@@ -67,6 +69,7 @@ namespace Gmeng {
 		};
 		inline void update() {
             __functree_call__(Gmeng::Camera::update);
+            auto time = GET_TIME();
 			for (int i = 0; i < this->h; i++) {
 				for (int j = 0; j < this->w; j++) {
 					if (i*j == this->h*this->w) break;
@@ -76,6 +79,8 @@ namespace Gmeng {
 					this->raw_unit_map[current_unit_id] = final;
 				};
 			};
+            auto time_fin = GET_TIME() - time;
+            this->frame_time = time_fin;
 		};
         inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
             __functree_call__(Gmeng::Camera::temp_displacement);
@@ -91,7 +96,7 @@ namespace Gmeng {
 		    	gm_log("Gmeng::Camera job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
                 gm_log("Gmeng::Camera job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
             };
-            this->clear_screen();
+            //this->clear_screen();
             std::string final = "";
             int cubic_height = (this->h % 2 == 0) ? (this->h/2) : (this->h/2)+1; // when cubic render is on, in case the height is not even, extend the height by 1 and fill with void.
             int cc = ( this->has_modifier("cubic_render") ) ? ( this->w*(cubic_height) ) : ( this->w*this->h );
@@ -170,7 +175,7 @@ namespace Gmeng {
 		};
 		inline void reset_cur() {
             __functree_call__(Gmeng::Camera::reset_cur);
-			this->set_curXY(-3, this->h);
+			this->set_curXY(-2, -2);
 		};
 		inline Objects::coord get_xy(int __p1) {
             __functree_call__(Gmeng::Camera::get_xy);

@@ -696,6 +696,7 @@ namespace Gmeng {
             // to the Display::Camera controller
             inline void draw_camera(int chunk_id) {
                 __functree_call__(Gmeng::Level::draw_camera);
+                ASSERT("pref.log", DISABLE());
                 if (chunk_id < 0 || chunk_id > chunks.size()) throw std::invalid_argument("chunk_id is invalid");
                 Gmeng::chunk chunk = this->chunks[chunk_id];
                 gm_log("render_chunk start" );
@@ -1117,6 +1118,7 @@ namespace Gmeng {
         unsigned int ptr = 0;
         gm_log("get_lvl_view -> expanding viewpoint of level_t's camera");
         /// expand the viewpoint to a vector of drawpoints
+        auto time_start = GET_TIME();
         auto resource = _vexpand_viewpoint(level_t.display.viewpoint);
         // for cubic_render, skips the Y position for already-drawn lines
         int skip_y_position = -1;
@@ -1194,6 +1196,8 @@ namespace Gmeng {
             ptr++;
             if (cubic_render) skip_y_position = dp.y+1; // v8.2.1-d / skip repeating already-drawn line
         };
+        auto time_fin = GET_TIME() - time_start;
+        level_t.display.camera.frame_time = time_fin;
         gm_log("get_lvl_view -> level view rendered");
         if (global.debugger) {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
