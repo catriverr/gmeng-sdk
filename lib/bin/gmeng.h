@@ -30,6 +30,11 @@
     #include <limits.h>
 #endif
 
+#define time_rn std::chrono::system_clock::now().time_since_epoch()
+#define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
+
+
+
 /// Gets the current working directory
 static std::string get_cwd() {
     char buffer[PATH_MAX];

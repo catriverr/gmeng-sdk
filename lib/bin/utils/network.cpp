@@ -19,9 +19,6 @@
 #include <vector>
 #include <sstream>
 
-#define time_rn std::chrono::system_clock::now().time_since_epoch()
-#define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
-
 
 
 /// CLIENT
