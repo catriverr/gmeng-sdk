@@ -32,6 +32,12 @@ To get started, clone the repository with
 git clone https://github.com/catriverr/gmeng-sdk
 git submodule update --init --recursive
 ```
+> [!WARNING]
+> You will need to run `git submodule update --init --recursive`<br>
+> to include the sources for libraries & dependencies which gmeng uses.<br>
+> Currently, gmeng uses the following libraries:
+> - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for script, interleaf and configuration parsing
+
 you may use the following build options:
 ```make
 builds:
