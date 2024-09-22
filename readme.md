@@ -42,7 +42,7 @@ git submodule update --init --recursive
 > Currently, gmeng uses the following libraries:
 > - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for script, interleaf and configuration parsing
 
-you may use the following build options:
+# Build Options
 ```make
 builds:
     make all (builds engine and cli)
