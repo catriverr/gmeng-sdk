@@ -6,6 +6,7 @@
 <p align="center">
 <img src="https://github.com/catriverr/gmeng-sdk/actions/workflows/c-cpp.yml/badge.svg">
 <img src="https://github.com/catriverr/liblmf/actions/workflows/c-cpp.yml/badge.svg">
+<img src="https://img.shields.io/github/v/release/catriverr/gmeng-sdk?label=version&color=F68019">
 </p>
 
 ## Documentation
