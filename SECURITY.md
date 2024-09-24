@@ -7,6 +7,7 @@ However, Versions below v4.0.0 are deprecated, thus are not met with security up
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 9.x.x   | :white_check_mark: |
 | 8.x.x   | :white_check_mark: |
 | latest  | :white_check_mark: |
 | 4.0.0+  | :white_check_mark: |
