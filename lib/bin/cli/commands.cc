@@ -54,6 +54,9 @@ class editor_command_t : public Gmeng_Commandline::Subcommand {
             MSG(">> ~_~\x0F~r~the execution scope of this editor is different than the user's scope~n~\n");
             return;
         };
+
+        auto editor = Gmeng::Editors::map.find(editor_name)->second.get();
+        editor->menu();
     };
 };
 
