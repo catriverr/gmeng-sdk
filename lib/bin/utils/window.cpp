@@ -53,7 +53,7 @@ namespace Gmeng {
                 SDL_Quit();
                 return;
             };
-            std::string font_path = "press_start.ttf";
+            std::string font_path = "assets/press_start.ttf";
             font = TTF_OpenFont(font_path.c_str(), 24); // Default font and size
             if (!font) {
                 throw std::runtime_error("TTF_OpenFont Error: " + std::string(TTF_GetError()));
