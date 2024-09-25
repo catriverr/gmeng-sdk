@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(25-Sep-2024) info**: `initialize CHANGELOG` | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(25-Sep-2024) info**: swapped to `Zlib License` | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
