@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://allahcorp.com/static/assets/gmeng-more-hd.png##">
+    <img src="https://allahcorp.com/static/assets/gmeng-more-hd.png##" style="max-width: 900px;">
     <h2>Gmeng Changelog</h2>
 </div>
 
