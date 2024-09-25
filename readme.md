@@ -9,11 +9,11 @@
 <img src="https://img.shields.io/github/v/release/catriverr/gmeng-sdk?label=version&color=F68019">
 </p>
 
+## Changelog
+[`See what's new`](CHANGELOG.md) **(25-Sep-2024) info**: `initialize CHANGELOG`
+
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
-
-## Changelog
-Gmeng's changelog can be found in [`gmeng-sdk/CHANGELOG`](CHANGELOG.md) (25/09/2024 - `initialize CHANGELOG`)
 
 ## Building
 
