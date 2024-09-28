@@ -86,7 +86,7 @@ Gmeng takes the following preprocessor definitions:
 ```
 
 ## Contributing
-Please refer to [`gmeng-sdk/CONTRIBUTING`](CONTRIBUTING.md) for guidelines on how to contribute.
+Please refer to [`gmeng-sdk/CONTRIBUTING`](.github/CONTRIBUTING.md) for guidelines on how to contribute.
 
 ## Contact
 you may contact me on  discord via `@catriverr`, or e-mail me at `nehir@mybutton.org`.
