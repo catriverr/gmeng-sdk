@@ -8,7 +8,7 @@ Latest entry is dated `28/09/2024`.
 
 **28/09/2024 (info)** - repository cleanup
 > CODE_OF_CONDUCT and CONTRIBUTING have been moved to the `.github` directory
-> so the repository is less packed. The `.clangd` file has also been removed as it remained unused.
+> so the repository is less packed.<br> The `.clangd` file has also been removed as it previously remained unused.
 
 **25/09/2024 (info)** - swapped to `Zlib License`
 > Gmeng now uses the Zlib License as it better fits its use cases.
