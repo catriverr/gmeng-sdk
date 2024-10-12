@@ -37,6 +37,7 @@ Systems:
 - Node.JS 19.8.1 or later
 - npm 9.2.0 or later
 - homebrew
+
 Frameworks:
 - ncurses/ncursesw 6.5 or later
 - libcurl 8.4.0 or later
