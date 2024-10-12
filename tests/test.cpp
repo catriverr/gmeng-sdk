@@ -315,6 +315,8 @@ int test_network() {
     return 0;
 };
 
+#include "../lib/bin/utils/binary.cpp"
+
 static std::vector<int (*)()> testids = {
     &test_vgmcontent,
     &test_caketxtr,

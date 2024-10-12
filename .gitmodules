@@ -1,3 +1,6 @@
 [submodule "include/liblmf"]
 	path = include/liblmf
 	url = https://github.com/catriverr/liblmf
+[submodule "include/noble"]
+	path = include/noble
+	url = https://github.com/catriverr/noble

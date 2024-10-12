@@ -44,8 +44,8 @@ git submodule update --init --recursive
 > You will need to run `git submodule update --init --recursive`<br>
 > to include the sources for libraries & dependencies which gmeng uses.<br>
 > Currently, gmeng uses the following libraries:
-> - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for script, interleaf and configuration parsing
-
+> - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for interleafing and configuration file parsing
+> - [`catriverr/noble`] for scripting, script parsing and plugin support
 ### Build Options
 ```make
 builds:
