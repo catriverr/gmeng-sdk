@@ -23,14 +23,22 @@ This project uses the [**GNU Make**](https://www.gnu.org/software/make/) build s
 ```cmake
 Systems:
 - gnu-make
-- Node.JS 19.8.1 or later
-- npm 9.2.0 or later
 - g++ with stdc++20 or gnu++20
-- homebrew
 
 Frameworks:
-- ncurses/ncursesw 6.5 or later
+- noble-lang (included)
+- liblmf (included)
 - pkg-config 0.29.2 or later
+
+```
+### Optional Utilities
+```cmake
+Systems:
+- Node.JS 19.8.1 or later
+- npm 9.2.0 or later
+- homebrew
+Frameworks:
+- ncurses/ncursesw 6.5 or later
 - libcurl 8.4.0 or later
 - ApplicationServices
 ```
