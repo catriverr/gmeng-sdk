@@ -79,8 +79,8 @@ lib/bin/out/gmeng: lib/bin/src/index.cpp
 	$(CXX) $(OUTFILE) lib/bin/src/index.cpp $(CXXFLAGS)
 
 # Target for test, builds test.cpp
-test: test.cpp
-	$(CXX) -o test test.cpp $(CXXFLAGS)
+test: tests/editor_test.cpp
+	$(CXX) -o test tests/editor_test.cpp $(CXXFLAGS)
 
 # Target for test2, builds tests/test.cpp
 test2: tests/test.cpp
