@@ -475,7 +475,7 @@ namespace Gmeng {
 
 /// runs an event loop instance
 /// (this means handling the level as the main event loop / the instance of the game)
-int do_event_loop(EventLoop* ev) {
+int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::EventLoop_Controller_State state;
 
     if (Gmeng::main_event_loop != nullptr) return 1;
