@@ -364,13 +364,8 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 
 
 namespace Gmeng::TerminalUtil {
-    void enable_mouse_tracking() {
-        std::cout << "\033[?1000h" << std::flush;
-    }
-
-    void disable_mouse_tracking() {
-        std::cout << "\033[?1000l" << std::flush;
-    }
+    void enable_mouse_tracking()  { std::cout << "\033[?1000h" << std::flush; };
+    void disable_mouse_tracking() { std::cout << "\033[?1000l" << std::flush; };
 
     void set_raw_mode() {
         struct termios t;
@@ -487,6 +482,7 @@ int do_event_loop(EventLoop* ev) {
     Gmeng::main_event_loop = ev;
 
     char buf[32];
+
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
         if (n > 0) { /// if the event is not null
@@ -508,6 +504,7 @@ int do_event_loop(EventLoop* ev) {
             };
         };
     };
+
     Gmeng::main_event_loop = nullptr;
     return 0;
 };
