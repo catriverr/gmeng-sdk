@@ -147,7 +147,7 @@ namespace Gmeng {
     static std::ofstream funclog("gmeng-functree.log");
     static bool functree_init = false;
     volatile static bool functree_enabled = true;
-    volatile static bool functree_extensive = true;
+    volatile static bool functree_extensive = false;
     static std::vector<std::string> func_last(5000);
 };
 
@@ -616,31 +616,59 @@ static std::string get_filename(string filepath) {
     return fd[fd.size()-1];
 };
 
+
+#include <iomanip>
+
+static std::string get_curtime() {
+    // Get current time
+    std::time_t now = std::time(nullptr);
+    std::tm* local_time = std::localtime(&now);
+
+    // Format the time as hour:minute:second
+    std::ostringstream time_stream;
+    time_stream << std::setw(2) << std::setfill('0') << local_time->tm_hour << ":"
+                << std::setw(2) << std::setfill('0') << local_time->tm_min << ":"
+                << std::setw(2) << std::setfill('0') << local_time->tm_sec;
+
+    return time_stream.str();
+};
+
+static std::string get_curdate() {
+    // Get current time
+    std::time_t now = std::time(nullptr);
+    std::tm* local_time = std::localtime(&now);
+
+    // Format the date as month:day
+    std::ostringstream date_stream;
+    date_stream << std::setw(2) << std::setfill('0') << (local_time->tm_mon + 1) << "."
+                << std::setw(2) << std::setfill('0') << local_time->tm_mday;
+
+    return date_stream.str();
+};
+
 static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
     if ((IS_DISABLED GET_PREF("pref.log", func))
     && !Gmeng::global.dont_hold_back) {
         if (Gmeng::global.weird_ass) __gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
         return;
     };
-    #ifndef __GMENG_ALLOW_LOG__
-        __gmeng_write_log__("gmeng.log", "logging is disallowed\n");
-        return;
-    #endif
+
     std::string file = get_filename(std::string(file_)); // remove path, only use filename
-    #if __GMENG_ALLOW_LOG__ == true
         std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
         #if __GMENG_LOG_TO_COUT__ == true
             if (Gmeng::global.log_stout) std::cout << msg << std::endl;
         #endif
+        #if __GMENG_DISABLE_LOG__ == true
+            return;
+        #endif
         std::string _uthread = _uget_thread();
-        std::string __vl_log_message__ = std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
+        std::string __vl_log_message__ = "(" + get_curtime() + ") " + std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
         Gmeng::logstream << __vl_log_message__;
         __gmeng_write_log__("gmeng.log", __vl_log_message__);
         if (Gmeng::global.dev_console) _utext(Gmeng::logc, __vl_log_message__);
         #if __GMENG_DRAW_AFTER_LOG__ == true
             if (Gmeng::global.dev_console) _udraw_display(Gmeng::logc);
         #endif
-    #endif
 };
 
 static void dgm_log(const char* file, int line, std::string _msg, bool use_endl = true) {
@@ -685,16 +713,23 @@ namespace Gmeng {
                 gm_log(" :::: error cause -> " + std::string(e.what())); };
         };
     };
-}
+};
 
-static void _gupdate_logc_intvl(int ms = 250) {
-    __functree_call__(_gupdate_logc_intvl);
-    #if __GMENG_ALLOW_LOG__ == false
+static string boolstr(bool x) {
+    if (x == true) return "true";
+    else return "false";
+};
+
+static void init_logc(int ms = 250) {
+    __functree_call__(init_logc);
+    #if __GMENG_DISABLE_LOG__ == true
         return;
     #endif
     __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
-    __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
+    __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
     __gmeng_write_log__("gmeng.log", "----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n", true);
+    __gmeng_write_log__("gmeng.log", "Global Variables\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n", true);
+
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
             __functree_call__(_glog_thread_create);
         for ( ;; ) {
@@ -838,7 +873,7 @@ static void patch_argv_global(int argc, char* argv[]) {
             SAY("\t    ~y~gmeng ~p~-log-to-cout\t\t~_~streams logs to stout\t\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-no-functree\t\t~_~disables the gmeng functree\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-debugger -debug\t~_~enables extensive debug logs\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-functree-compact\t~_~makes functree logs compact\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~-functree-extensive\t~_~makes functree logs extensive\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-shut-the-fuck-up\t~_~silences all logging\t\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-tell-me-everything\t~_~enables all logging methods\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("~b~" + repeatString(" ", 11) + "~st~" + repeatString("-", times) + "~n~\n");
@@ -852,9 +887,10 @@ static void patch_argv_global(int argc, char* argv[]) {
         if ( argument == "-devmode" ) Gmeng::global.dev_mode = true;
         if ( argument == "-tell-me-everything" ) Gmeng::global.shush = false, Gmeng::global.dev_mode = true, Gmeng::global.dev_console = true, Gmeng::global.dont_hold_back = true, Gmeng::global.debugger = true;
         if ( argument == "-no-functree" ) { Gmeng::functree_enabled = false; SAY("~b~\x0F~y~WARN! ~_~it is not recommended to disable the Gmeng Functree.\n"); };
-        if ( argument == "-functree-compact" ) { Gmeng::functree_extensive = false; };
+        if ( argument == "-functree-extensive" ) { Gmeng::functree_extensive = true; };
         if ( argument == "-weird" ) Gmeng::global.weird_ass = true;
     };
+    init_logc();
 #endif
 };
 
@@ -875,6 +911,7 @@ static void patch_argv_global(int argc, char* argv[]) {
 #endif
 #endif
 #endif
+#include "utils/util.cpp"
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;

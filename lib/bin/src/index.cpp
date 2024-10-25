@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 
     patch_argv_global(argc, argv);
     Gmeng_Commandline::patch_argv(argc, argv);
-    _gupdate_logc_intvl(1000);
+    init_logc(1000);
 
     if (!Gmeng::global.shush) {
       SAY("~h~\x0F~y~WARN! ~_~This CLI is a work-in-progress beta.\n");

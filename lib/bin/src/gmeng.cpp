@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <array>
@@ -361,18 +362,50 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 
 #include <unistd.h>
 #include <termios.h>
+#include <fcntl.h>
+#include <errno.h>
+
 
 
 namespace Gmeng::TerminalUtil {
     void enable_mouse_tracking()  { std::cout << "\033[?1000h" << std::flush; };
     void disable_mouse_tracking() { std::cout << "\033[?1000l" << std::flush; };
 
-    void set_raw_mode() {
-        struct termios t;
-        tcgetattr(STDIN_FILENO, &t);
-        t.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(STDIN_FILENO, TCSANOW, &t);
+    struct termios orig_termios;
+    bool already_set = false;
+
+    void cleanup() {
+        disable_mouse_tracking();
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    };
+
+    void set_raw_mode(bool state) {
+        if (state) {
+            std::atexit(cleanup);
+            if (already_set) return;
+            already_set = true;
+            struct termios t;
+            tcgetattr(STDIN_FILENO, &t);
+            orig_termios = t;
+            t.c_lflag &= ~(ICANON | ECHO);
+            tcsetattr(STDIN_FILENO, TCSANOW, &t);
+        } else {
+            already_set = false;
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+        };
     }
+
+    void set_non_blocking(bool state) { /// DO NOT USE, IT CAN NOT BE DISABLED
+        if (state) {
+            int flags = fcntl(STDIN_FILENO, F_GETFL);
+            flags |= O_NONBLOCK;
+            fcntl(STDIN_FILENO, F_SETFL, flags);
+        } else {
+            int flags = fcntl(STDIN_FILENO, F_GETFL);
+            flags &= ~O_NONBLOCK;
+            fcntl(STDIN_FILENO, F_SETFL, flags);
+        };
+    };
 };
 
 
@@ -384,25 +417,58 @@ namespace Gmeng {
     enum Event {
         INIT,
         UPDATE,
+        FIXED_UPDATE,
         RESET,
         RELOAD,
+        EXIT,
 
         MOUSE_CLICK_LEFT_START,
-        MOUSE_CLICK_LEFT_END,
-
         MOUSE_CLICK_RIGHT_START,
-        MOUSE_CLICK_RIGHT_END,
-
         MOUSE_CLICK_MIDDLE_START,
-        MOUSE_CLICK_MIDDLE_END,
+        MOUSE_CLICK_END_ANY,
 
         MOUSE_SCROLL_UP,
         MOUSE_SCROLL_DOWN,
 
-        KEYPRESS
+        KEYPRESS,
+
+        UNKNOWN,
+        EVENT_COUNT // helper for the event name receiver, do not remove
     };
 
-    typedef struct {
+    const std::string& get_event_name(Event event) {
+        static const std::string event_names[EVENT_COUNT] = {
+            "INIT",
+            "UPDATE",
+            "FIXED_UPDATE",
+            "RESET",
+            "RELOAD",
+            "EXIT",
+            "MOUSE_CLICK_LEFT_START",
+            "MOUSE_CLICK_RIGHT_START",
+            "MOUSE_CLICK_MIDDLE_START",
+            "MOUSE_CLICK_END_ANY",
+            "MOUSE_SCROLL_UP",
+            "MOUSE_SCROLL_DOWN",
+            "KEYPRESS",
+            "UNKNOWN"
+        };
+        if (event < 0 || event >= EVENT_COUNT) {
+            static const std::string unknown = "UNKNOWN";
+            return unknown;
+        }
+        return event_names[event];
+    }
+
+    string list_events(vector<Event> events) {
+        string final;
+        for (const auto ev : events) {
+            final += get_event_name(ev) + ", ";
+        };
+        return final;
+    };
+
+    typedef struct EventInfo {
         Event EVENT;
         char KEYPRESS_CODE;
         int MOUSE_X_POS;
@@ -411,9 +477,13 @@ namespace Gmeng {
         bool prevent_default = false;
     } EventInfo;
 
+    EventInfo NO_EVENT_INFO = EventInfo { Gmeng::UNKNOWN, 0, -1, -1, false };
+    EventInfo INIT_INFO = EventInfo { Gmeng::INIT, 0, -1, -1, false };
+
+    using handler_function_type = std::function<void(Gmeng::Level*, EventInfo*)>;
     typedef struct {
         int id; vector<Event> events;
-        std::function<void(Gmeng::Level*, EventInfo*)> handler;
+        handler_function_type handler;
     } EventHook;
 
     typedef struct EventLoop {
@@ -427,7 +497,7 @@ namespace Gmeng {
         EventLoop( vector<EventHook> hooks_ ) : hooks(hooks_) {
             this->id = g_mkid();
             gm_log("" $(id) ": created main game eventloop with id " $(this->id) ".");
-            TerminalUtil::set_raw_mode();
+            TerminalUtil::set_raw_mode(true);
             gm_log("" $(id) ": set terminal state to raw mode.");
             TerminalUtil::enable_mouse_tracking();
             gm_log("" $(id) ": enabled mouse tracking");
@@ -435,13 +505,26 @@ namespace Gmeng {
 
         ~EventLoop() {
             gm_log("" $(id) ": destroyed eventloop " $(this->id) ".");
-            TerminalUtil::disable_mouse_tracking();
             gm_log("" $(id) ": disabled mouse tracking");
+            TerminalUtil::set_non_blocking(false);
+            gm_log(""$(id)": disabled non blocking input mode");
+            TerminalUtil::disable_mouse_tracking();
         };
 
-        void call_event(Event ev, EventInfo& info) {
+        void add_hook(vector<Event> events, handler_function_type handler) {
+            int id = g_mkid();
+            this->hooks.push_back({ id, events, handler });
+            gm_log("registered an EventHook("$(id)") for the following events:");
+            gm_log(list_events(events) + ".");
+        };
+
+        void call_event( Event ev, EventInfo& info ) {
             for (auto& hook : this->hooks) {
                 if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
+                    if ((global.dev_mode || global.debugger)) {
+                        if ((ev == UPDATE || ev == FIXED_UPDATE) && !Gmeng::global.dont_hold_back); /// dont log update calls unless dont_hold_back is enabled
+                        else gm_log("call to external event hook(id="$(hook.id)") for event " + get_event_name(ev));
+                    };
                     hook.handler( this->level, &info );
                     /// Runs the handler for the hook
                     /// Keep in mind that hooks may have more than one handler,
@@ -456,6 +539,7 @@ namespace Gmeng {
 
             for (auto& hook : this->defaults) {
                 if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
+                if (global.dev_mode || global.debugger) gm_log("call to default event hook(id="$(hook.id)") for event " + get_event_name(ev));
                     hook.handler( this->level, &info );
                     /// Runs the handler for the hook
                     /// Keep in mind that hooks may have more than one handler,
@@ -473,6 +557,13 @@ namespace Gmeng {
     } EventLoop_Controller_State;
 };
 
+#define MOUSE_REST_2_CHECKER(x) x == 0 ? Gmeng::MOUSE_CLICK_LEFT_START : (\
+                                        x == 1 ? Gmeng::MOUSE_CLICK_MIDDLE_START : (\
+                                                x == 2 ? Gmeng::MOUSE_CLICK_RIGHT_START : (\
+                                                        x == 3 ? Gmeng::MOUSE_CLICK_END_ANY : Gmeng::UNKNOWN )))
+#define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
+#define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
+
 /// runs an event loop instance
 /// (this means handling the level as the main event loop / the instance of the game)
 int do_event_loop(Gmeng::EventLoop* ev) {
@@ -482,6 +573,14 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::main_event_loop = ev;
 
     char buf[32];
+
+    if (!ev->cancelled) ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
+
+    Gmeng::_ucreate_thread([&]() {
+        while (!ev->cancelled) {
+            ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
+        };
+    });
 
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
@@ -498,13 +597,45 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 ///  - all buttons release: 3 (track with state.last_event to determine)
                 int button = buf[3] - 32;
                 int x = buf[4] - 32; int y = buf[5] - 32;
+
+                Gmeng::Event event_tp = SELECT_MOUSE_EVENT(button);
+
+                if (event_tp == Gmeng::UNKNOWN) {
+                    gm_log("received an unknown supposed mouse event: SELECT_MOUSE_EVENT(x): { UNKNOWN, .button="$(button)", .posX="$(x)", .posY="$(y)" }");
+                    gm_log("cancelling this event call.               ^ ~~~~~~~~~~~~~~~~~~");
+                    continue;
+                };
+
+                Gmeng::EventInfo info = {
+                    .EVENT = event_tp,
+                    .KEYPRESS_CODE = 0,
+                    .MOUSE_X_POS = x,
+                    .MOUSE_Y_POS = y,
+                    .prevent_default = false
+                };
+
+                ev->call_event(event_tp, info);
             } else {
                 /// KEYBOARD EVENTS (keypress)
                 /// KEYCODE IS buf[0];
+                Gmeng::EventInfo info = {
+                    .EVENT = Gmeng::KEYPRESS,
+                    .KEYPRESS_CODE = buf[0],
+                    .MOUSE_X_POS = -1,
+                    .MOUSE_Y_POS = -1,
+                    .prevent_default = false,
+                };
+                ev->call_event(Gmeng::KEYPRESS, info);
             };
         };
+        ev->call_event(Gmeng::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
     };
 
+    gm_log("main game event loop (with id "$(ev->id)") closed");
     Gmeng::main_event_loop = nullptr;
+    Gmeng::TerminalUtil::set_non_blocking(false);
+    Gmeng::TerminalUtil::set_raw_mode(false);
+    Gmeng::TerminalUtil::disable_mouse_tracking();
+    Gmeng::_uclear_threads();
     return 0;
 };

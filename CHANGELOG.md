@@ -6,6 +6,14 @@
 This document was created at `25/09/2024`.
 Latest entry is dated `12/10/2024`.
 
+**25/10/2024 (release)** - Gmeng version 10.0.0 Released.
+> Gmeng now has a Game Event Loop System, which allows users to implement `update, fixedUpdate, init, deinit, reset, reload, keypress, mouse click, etc..` event handlers
+> to their games. refer to the `tests/event_loop.cpp` test file for a prototype game using this functionality.
+> the `__GMENG_ALLOW_LOG__` definition has been removed, and replaced with `__GMENG_DISABLE_LOG__`. this is due to logging being disabled
+> by default which is not the approach I want to take when moving to the user-scaled testing era of the engine.
+> A new namespace, `Gmeng::TerminalUtil` has been implemented for mouse tracking, raw mode stdin settings and non-blocking input mode controllers.
+> Gmeng also now has a general-purpose Util library in the namespace `Gmeng::Util`, which currently has limited methods but I will add more utility functions as I think of them/find requirements for them.
+
 **12/10/2024 (module)** - Gmeng now includes `catriverr/noble` as a submodule for scripting.
 > `catriverr/noble` is the index for the Noble scripting language, which I am working on importing to Gmeng for
 > scripting in game instances without rebuilding compiled game executables. This is particularly essential

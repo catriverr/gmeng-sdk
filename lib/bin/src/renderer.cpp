@@ -1082,6 +1082,11 @@ namespace Gmeng {
         std::vector<Unit> v_concat_chunks = _vconcatenate_lvl_chunks(level_t, cubic_render);
         return v_concat_chunks;
     };
+    template <typename... Args>
+    auto get_renderscale(Args&&... args) -> decltype(_vget_renderscale2dpartial_scalar(std::forward<Args>(args)...)) {
+        return _vget_renderscale2dpartial_scalar(std::forward<Args>(args)...);
+    };
+
     /// Draws a line of units
     /// vector<Unit> -> "[][][][]"
     inline std::string draw_line_units(std::vector<Unit> line) {

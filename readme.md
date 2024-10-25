@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(12-Oct-2024) info**: submodule added for `Noble` scripting language | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(25-Oct-2024) info**: Released version 10.0.0: Game Event Loop | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
@@ -61,6 +61,7 @@ builds:
     make all (builds engine and cli)
     make test (builds interface tests / test.cpp)
     make test2 (builds unit tests / tests/test.cpp)
+    make compile (builds your target file / specified in buildoptions.mk or `make configure`)
 options:
     make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2]
     make configure

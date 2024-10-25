@@ -45,7 +45,7 @@ int test_loadglvl() {
 };
 
 int main1() {
-    _gupdate_logc_intvl();
+    init_logc();
     gm::_uread_into_vgm("./envs/models");
     test_loadtexture();
     std::cout << "test_loadtexture -> status v_success" << endl;
@@ -355,7 +355,7 @@ int main(int argc, char* argv[]) {
                 do_list.push_back(i);
             };
         };
-        _gupdate_logc_intvl();
+        init_logc();
         gm::_uread_into_vgm("./envs/models");
         int total = 0;
         std::vector<std::vector<int>> return_values;

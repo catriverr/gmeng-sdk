@@ -17,6 +17,15 @@ ifneq ($(filter-out $@, $(MAKECMDGOALS)),)
     skip_warning := true
 endif
 
+ifeq ($(filter compile, $(MAKECMDGOALS)),compile)
+ifeq ($(wildcard buildoptions.mk),)
+$(error run `make configure` to use `make compile`.)
+else
+include buildoptions.mk
+$(info buildoptions selected.)
+endif
+endif
+
 # If no arguments were passed, check for buildoptions.mk
 ifndef skip_warning
 ifeq ($(wildcard buildoptions.mk),)
@@ -45,8 +54,6 @@ endif
 ifeq ($(UNAME_S), Linux)
 	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings
 	USE_NCURSES := false
-else
-	CXXFLAGS += `pkg-config --libs --cflags ncursesw`
 endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
@@ -147,5 +154,13 @@ configure:
 	$(CXX) $(CXXFLAGS_MINIMAL)
 	@./config
 
+compile:
+	@echo GMENG-ACCEPTED COMPILING FLAGS
+	@echo COMPILING YOUR BUILDOPTIONS.MK
+	@echo TO CONFIGURE, USE make configure
+	@echo PROGRAM\: $(TARGET_NAME)
+	@echo TARGET WILL BE NAMED\: ./game.out
+	$(CXX) $(CXXFLAGS) $(TARGET_NAME) -o game.out
+
 # Phony targets
-.PHONY: all test test2 debug no-ncurses warnings configure
+.PHONY: all test test2 debug no-ncurses warnings configure compile
