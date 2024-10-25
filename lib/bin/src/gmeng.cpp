@@ -368,8 +368,8 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 
 
 namespace Gmeng::TerminalUtil {
-    void enable_mouse_tracking()  { std::cout << "\033[?1000h" << std::flush; };
-    void disable_mouse_tracking() { std::cout << "\033[?1000l" << std::flush; };
+    void enable_mouse_tracking()  { std::cout << "\033[?1006h\033[?1003h\n" << std::flush; };
+    void disable_mouse_tracking() { std::cout << "\033[?1006l\033[?1003l\n" << std::flush; };
 
     struct termios orig_termios;
     bool already_set = false;
@@ -429,6 +429,7 @@ namespace Gmeng {
 
         MOUSE_SCROLL_UP,
         MOUSE_SCROLL_DOWN,
+        MOUSE_MOVE, /// with 1006 raw input mode, we can capture mouse move events.
 
         KEYPRESS,
 
@@ -450,6 +451,7 @@ namespace Gmeng {
             "MOUSE_CLICK_END_ANY",
             "MOUSE_SCROLL_UP",
             "MOUSE_SCROLL_DOWN",
+            "MOUSE_MOVE",
             "KEYPRESS",
             "UNKNOWN"
         };
@@ -560,7 +562,8 @@ namespace Gmeng {
 #define MOUSE_REST_2_CHECKER(x) x == 0 ? Gmeng::MOUSE_CLICK_LEFT_START : (\
                                         x == 1 ? Gmeng::MOUSE_CLICK_MIDDLE_START : (\
                                                 x == 2 ? Gmeng::MOUSE_CLICK_RIGHT_START : (\
-                                                        x == 3 ? Gmeng::MOUSE_CLICK_END_ANY : Gmeng::UNKNOWN )))
+                                                        x == 3 ? Gmeng::MOUSE_CLICK_END_ANY : (\
+                                                                x == 35 ? Gmeng::MOUSE_MOVE : Gmeng::UNKNOWN) )))
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
@@ -572,7 +575,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     if (Gmeng::main_event_loop != nullptr) return 1;
     Gmeng::main_event_loop = ev;
 
-    char buf[32];
+    char buf[64];
 
     if (!ev->cancelled) ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
 
@@ -583,10 +586,10 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     });
 
     while (!ev->cancelled) {
-        ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+        ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); /// total bytes read
         if (n > 0) { /// if the event is not null
             buf[n] = '\0'; /// string terminate
-            if (buf[0] == '\033' && buf[1] == '[' && buf[2] == 'M') {
+            if (strstr(buf, "\033[<") != nullptr) {
                 /// MOUSE EVENTS (scroll, click, release)
                 /// BUTTON IDS:
                 ///  - scroll up: 64,
@@ -595,8 +598,16 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 ///  - middle click: 1
                 ///  - right click: 2
                 ///  - all buttons release: 3 (track with state.last_event to determine)
-                int button = buf[3] - 32;
-                int x = buf[4] - 32; int y = buf[5] - 32;
+                ///  - mouse move: 35 ( 1006 raw input mode required )
+                int button, x, y;
+                char eventType;
+
+                auto scan_out = sscanf(buf, "\033[<%d;%d;%d%c", &button, &x, &y, &eventType);
+                if (scan_out != 4) {
+                    gm_log("while parsing STDIN raw input, a determined mouse event did not match the parsed sscanf output.");
+                    gm_log("ignoring this event.");
+                    continue;
+                };
 
                 Gmeng::Event event_tp = SELECT_MOUSE_EVENT(button);
 
@@ -609,8 +620,8 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 Gmeng::EventInfo info = {
                     .EVENT = event_tp,
                     .KEYPRESS_CODE = 0,
-                    .MOUSE_X_POS = x,
-                    .MOUSE_Y_POS = y,
+                    .MOUSE_X_POS = x-1,
+                    .MOUSE_Y_POS = y-1,
                     .prevent_default = false
                 };
 
