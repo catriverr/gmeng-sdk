@@ -4,7 +4,7 @@
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `12/10/2024`.
+Latest entry is dated `25/10/2024`.
 
 **25/10/2024 (release)** - Gmeng version 10.0.0 Released.
 > Gmeng now has a Game Event Loop System, which allows users to implement `update, fixedUpdate, init, deinit, reset, reload, keypress, mouse click, etc..` event handlers
