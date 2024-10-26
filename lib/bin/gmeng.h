@@ -33,6 +33,9 @@
 #define time_rn std::chrono::system_clock::now().time_since_epoch()
 #define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
 
+#ifndef GMENG_BUILD_NO
+    #define GMENG_BUILD_NO "(UNKNOWN_BUILD)"
+#endif
 
 
 /// Gets the current working directory
@@ -313,7 +316,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "9.0.0";
+    static std::string version = "10.1.0-d";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -616,6 +619,16 @@ static std::string get_filename(string filepath) {
     return fd[fd.size()-1];
 };
 
+#include "strings/replace_all.cc"
+
+static std::string parse_str_vars(std::string a) {
+    std::string res = a;
+    replace_all(res, "$!__VERSION", Gmeng::version);
+    replace_all(res, "$!__BUILD", GMENG_BUILD_NO);
+    return res;
+};
+
+#define WRITE_PARSED(x) std::cout << colorformat(parse_str_vars(x))
 
 #include <iomanip>
 

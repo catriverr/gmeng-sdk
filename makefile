@@ -2,6 +2,7 @@
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
+VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
 USE_NCURSES := true
@@ -10,6 +11,18 @@ TARGET_NAME := all
 DEBUG_MODE := false
 
 UNAME_S := $(shell uname -s)
+
+BUILD_NUMBER := $(shell printf G$$RANDOM-$$RANDOM)
+
+ifeq ($(OS), Windows_NT)
+	BUILD_NUMBER := $(shell echo | set /p version="G%random%-%random%")
+endif
+ifeq ($(UNAME_S), Windows_NT)
+	BUILD_NUMBER := $(shell echo | set /p version="G%random%-%random%")
+endif
+
+$(info selected build number: $(BUILD_NUMBER))
+VERSIONFLAGS := -DGMENG_BUILD_NO=\"$(BUILD_NUMBER)\"
 
 # Check if any arguments were passed to make
 ifneq ($(filter-out $@, $(MAKECMDGOALS)),)
@@ -83,15 +96,15 @@ all: lib/bin/out/gmeng
 
 # Rule to build lib/bin/src/index.cpp
 lib/bin/out/gmeng: lib/bin/src/index.cpp
-	$(CXX) $(OUTFILE) lib/bin/src/index.cpp $(CXXFLAGS)
+	$(CXX) $(VERSIONFLAGS) $(OUTFILE) lib/bin/src/index.cpp $(CXXFLAGS)
 
 # Target for test, builds test.cpp
 test: tests/editor_test.cpp
-	$(CXX) -o test tests/editor_test.cpp $(CXXFLAGS)
+	$(CXX) $(VERSIONFLAGS) -o test tests/editor_test.cpp $(CXXFLAGS)
 
 # Target for test2, builds tests/test.cpp
 test2: tests/test.cpp
-	$(CXX) -o tests/out/test.o tests/test.cpp $(CXXFLAGS)
+	$(CXX) $(VERSIONFLAGS) -o tests/out/test.o tests/test.cpp $(CXXFLAGS)
 
 # Target for building with the debug flag
 debug:
@@ -160,7 +173,7 @@ compile:
 	@echo TO CONFIGURE, USE make configure
 	@echo PROGRAM\: $(TARGET_NAME)
 	@echo TARGET WILL BE NAMED\: ./game.out
-	$(CXX) $(CXXFLAGS) $(TARGET_NAME) -o game.out
+	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(TARGET_NAME) -o game.out
 
 # Phony targets
 .PHONY: all test test2 debug no-ncurses warnings configure compile

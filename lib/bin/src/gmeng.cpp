@@ -9,6 +9,14 @@
 #include <algorithm>
 #include "../gmeng.h"
 
+/// MAX MAP SIZE
+/// can be set in the makefile
+/// version 10.1.1 will add this option to `make configure`
+#ifndef GMENG_MAX_MAP_SIZE
+    #define GMENG_MAX_MAP_SIZE 32767
+#endif
+
+#define $(x) + v_str(x) +
 
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     __functree_call__(g_trace_trajectory);
@@ -32,42 +40,89 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
 }
 
 namespace Gmeng {
+    /// v10.1.0
+    struct Positioned_Unit {
+        Unit unit;
+        Objects::coord position;
+    };
+    /// v10.1.0
+    struct Overlay {
+        std::vector<Positioned_Unit> units;
+    };
+
+    /// Camera Instance of any viewport in the game engine.
+    /// All displays are rendered through this class.
 	template<std::size_t _w, std::size_t _h>
 	class Camera { /// v8.2.1: Camera, v4.1.0: CameraView, v1.0.0: WorldMap
 	  public:
-		Gmeng::ModifierList modifiers = {
-			.values = std::vector<Gmeng::modifier> {
-				Gmeng::modifier { .name="noclip",             .value=0 },
-				Gmeng::modifier { .name="force_update",       .value=0 },
-				Gmeng::modifier { .name="allow_plugins",      .value=1 },
-				Gmeng::modifier { .name="cast_events",        .value=1 },
-				Gmeng::modifier { .name="allow_teleporting",  .value=1 },
-				Gmeng::modifier { .name="allow_dev_commands", .value=1 },
-				Gmeng::modifier { .name="allow_writing_plog", .value=1 },
-                Gmeng::modifier { .name="cubic_render",       .value=1 } // enabled since v8.2.2-d
+        std::size_t w = _w; std::size_t h = _h;
+        uint32_t frame_time = 0;
+        uint32_t draw_time = 0;
+
+        ModifierList modifiers = {
+			.values = std::vector<modifier> {
+                /// should be moved to the Game Event Loop.
+				modifier { .name="noclip",             .value=0 },
+                /// force_update disallows draw() from just writing the
+                /// output in raw_unit_map, forcing a call to update() first.
+				modifier { .name="force_update",       .value=0 },
+                /// should be moved to the Game Event Loop.
+				modifier { .name="allow_plugins",      .value=1 },
+                /// deprecated
+				modifier { .name="cast_events",        .value=1 },
+                /// for deprecated logging methods
+				modifier { .name="allow_writing_plog", .value=1 },
+                /// cubic render, squishes units into squares [|] instead of
+                /// writing them as 1x2 full unit characters [I].
+                modifier { .name="cubic_render",       .value=1 } // enabled since v8.2.2-d
 			}
 		};
-		Objects::G_Entity entitymap[32767] = {};
-		std::size_t w = _w; std::size_t h = _h;
-		Gmeng::DisplayMap<_w, _h> display_map;
-		Gmeng::EventHandler event_handler; /// going to be deprecated
-		std::string raw_unit_map[32767];
-		Objects::G_Player player = {}; /// going to be deprecated
-		Gmeng::Unit playerunit = {}; /// going to be deprecated
-		bool player_init = false; /// going to be deprecated
-		uint32_t entitytotal = 0; /// going to be deprecated
-        uint32_t frame_time = 0;
+
+		DisplayMap<_w, _h> display_map;
+		std::string raw_unit_map[GMENG_MAX_MAP_SIZE];
+		uint32_t entitytotal = 0;
+
+        /// #region DEPRECATED
+
+        // @deprecated entities will be handled as individual models
+        // instead of individual units in the future.
+        // This change is expected to be shipped in version 12.0.0.
+        // Kept for backwards compatibility.
+		Objects::G_Entity entitymap[GMENG_MAX_MAP_SIZE] = {};
+
+        // @deprecated Event handlers are now internal, So they are not passed to
+        // an input pipe for a parent program, but it's kept for backwards compatibility
+        // with older versions of gmeng (the 1.1 framework) which use this functionality.
+		EventHandler event_handler;
+        // @deprecated Player objects ( 1.1 entity definitions ) are deprecated
+        // since we now use models instead of specific units for players.
+		Objects::G_Player player = {};
+        // @deprecated kept only for backwards compatibility
+		Unit playerunit = {};
+        // @deprecated kept only for backwards compatibility
+		bool player_init = false;
+
+        /// #endregion DEPRECATED
+
+        /// Sets the resolution of the camera.
 		inline void SetResolution(std::size_t w, std::size_t h) {
             __functree_call__(Gmeng::Camera::SetResolution);
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
 		};
+
+        /// initializes the display's unitmap
 		inline void constructor(Gmeng::Unit unitmap[_w*_h]) {
             __functree_call__(Gmeng::Camera::constructor);
 			for (int i = 0; i < (w*h); i++) {
 				this->display_map.unitmap[i] = unitmap[i];
 			};
 		};
+
+        /// Updates the raw_unit_map to match the display_map's
+        /// units. This means rendering the camera's viewport
+        /// fully. This method is not deprecated, but it is
+        /// not being used in the latest framework for gmeng.
 		inline void update() {
             __functree_call__(Gmeng::Camera::update);
             auto time = GET_TIME();
@@ -83,6 +138,10 @@ namespace Gmeng {
             auto time_fin = GET_TIME() - time;
             this->frame_time = time_fin;
 		};
+
+        /// Temporarily sets the Unit in a position only on the raw_unit_map.
+        /// This means that in the next rendered frame including this drawpoint
+        /// the unit will revert to its original state.
         inline void temp_displacement(int __pX, int __pY, Gmeng::Unit u) {
             __functree_call__(Gmeng::Camera::temp_displacement);
             this->set_curXY(__pX, __pY);
@@ -90,19 +149,27 @@ namespace Gmeng {
             this->raw_unit_map[pos_in_map] = this->draw_unit(u);
             this->rewrite_mapping({ pos_in_map });
         };
+
+        /// Draws the raw_unit_map as a string (to be written to a terminal output stream)
+        /// This method also appends an outline to the camera.
+        /// Cubic rendering is accounted for automatically with this method.
 		inline std::string draw() {
+            auto time = GET_TIME();
             __functree_call__(Gmeng::Camera::draw);
             if (Gmeng::global.dont_hold_back && !Gmeng::global.shush) {
                 gm_log("Gmeng::Camera job_render *draw -> total drawpoints available at this->cam::vp_mem0: " + v_str(sizeof(this->raw_unit_map)) + " , v_addr " + _uconv_1ihx(0) + " -> " + _uconv_1ihx(sizeof(this->raw_unit_map)));
 		    	gm_log("Gmeng::Camera job_render *draw -> total drawpoints allocated for job_render at this->cam::vp_mem0: " + v_str(this->w*this->h) + " | " + _uconv_1ihx(this->w*this->h));
                 gm_log("Gmeng::Camera job_render *draw -> resolution: " + v_str(this->w) + "x" + v_str(this->h));
             };
-            //this->clear_screen();
+            ///this->clear_screen(); // disabled since v6.0.0: since draw() does not output anything, it should not interfere with the screen.
             std::string final = "";
-            int cubic_height = (this->h % 2 == 0) ? (this->h/2) : (this->h/2)+1; // when cubic render is on, in case the height is not even, extend the height by 1 and fill with void.
+            /// when cubic render is on, in case the height is not even, extend the height by 1 and fill with void.
+            int cubic_height = (this->h % 2 == 0) ? (this->h/2) : (this->h/2)+1;
+            /// actual character size of the output frame.
             int cc = ( this->has_modifier("cubic_render") ) ? ( this->w*(cubic_height) ) : ( this->w*this->h );
 			for (int i = 0; i < (cc); i++) {
 				if (i % this->w == 0) {
+                    /// appends the frame's left and right outline to the output.
                     if (global.debugger) gm_slog(YELLOW, "DEBUGGER", "append_newline__" + v_str( (int)(i / cubic_height) ));
 					if (i > 1) final += "\x1B[38;2;246;128;25m",  final += Gmeng::c_unit;
 					final += "\n\x1B[38;2;246;128;25m"; final += Gmeng::c_unit;
@@ -110,24 +177,34 @@ namespace Gmeng {
                 /// if the unit is empty, make it a void pixel. should not happen though.
 				final += this->raw_unit_map[i].empty() ? colors[BLACK] + Gmeng::c_unit + colors[WHITE] : this->raw_unit_map[i];
 			};
+            /// Top of the outline's frame. ANSI escape code for orange.
 			std::string __cu = "\x1B[38;2;246;128;25m";
+            /// Bottom of the outline's frame. ANSI escape code for orange.
 			std::string __cf = "\x1B[38;2;246;128;25m";
+            /// match the size of the camera
 			for (int i = 0; i < this->w+2; i++) { __cu += Gmeng::c_outer_unit; __cf += Gmeng::c_outer_unit_floor; };
-			final += ("\x1B[38;2;246;128;25m"); final += (Gmeng::c_unit);
+			/// append the outline
+            final += ("\x1B[38;2;246;128;25m"); final += (Gmeng::c_unit);
 			final = __cu + "" + final + "\n" + __cf;
+            auto time_fin = GET_TIME() - time;
+            this->draw_time = time_fin;
 			return final;
 		};
+
 		inline bool has_modifier(std::string name) { for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
 		inline void update_modifier(Gmeng::modifier& modifier, int value) {
             __functree_call__(Gmeng::Camera::update_modifier);
             modifier.value = value;
         };
+
 		inline void set_modifier(std::string name, int value) {
             __functree_call__(Gmeng::Camera::set_modifier);
 			int vi = g_find_modifier(this->modifiers.values, name);
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
+
+        /// @deprecated players will not be handled this way in coming versions.
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
 			__functree_call__(Gmeng::Camera::SetPlayer);
             for (int i = 0; i < this->entitytotal; i++) {
@@ -150,14 +227,20 @@ namespace Gmeng {
 			this->entitytotal++;
 			this->player_init = true;
 		};
+
+        /// @deprecated do not use
 		inline void AddEntity(int entityId, Objects::G_Entity entity) {
             __functree_call__(Gmeng::Camera::__no_impl__::AddEntity);
 			//working on
 		};
+
+        /// @deprecated
 		inline void RemoveEntity(int entityId) {
             __functree_call__(Gmeng::Camera::__no_impl__::RemoveEntity);
 			//working on
 		};
+
+        /// @deprecated
 		inline Objects::coord GetPos(int entityId) {
             __functree_call__(Gmeng::Camera::GetPos);
 			bool exists;
@@ -170,33 +253,37 @@ namespace Gmeng {
 			if (!exists) throw std::invalid_argument("no such object: cannot get location");
 			return entity.coords;
 		};
+
+        /// sets the cursor's position (accounted for the frame)
 		inline void set_curXY(int x, int y) {
             __functree_call__(Gmeng::Camera::set_curXY);
    			 std::cout << "\033[" << x+2 << ";" << y+2 << "H"; return; // extra numbers account for the border around the map.
 		};
+
 		inline void reset_cur() {
             __functree_call__(Gmeng::Camera::reset_cur);
 			this->set_curXY(-2, -2);
 		};
+
 		inline Objects::coord get_xy(int __p1) {
             __functree_call__(Gmeng::Camera::get_xy);
 			int __p1_x = __p1 / this->w;
 			int __p1_y = __p1 % this->w;
 			return { .x=__p1_x,.y=__p1_y };
 		};
-        inline void draw_info() {
+
+        /// draws some infographics to the screen.
+        inline void draw_info(int x = 0, int y = 0) {
             /// __functree_call__(Gmeng::Camera::draw_info);
-            this->set_curXY(0,0);
-            std::cout << "[ pos: " << std::to_string(this->player.coords.x) << "," << std::to_string(this->player.coords.y) << " ] ";
-            this->set_curXY(1,0);
-            std::cout << "[ unit_color: " << std::to_string(this->playerunit.color) << ", " << std::to_string(this->playerunit.special_clr ? this->playerunit.special_clr : 0) << " ] ";
-            this->set_curXY(2,0);
-            std::cout << "[ env: " << std::string("$!__GMENG_WMAP ] ");
-			this->set_curXY(3,0);
-			std::cout << "[ gmeng: " << std::string("version $!__VERSION") << " - build " << std::string("$!__BUILD") << " ]";
-			this->set_curXY(4,0);
-			std::cout << "[ last engine build: $!__BUILD | current framework: 4.0_glvl ]";
+            this->set_curXY(y,x);
+            std::cout << Gmeng::resetcolor;
+			WRITE_PARSED("[ gmeng $!__VERSION - build $!__BUILD ]   ");
+            this->set_curXY(y+1,x);
+            WRITE_PARSED("[ frame_time: "$(this->frame_time)"ms, draw_time: "$(this->draw_time)"ms ]   ");
+			this->set_curXY(y+2,x);
+            WRITE_PARSED("[ viewport_size: "$(this->w)"x"$(this->h)" ]   ");
         };
+
 		inline std::string draw_unit(Gmeng::Unit __u, Gmeng::Unit __nu = Unit { .is_entity=1 }, bool prefer_second = false) {
 			Gmeng::Unit current_unit = __u;
             // check if cubic render is preferred, and a next unit is provided
@@ -229,6 +316,7 @@ namespace Gmeng {
 			std::string final = ( nu ? ( (next_unit.color == WHITE ? bgcolors_bright[WHITE] : bgcolors_bright[next_unit.color]) + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
 			return final;
 		};
+
 		inline void rewrite_mapping(const std::vector<int>& positions) {
             __functree_call__(Gmeng::Camera::rewrite_mapping);
 			for (std::size_t i=0;i<positions.size();i++) {
@@ -240,18 +328,22 @@ namespace Gmeng {
             if (this->has_modifier("debug_info")) this->draw_info();
 			this->reset_cur();
 		};
+
 		inline void clear_screen() {
             __functree_call__(Gmeng::Camera::clear_screen);
 			std::cout << "\033[2J\033[1;1H";
 		};
+
         inline void set_entTag(std::string __nt) {
             __functree_call__(Gmeng::Camera::set_entTag);
             this->player.c_ent_tag = __nt;
         };
+
         inline std::string get_entTag() {
             __functree_call__(Gmeng::Camera::get_entTag);
             return this->player.c_ent_tag;
         };
+
 		inline void rewrite_full() {
             __functree_call__(Gmeng::Camera::rewrite_full);
 			this->clear_screen();
@@ -259,6 +351,7 @@ namespace Gmeng {
             std::cout << repeatString("\n", 20) << endl;
 			std::cout << this->draw() << std::endl;
 		};
+
 		inline void MovePlayer(int entityId, int width, int height) {
             __functree_call__(Gmeng::Camera::MovePlayer);
 			int move_to_in_map = (height*this->w)+width;
@@ -296,6 +389,7 @@ namespace Gmeng {
 			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};
+
 		inline void MoveEntity(int entityId, int width, int height) {
             __functree_call__(Gmeng::Camera::MoveEntity);
 			int move_to_in_map = (height*this->w)+width;
@@ -409,7 +503,6 @@ namespace Gmeng::TerminalUtil {
 };
 
 
-#define $(x) + v_str(x) +
 
 namespace Gmeng {
     using std::vector, std::string;
@@ -486,6 +579,7 @@ namespace Gmeng {
     typedef struct {
         int id; vector<Event> events;
         handler_function_type handler;
+        bool locked;
     } EventHook;
 
     typedef struct EventLoop {
@@ -522,16 +616,19 @@ namespace Gmeng {
 
         void call_event( Event ev, EventInfo& info ) {
             for (auto& hook : this->hooks) {
+                if (hook.locked) continue;
                 if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
                     if ((global.dev_mode || global.debugger)) {
                         if ((ev == UPDATE || ev == FIXED_UPDATE) && !Gmeng::global.dont_hold_back); /// dont log update calls unless dont_hold_back is enabled
                         else gm_log("call to external event hook(id="$(hook.id)") for event " + get_event_name(ev));
                     };
-                    hook.handler( this->level, &info );
+                    hook.locked = true;
                     /// Runs the handler for the hook
                     /// Keep in mind that hooks may have more than one handler,
                     /// so it may need to check for the EVENT value (in EventInfo)
                     /// since v10.0.0
+                    hook.handler( this->level, &info );
+                    hook.locked = false;
                 } else continue;
             };
 
@@ -587,6 +684,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); /// total bytes read
+        Gmeng::Event t_event = Gmeng::UNKNOWN;
         if (n > 0) { /// if the event is not null
             buf[n] = '\0'; /// string terminate
             if (strstr(buf, "\033[<") != nullptr) {
@@ -626,6 +724,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 };
 
                 ev->call_event(event_tp, info);
+                t_event = event_tp;
             } else {
                 /// KEYBOARD EVENTS (keypress)
                 /// KEYCODE IS buf[0];
@@ -637,9 +736,13 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     .prevent_default = false,
                 };
                 ev->call_event(Gmeng::KEYPRESS, info);
+                t_event = Gmeng::KEYPRESS;
             };
         };
-        ev->call_event(Gmeng::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+        Gmeng::EventInfo scope = {
+            .EVENT = t_event
+        };
+        ev->call_event(Gmeng::FIXED_UPDATE, scope);
     };
 
     gm_log("main game event loop (with id "$(ev->id)") closed");
