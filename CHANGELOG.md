@@ -4,7 +4,13 @@
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `25/10/2024`.
+Latest entry is dated `2/11/2024`.
+
+**2/11/2024 (release)** Gmeng version 10.1.0 Released.
+> Gmeng now has a Game State system which allows for **PARTIAL** reloading of level data.
+> This format is in binary form, and written to files with the `writeout_properties` and `read_properties` methods.
+> This version also introduces `gmeng preview` and `gmeng gamestate` subcommands for the CLI, allowing for previewing texture files and modifying
+> the gamestate files, which needs to be done with proprietary utilities since it's in binary form. Use `gmeng gamestate <filename>` to modify one.
 
 **25/10/2024 (release)** - Gmeng version 10.0.0 Released.
 > Gmeng now has a Game Event Loop System, which allows users to implement `update, fixedUpdate, init, deinit, reset, reload, keypress, mouse click, etc..` event handlers
