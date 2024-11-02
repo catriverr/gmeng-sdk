@@ -164,6 +164,7 @@ namespace Gmeng {
                     }
                 } else { std::cerr << "Gmeng::Renderer::get_placement: e_obj: out of boundaries: __getsize(__p, __s, __ws);" << std::endl; };
             };
+            ASSERT("pref.log", p_no);
             return vec;
         };
         /// returns placement coordinates for a viewpoint within a map sizeof drawpointxy
@@ -1053,6 +1054,7 @@ namespace Gmeng {
         if (global.debugger) {
             gm_slog(YELLOW, "DEBUGGER", "^^ above is reinterpereted_data from _vconcatenate_lvl_chunks");
         };
+        ASSERT("pref.log", p_no);
         return reinterpereted_data;
     };
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <array>
 #include <cstring>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include "../gmeng.h"
@@ -36,7 +37,7 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     Objects::coord point;
     point.x = x2; point.y = y2;
     coordinates.push_back(point);
-    return coordinates;
+return coordinates;
 }
 
 namespace Gmeng {
@@ -455,12 +456,14 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 /// GMENG EVENTLOOP IMPLEMENTATION
 
 #include <unistd.h>
+#ifndef _WIN32
 #include <termios.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 
 
-
+#ifndef _WIN32
 namespace Gmeng::TerminalUtil {
     void enable_mouse_tracking()  { std::cout << "\033[?1006h\033[?1003h\n" << std::flush; };
     void disable_mouse_tracking() { std::cout << "\033[?1006l\033[?1003l\n" << std::flush; };
@@ -501,7 +504,7 @@ namespace Gmeng::TerminalUtil {
         };
     };
 };
-
+#endif
 
 
 namespace Gmeng {
@@ -585,6 +588,10 @@ namespace Gmeng {
     typedef struct EventLoop {
         int id; Gmeng::Level* level;
 
+        /// Processes, used for registering event calls for the
+        /// next tick of the event loop. Called with `UPDATE` event
+        vector<EventHook> processes;
+
         vector<EventHook> hooks;
         vector<EventHook> defaults;
 
@@ -593,18 +600,39 @@ namespace Gmeng {
         EventLoop( vector<EventHook> hooks_ ) : hooks(hooks_) {
             this->id = g_mkid();
             gm_log("" $(id) ": created main game eventloop with id " $(this->id) ".");
-            TerminalUtil::set_raw_mode(true);
-            gm_log("" $(id) ": set terminal state to raw mode.");
+
+#ifndef _WIN32
             TerminalUtil::enable_mouse_tracking();
             gm_log("" $(id) ": enabled mouse tracking");
+            TerminalUtil::set_raw_mode(true);
+            gm_log("" $(id) ": set terminal state to raw mode.");
+#endif
         };
 
         ~EventLoop() {
+#ifndef _WIN32
             gm_log("" $(id) ": destroyed eventloop " $(this->id) ".");
             gm_log("" $(id) ": disabled mouse tracking");
             TerminalUtil::set_non_blocking(false);
             gm_log(""$(id)": disabled non blocking input mode");
             TerminalUtil::disable_mouse_tracking();
+#endif
+        };
+
+        void next_tick(handler_function_type handler) {
+            int id = g_mkid();
+            this->processes.push_back({ id, { UPDATE }, handler });
+        };
+
+        void progress_tick() {
+            int i = 0;
+            for (auto proc : this->processes) {
+                /// delete the process
+                this->processes.erase(this->processes.begin()+i);
+                proc.handler(this->level, &Gmeng::NO_EVENT_INFO);
+                i++;
+            };
+            /// clear next tick processes.
         };
 
         void add_hook(vector<Event> events, handler_function_type handler) {
@@ -664,6 +692,7 @@ namespace Gmeng {
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
+#ifndef _WIN32
 /// runs an event loop instance
 /// (this means handling the level as the main event loop / the instance of the game)
 int do_event_loop(Gmeng::EventLoop* ev) {
@@ -679,6 +708,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::_ucreate_thread([&]() {
         while (!ev->cancelled) {
             ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
+            ev->progress_tick();
         };
     });
 
@@ -752,4 +782,124 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::TerminalUtil::disable_mouse_tracking();
     Gmeng::_uclear_threads();
     return 0;
+};
+#endif
+
+typedef struct {
+    int DEF_DELTAX;
+    int DEF_DELTAY;
+
+    int SKY_WIDTH;
+    int SKY_HEIGHT;
+
+    Gmeng::color_t SKY_COLOR;
+
+    std::unordered_map<std::string, Gmeng::Renderer::drawpoint> model_positions;
+
+    int A00_CAKE_INTERACT_LOOPC;
+} gmeng_properties_t;
+
+static gmeng_properties_t default_properties = {
+    50, 25,
+
+    100, 100,
+
+    Gmeng::BLUE,
+
+    {
+        { "player", { 0,0 } },
+
+        { "table1", { 13, 21 } },
+        { "table2", { 24, 21 } },
+
+        { "cake", { 16, 17 } },
+
+        { "gift1", { 0, 22 } },
+        { "gift2", { 44, 22 } },
+
+        { "CAKE_INTERACT_TIMES", { 1, 20 } },
+    },
+
+    100
+};
+
+#if _WIN32
+/// WINDOWS IMPLEMENTATIONS
+/// NOT COMING ANYTIME SOON.
+
+int do_event_loop(Gmeng::EventLoop* ev) {
+    return -1;
+};
+
+#endif
+
+void writeout_properties(const std::string& filename, const gmeng_properties_t& properties) {
+    std::ofstream outFile(filename, std::ios::binary);
+    if (!outFile) {
+        throw std::ios_base::failure("Failed to open file for writing");
+    }
+
+    // Write the int fields
+    outFile.write(reinterpret_cast<const char*>(&properties.DEF_DELTAX), sizeof(properties.DEF_DELTAX));
+    outFile.write(reinterpret_cast<const char*>(&properties.DEF_DELTAY), sizeof(properties.DEF_DELTAY));
+    outFile.write(reinterpret_cast<const char*>(&properties.SKY_WIDTH), sizeof(properties.SKY_WIDTH));
+    outFile.write(reinterpret_cast<const char*>(&properties.SKY_HEIGHT), sizeof(properties.SKY_HEIGHT));
+    outFile.write(reinterpret_cast<const char*>(&properties.SKY_COLOR), sizeof(properties.SKY_COLOR));
+    outFile.write(reinterpret_cast<const char*>(&properties.A00_CAKE_INTERACT_LOOPC), sizeof(properties.A00_CAKE_INTERACT_LOOPC));
+
+    size_t map_size = properties.model_positions.size();
+    outFile.write(reinterpret_cast<const char*>(&map_size), sizeof(map_size));
+
+    for (const auto& [key, drawpoint] : properties.model_positions) {
+        size_t key_size = key.size();
+        outFile.write(reinterpret_cast<const char*>(&key_size), sizeof(key_size));
+        outFile.write(key.c_str(), key_size);
+
+        // Write the drawpoint struct (x and y)
+        outFile.write(reinterpret_cast<const char*>(&drawpoint.x), sizeof(drawpoint.x));
+        outFile.write(reinterpret_cast<const char*>(&drawpoint.y), sizeof(drawpoint.y));
+    }
+
+    outFile.close();
+};
+
+gmeng_properties_t read_properties(const std::string& filename) {
+    std::ifstream inFile(filename, std::ios::binary);
+    if (!inFile) {
+        throw std::ios_base::failure("Failed to open file for reading");
+    }
+
+    gmeng_properties_t properties;
+
+    // Read the int fields
+    inFile.read(reinterpret_cast<char*>(&properties.DEF_DELTAX), sizeof(properties.DEF_DELTAX));
+    inFile.read(reinterpret_cast<char*>(&properties.DEF_DELTAY), sizeof(properties.DEF_DELTAY));
+    inFile.read(reinterpret_cast<char*>(&properties.SKY_WIDTH), sizeof(properties.SKY_WIDTH));
+    inFile.read(reinterpret_cast<char*>(&properties.SKY_HEIGHT), sizeof(properties.SKY_HEIGHT));
+    inFile.read(reinterpret_cast<char*>(&properties.SKY_COLOR), sizeof(properties.SKY_COLOR));
+    inFile.read(reinterpret_cast<char*>(&properties.A00_CAKE_INTERACT_LOOPC), sizeof(properties.A00_CAKE_INTERACT_LOOPC));
+
+    // Read the map (model_positions) size
+    size_t map_size;
+    inFile.read(reinterpret_cast<char*>(&map_size), sizeof(map_size));
+
+    // Read each key-value pair in the map
+    for (size_t i = 0; i < map_size; ++i) {
+        // Read the string length, then the string (key)
+        size_t key_size;
+        inFile.read(reinterpret_cast<char*>(&key_size), sizeof(key_size));
+        std::string key(key_size, '\0');
+        inFile.read(&key[0], key_size);
+
+        // Read the drawpoint struct (x and y)
+        Gmeng::Renderer::drawpoint drawpoint;
+        inFile.read(reinterpret_cast<char*>(&drawpoint.x), sizeof(drawpoint.x));
+        inFile.read(reinterpret_cast<char*>(&drawpoint.y), sizeof(drawpoint.y));
+
+        // Insert into the map
+        properties.model_positions[key] = drawpoint;
+    }
+
+    inFile.close();
+    return properties;
 };

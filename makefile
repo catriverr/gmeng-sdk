@@ -5,6 +5,10 @@ CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
+# Compiler to Windows
+WINDOWS_CXX := i686-w64-mingw32-g++ # MinGW compiler for unix-to-windows cross compile.
+WINDOWS_CXXFLAGS := -std=c++20 -Wno-write-strings -Wno-return-type -static -static-libgcc -static-libstdc++ -lpthread -pthread
+
 USE_NCURSES := true
 USE_EXTERNAL := false
 TARGET_NAME := all
@@ -16,9 +20,11 @@ BUILD_NUMBER := $(shell printf G$$RANDOM-$$RANDOM)
 
 ifeq ($(OS), Windows_NT)
 	BUILD_NUMBER := $(shell echo | set /p version="G%random%-%random%")
+	WINDOWS_CXX := g++
 endif
 ifeq ($(UNAME_S), Windows_NT)
 	BUILD_NUMBER := $(shell echo | set /p version="G%random%-%random%")
+	WINDOWS_CXX := g++
 endif
 
 $(info selected build number: $(BUILD_NUMBER))
@@ -36,6 +42,15 @@ $(error run `make configure` to use `make compile`.)
 else
 include buildoptions.mk
 $(info buildoptions selected.)
+endif
+endif
+
+ifeq ($(filter compile-windows, $(MAKECMDGOALS)),compile-windows)
+ifeq ($(wildcard buildoptions.mk),)
+$(error create a file named `buildoptions.mk` and add the line `TARGET_NAME := your_game_code.cpp`.)
+else
+include buildoptions.mk
+$(info buildoptions selected. (WINDOWS))
 endif
 endif
 
@@ -175,5 +190,16 @@ compile:
 	@echo TARGET WILL BE NAMED\: ./game.out
 	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(TARGET_NAME) -o game.out
 
+compile-windows:
+	@echo CROSS COMPILING TO WINDOWS
+	@echo COMPILER\: $(WINDOWS_CXX)
+	@echo FLAGS\: $(WINDOWS_CXXFLAGS)
+	@echo
+	@echo GMENG-ACCEPTED COMPILING FLAGS
+	@echo COMPILING YOUR BUILDOPTIONS.MK
+	@echo TO CONFIGURE, EDIT THE FILE buildoptions.mk TO CHANGE YOUR TARGET
+	@echo EXECUTABLE WILL BE NAMED\: ./game.exe
+	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(TARGET_NAME) -o game.exe
+
 # Phony targets
-.PHONY: all test test2 debug no-ncurses warnings configure compile
+.PHONY: all test test2 debug no-ncurses warnings configure compile compile-windows

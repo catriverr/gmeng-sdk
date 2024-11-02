@@ -316,7 +316,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "10.1.0-d";
+    static std::string version = "10.1.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -739,7 +739,7 @@ static void init_logc(int ms = 250) {
         return;
     #endif
     __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
-    __gmeng_write_log__("gmeng.log", "Gmeng: Go-To Console Game Engine.\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
+    __gmeng_write_log__("gmeng.log", "Gmeng "+Gmeng::version+" (build " + GMENG_BUILD_NO + ").\n\nDocumentation available in https://gmeng.org.\nGmeng is an open source project. https://gmeng.org/git.\nPlease report bugs or unexpected behaviour at https://gmeng.org/report.\n\nGmeng: Go-To Console Game Engine.\n\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
     __gmeng_write_log__("gmeng.log", "----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n", true);
     __gmeng_write_log__("gmeng.log", "Global Variables\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n", true);
 
@@ -843,14 +843,14 @@ static std::string ws2s(const std::wstring& wstr) {
 
 ///// __controller_satisfy__
 ///// OS Check for windows
-static void __explain_why_i_cannot_run_to_dumbass_using_windows() {
-    __annot__(__explain_why_i_cannot_run_to_dumbass_using_windows, "explains to a user using windows why windows cannot run gmeng.");
-    __functree_call__(__explain_why_i_cannot_run_to_dumbass_using_windows);
+static void print_windows_error_message() {
+    __annot__(print_windows_error_message, "explains to a user using windows why windows cannot run gmeng.");
+    __functree_call__(print_windows_error_message);
     std::cout << Gmeng::colors[4] << "libgmeng-abi: __excuse__" << std::endl;
     std::cout << "INTERNAL: __gmeng_platform__, __gmeng_threading__, __stdlib__, __libc++-abi__, __std_com_apple_main_pthread__" << std::endl;
     std::cout << "Gmeng is not available in a core-platform other than darwin ( apple_kernel )." << std::endl;
     std::cout << "current_platform: win32 ( WINDOWS_NT )" << std::endl;
-    std::cout << "__gmeng_halt_execution__( CAUSE( gmeng::global.v_exceptions->__find__( \"controller.platform\" ) ) && CAUSE( \"__environment_not_suitable__\" ) )" << std::endl;
+    std::cout << "__gmeng_halt_execution__( CAUSE( gmeng::global.v_exceptions->__find__( \"controller.platform\" ) ) && CAUSE( \"__environment_not_suitable__\" ) )" << Gmeng::resetcolor << std::endl;
     exit(1);
 };
 
@@ -858,7 +858,7 @@ static void patch_argv_global(int argc, char* argv[]) {
     __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
     __functree_call__(patch_argv_global);
     #if _WIN32
-        __explain_why_i_cannot_run_to_dumbass_using_windows();
+        print_windows_error_message();
         return;
     #endif
     Gmeng::global.pwd = get_cwd();

@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(25-Oct-2024) info**: Released version 10.0.0: Game Event Loop | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(2-Nov-2024) info**: 10.1.0: game state binaries & general improvements | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
@@ -62,15 +62,15 @@ builds:
     make test (builds interface tests / test.cpp)
     make test2 (builds unit tests / tests/test.cpp)
     make compile (builds your target file / specified in buildoptions.mk or `make configure`)
+    make compile-windows (builds your target file / cross compiled to windows)
 options:
-    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2]
+    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows]
     make configure
 ```
 - The `debug` option adds the `-g -O0 -fsanitize=address` flags to the compiler.
 - The `no-ncurses` option disables the auto-imports to `utils/interface.cpp` and `types/interface.h` from the `gmeng.h` header.
 - The `use-external` option enables the auto-imports to `SDL2/SDL.h` headers for SDL-based windows.
 - The `warnings` option enables `-Wall` so all warnings are displayed by the compiler.
-
 - The `configure` option runs the configuration utility to set up the buildconfig for a program.
 
 ## Debugging

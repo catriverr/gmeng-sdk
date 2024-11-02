@@ -6,6 +6,24 @@
 
 /// General Utilities for Gmeng
 namespace Gmeng::Util {
+    /// @since 10.1.0
+    /// TODO: does not support cubic rendering, add option
+    std::string draw_texture_string(Gmeng::texture txt) {
+        Gmeng::Camera<1,1> cam;
+        std::string final;
+        for (int i = 0; i < txt.width*txt.height; i++) {
+            if (i != 0 && i % txt.width == 0) final += '\n';
+            if (i >= txt.units.size()) final += cam.draw_unit({
+                .color = 0,
+                .collidable = true,
+                .special = true,
+                .special_clr = 4,
+                .special_c_unit = "?"
+            });
+            else final += cam.draw_unit(txt.units.at(i));
+        };
+        return final;
+    };
     /// fills a texture with a single color
     void texture_fill(texture& tx, color_t color) {
         for (int i = 0; i < tx.width*tx.height && i < tx.units.size(); i++) {
@@ -18,7 +36,12 @@ namespace Gmeng::Util {
         for (int i = 0; i < tx.width*tx.height && i < tx.units.size(); i++) {
             auto d = tx.units.at(i);
             if (d.color == color1) d.color = color2;
+            tx.units[i] = d;
         };
+    };
+
+    int calculate_proximity(Renderer::drawpoint pos1, Renderer::drawpoint pos2) {
+        return std::abs(pos1.x - pos2.x) + std::abs(pos1.y - pos2.y);
     };
 
     void level_set_skybox(Level* lvl, texture& tx) {
