@@ -135,6 +135,7 @@ namespace Gmeng_Commandline {
 #ifndef __GMENG_COMMANDLINE_IMPORTS__
 
 #include "./commands.cc"
+#include "./level_editor.cc"
 
 #define __GMENG_COMMANDLINE_IMPORTS__ true
 

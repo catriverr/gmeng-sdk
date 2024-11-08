@@ -110,7 +110,7 @@ register_editor_command(
 #include <iostream>
 #include <cstdlib>
 
-void modify_properties(gmeng_properties_t& properties);
+void modify_properties(gmeng_properties_t& properties, std::string filename);
 
 using namespace Gmeng;
 
@@ -138,7 +138,7 @@ class gamestate_editor_t : public Gmeng_Commandline::Subcommand {
         noecho();
         keypad(stdscr, TRUE);
 
-        modify_properties(properties);
+        modify_properties(properties, filename);
         writeout_properties(filename, properties);
 
         endwin();
@@ -159,7 +159,7 @@ register_gamestate_command(
     std::make_unique<gamestate_editor_t>( gamestate_editor_command )
 );
 
-void modify_properties(gmeng_properties_t& properties) {
+void modify_properties(gmeng_properties_t& properties, std::string filename) {
     int highlight = 0;
     int mode = 0;  // 0 = Main properties, 1 = Model positions
     const int num_main_fields = 6;
@@ -167,6 +167,7 @@ void modify_properties(gmeng_properties_t& properties) {
 
     while (!exit_program) {
         clear();
+        writeout_properties(filename, properties);
 
         // Display section based on mode
         if (mode == 0) {

@@ -20,12 +20,17 @@
 
 namespace fs = std::filesystem;
 
+/// Entities
+namespace Gmeng {
+};
 
 
 namespace Gmeng {
     namespace Renderer {
+
         struct drawpoint { int x; int y; };
         struct viewpoint { drawpoint start; drawpoint end; };
+
         inline Gmeng::texture generate_empty_texture(int width, int height) {
             __functree_call__(Gmeng::Renderer::generate_empty_texture);
             Gmeng::texture __t; __t.width = width; __t.height = height; __t.collidable = false;
@@ -40,6 +45,7 @@ namespace Gmeng {
             };
             return __t;
         };
+
         class Model {
             private:
               inline Objects::coord get_pointXY(int pos) {
@@ -67,6 +73,7 @@ namespace Gmeng {
                   this->texture = Gmeng::LoadTexture(__tf);
               }; //! FIXME: width,height values remain unchanged
         };
+
         inline Model generate_empty_model(int width, int height) {
             __functree_call__(Gmeng::Renderer::generate_empty_model);
             int id = g_mkid();
@@ -76,13 +83,16 @@ namespace Gmeng {
                 .texture = generate_empty_texture(width, height), .id = id
             };
         };
+
         struct LevelBase {
             Gmeng::texture lvl_template; std::size_t width; std::size_t height;
         };
+
         struct gnmdl {
             Model m;
             v_title txname;
         };
+
         /// parses a string.gmdl file to a gmdl
         gnmdl parse_gmdl(std::string _indx) {
             __functree_call__(Gmeng::Renderer::parse_gmdl);
@@ -102,6 +112,7 @@ namespace Gmeng {
             returnvalue.m.id = g_mkid();
             return returnvalue;
         };
+
         // compiles Renderer::Model objects into a Gmeng::Unit vector
         std::vector<Gmeng::Unit> draw_model(Gmeng::Renderer::Model __m) {
             __functree_call__(Gmeng::Renderer::draw_model);
@@ -117,6 +128,7 @@ namespace Gmeng {
             if (Gmeng::global.dont_hold_back) gm_log("job_render (draw_model -> vp_compileUnit v_success) v_static_cast<std::vector<units>> total_size : " + v_str(unitmap.size()));
             return unitmap;
         };
+
         /// returns size of a drawpoint in total amount of units (NOT FOR X,Y POSITIONS)
         /// for coordinate sizes, use trace_1dp(msize, mapwidth)
         /// this method asumes that the given drawpoint is not a position, but
@@ -134,11 +146,13 @@ namespace Gmeng {
                         ( c.x *  c.y )
                    );
         };
+
         /// returns drawpoint object as log string
         std::string conv_dp(drawpoint p) {
             __functree_call__(Gmeng::Renderer::conv_dp);
             return "x=" + v_str(p.x) + ",y=" + v_str(p.y);
         };
+
         // returns placement coordinates for each coordinate of object at __p with size of __s in mapsize of __ws
         std::vector<Gmeng::Renderer::drawpoint> get_placement(drawpoint __p, drawpoint __s, drawpoint __ws, bool _vlinear_render = false) {
             __functree_call__(Gmeng::Renderer::get_placement);
@@ -167,6 +181,7 @@ namespace Gmeng {
             ASSERT("pref.log", p_no);
             return vec;
         };
+
         /// returns placement coordinates for a viewpoint within a map sizeof drawpointxy
         std::vector<drawpoint> get_displacement(viewpoint& view, const drawpoint& map) {
             __functree_call__(Gmeng::Renderer::get_displacement);
@@ -185,11 +200,18 @@ namespace Gmeng {
             .start = drawpoint { .x=-1, .y=-1 },
             .end   = drawpoint { .x=-1, .y=-1 },
         };
+
         class Display {
             private:
             public:
                 Gmeng::Camera<0, 0> camera; Gmeng::Renderer::viewpoint viewpoint;
                 std::size_t width; std::size_t height; std::vector<Gmeng::Unit> rendered_units;
+
+                inline void set_cursor_visibility(bool state) {
+                    if (!state) std::cout << "\e[?25l"; // hide
+                    else std::cout << "\e[?25h"; // show
+                };
+
                 inline void set_resolution(std::size_t width, std::size_t height) {
                     __functree_call__(Gmeng::Renderer::Display::set_resolution);
                     this->width = width; this->height = height;
@@ -543,6 +565,53 @@ namespace Gmeng {
         .c_ent_tag = "o",
     });
 
+    using std::vector, std::string;
+
+    /// started work on implementing rendering
+    /// options for SDL2 screens.
+    /// @since 10.2.0-d
+    enum Renderer_Type { CONSOLE, EXTERNAL };
+
+    enum Entity_Type {
+        ENTITY, PLAYER,
+        OBJECT, UNKNOWN_TYPE
+    };
+
+    enum Entity_Interaction {
+        LMB_CLICK, RMB_CLICK,
+        MMB_CLICK, UNKNOWN_INTERACTION
+    };
+
+    /// type decl
+    class Level;
+
+    class Entity {
+        texture sprite;
+        Renderer::drawpoint position;
+        // random id
+        int id = g_mkid();
+
+        Entity(texture model_, Renderer::drawpoint pos_) :
+            sprite(model_), position(pos_) {};
+
+        Entity(Renderer::Model model_, Renderer::drawpoint pos_) :
+            sprite(model_.texture), position(pos_) {};
+
+        Entity(Renderer::Model model_) :
+            sprite(model_.texture), position(model_.position) {};
+
+        virtual ~Entity() = default;
+
+        virtual inline texture draw( Renderer_Type type = EXTERNAL ) {
+            // default behaviour for drawing the entity.
+            // can be extended with subclasses
+            return this->sprite;
+        };
+
+        virtual void interact( Entity_Interaction, Level* ) { /* no default behaviour */ };
+
+    };
+
     class Level {
         private:
             // compiles a chunk into a std::vector<Gmeng::Unit> unitmap for a Camera instance to render
@@ -625,14 +694,18 @@ namespace Gmeng {
                 gm_log("v_units -> size() : " + v_str(units.size()));
                 return units;
             };
+
             inline Gmeng::chunk get_chunk(int id) {
                 __functree_call__(Gmeng::Level::__private__::get_chunk);
                 return this->chunks[id];
             };
+
             inline void set_chunk(int id, Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::__private__::set_chunk);
                 this->chunks[id] = chunk;
             };
+
+            /// @deprecated We don't use Objects::G_Player as the player anymore
             inline Renderer::viewpoint calculate_camera_viewpoint() {
                 __functree_call__(Gmeng::Level::__private__::calculate_camera_viewpoint);
                 Renderer::drawpoint start; Renderer::drawpoint end;
@@ -647,13 +720,22 @@ namespace Gmeng {
                 return { start, end };
             };
         public:
-            Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display; Objects::G_Player player = Gmeng::v_base_player; Objects::coord plcoords = { .x=0, .y=0 };
+            Gmeng::Renderer::LevelBase base; Gmeng::Renderer::Display display;
             std::vector<Gmeng::chunk> chunks; std::string desc; std::string name;
+
+            /// @deprecated
+            std::vector<Objects::G_Entity> entities;
+            /// @deprecated
+            Objects::G_Player player = Gmeng::v_base_player;
+            /// @deprecated
+            Objects::coord plcoords = { .x=0, .y=0 };
+
             inline int load_chunk(Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::load_chunk);
                 this->chunks.push_back(chunk);
                 return (this->chunks.size()-1);
             };
+
             inline void load_level(Gmeng::LevelInfo __glvl) {
                 __functree_call__(Gmeng::Level::load_level);
                 int i,j = 0;
@@ -687,12 +769,14 @@ namespace Gmeng {
                     .c_ent_tag="o"
                 }, 0, 0);
             };
+
             /// sets the current frame to the param &vector<units>
             inline void set_image(std::vector<Gmeng::Unit> units) {
                 __functree_call__(Gmeng::Level::set_image);
                 std::copy(units.begin(), units.end(), this->display.camera.display_map.unitmap);
                 this->display.draw(this->player, this->plcoords);
             };
+
             // draws chunk in Gmeng::Level::(std::vector<Gmeng::r_chunk>)chunks on position: chunk_id
             // to the Display::Camera controller
             inline void draw_camera(int chunk_id) {
@@ -714,19 +798,23 @@ namespace Gmeng {
                 this->display.set_resolution(this->display.width, this->display.height);
                 this->display.draw(this->player, this->plcoords);
             };
+
             inline std::vector<Gmeng::Unit> get_rendered_chunk(int id) {
                 __functree_call__(Gmeng::Level::get_rendered_chunk);
                 return this->render_chunk(this->chunks[id]);
             };
+
             inline std::vector<Gmeng::Unit> v_render_chunk(Gmeng::chunk chunk) {
                 __functree_call__(Gmeng::Level::v_render_chunk);
                 return this->render_chunk(chunk);
             };
+
             /// refreshes the current chunk display
             inline void refresh() {
                 this->display.set_resolution(this->display.width, this->display.height);
                 this->display.draw(this->player, this->plcoords);
             };
+
             inline void set_player(Objects::G_Player p, int x, int y) {
                 __functree_call__(Gmeng::Level::set_player);
                 if (this->display.camera.player_init) this->display.nplunit(this->plcoords);
@@ -734,6 +822,7 @@ namespace Gmeng {
                 gm_log("r_level::set_player *inline,static -> v_success ; r_level::player (Objects::G_Player).coords = @pos(" + v_str(this->player.coords.x)+","+v_str(this->player.coords.y)+")");
                 this->move_player(x, y);
             };
+
             inline void move_player(int x, int y) {
                 __functree_call__(Gmeng::Level::move_player);
                 this->plcoords.x=x; this->plcoords.y=y;
@@ -772,14 +861,17 @@ namespace Gmeng {
                 }
             };
         };
+
         return __shared__;
     };
+
     inline bool viewpoint_includes_dp(Renderer::viewpoint vp, Renderer::drawpoint dp) {
         //__functree_call__(Gmeng::viewpoint_includes_dp);
         if (dp.x >= vp.start.x && dp.x <= vp.end.x &&
             dp.y >= vp.start.y && dp.y <= vp.end.y) return true;
         return false;
     };
+
     /// @deprecated not used internally | DOES NOT RETURN CORRECT VALUES
     inline std::vector<Gmeng::Unit> trace_render_partial(Gmeng::Level level_t, int id, std::vector<Renderer::drawpoint> drawpoints) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::trace_render_partial);
@@ -798,6 +890,7 @@ namespace Gmeng {
         };
         return __partial__;
     };
+
     /// traces a chunk's display position in a vector
     inline std::vector<Gmeng::chunk> trace_chunk_vector(Gmeng::Level& level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::trace_chunk_vector);
@@ -813,6 +906,7 @@ namespace Gmeng {
         };
         return displays;
     };
+
     /// combines render buffers into a list
     inline std::vector<Unit> splice_render_buffers(std::vector<chunk> chunks, Gmeng::Level &level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::splice_render_buffers);
@@ -825,6 +919,7 @@ namespace Gmeng {
         };
         return units;
     };
+
     inline std::vector<Renderer::drawpoint> chromatize_viewpoint(Renderer::viewpoint vp) {
         __functree_call__(Gmeng::chromatize_viewpoint);
         std::vector<Renderer::drawpoint> _vpos;
@@ -840,6 +935,7 @@ namespace Gmeng {
         };
         return _vpos;
     };
+
     inline Renderer::drawpoint trace_drawpoint_in_viewpoint(Renderer::viewpoint vp, Renderer::drawpoint dp) {
         __functree_call__(Gmeng::trace_drawpoint_in_viewpoint);
         std::vector<Renderer::drawpoint> vp_pos = chromatize_viewpoint(vp);
@@ -848,11 +944,13 @@ namespace Gmeng {
             .y = vp_pos[dp.y * (vp.end.x - vp.start.x) + dp.x].y
         };
     };
+
     /// @deprecated not used internally | NOT IMPLEMENTED
     /// trace_chunk_vector implements optimization itself.
     inline void _voptimize_chunk_vector(Gmeng::Level& level_t) {
         __functree_call__(Gmeng::__no_impl__::_voptimize_chunk_vector);
     };
+
     /// sorts a chunk vector according to its levels' viewpoints ( correct_formed_list )
     /// @deprecated not used internally, but returns values as expected
     inline std::vector<chunk> _vsort_chunk_vector(Gmeng::Level& level_t) {
@@ -869,6 +967,7 @@ namespace Gmeng {
         };
         return chunks;
     };
+
     /// compiles a level's display viewpoint into a vector of units
     /// (splicing different parts of r_chunk renderbuffers into one Camera instance)
     inline std::vector<Gmeng::Unit> _vgen_camv_fv2cv(Gmeng::Level &level_t) {
@@ -886,24 +985,29 @@ namespace Gmeng {
         };
         return v_units_final;
     };
+
     /// returns delta of a viewpoint's X coordinate
     template <typename number_type = int>
     inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
         return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
     };
+
     /// returns delta of a viewpoint's Y coordinate
     template <typename number_type = int>
     inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
         return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
     };
+
     template <typename... Args>
     auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
         return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
     };
+
     template <typename... Args>
     auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
         return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
     };
+
     /// returns position of a 2d pointer in a vector as a 1d index to the vector
     /// example:
     /// { 0, 1, 2,
@@ -917,6 +1021,7 @@ namespace Gmeng {
         __functree_call__(_vcreate_vu2d_delta_xy);
         return v_static_cast<number_type>( ( y * width ) + x );
     };
+
     /// @deprecated USE get_lvl_view(&level) INSTEAD
     /// returns a frame generated by a level_t object
     /// chronological execution:
@@ -977,6 +1082,7 @@ namespace Gmeng {
         __functree_call__(Gmeng::_cc1d_scalar_size);
         return ( _vcreate_vp2d_deltax(vp) * 0x1 );
     };
+
     /// mirror: reverses a vector
     template<typename __vtype__>
     inline void mirror(std::vector<__vtype__>& __v, int cc = 0) {
@@ -985,6 +1091,7 @@ namespace Gmeng {
             std::reverse(__v.begin(), __v.end()) :
             std::reverse(__v.end(), __v.begin()) ;
     };
+
     /// concatenates all chunks within a level, according for a 2d space
     /// of which boundaries are set by the level's header base_template.
     /// returned as a vector<string>, which consist of rendered Gmeng::Unit rows
@@ -1051,9 +1158,11 @@ namespace Gmeng {
                  }), _vcreate_vp2d_deltax(lvl.display.viewpoint))[0]); gm_slog(YELLOW, "DEBUGGER", colors[RED] + "p2 CHUNK WRITE ERROR ( UNMATCH p2 [" + v_str(_vcreate_vp2d_deltax(partial.vp)) + "] WITH lvl_base_with [" + v_str(lvl.base.lvl_template.width) + "] )" + colors[WHITE] + " at p2_of ~(" + v_str(p2) + ") [ partial_of: chunk_" + _uconv_1ihx(_uget_addr(partial)) + "_00" + v_str(p2 / _vcreate_vp2d_deltax(lvl.display.viewpoint)) + " ]"); };
             p2 += _vcreate_vp2d_deltax(partial.vp);
         };
+
         if (global.debugger) {
             gm_slog(YELLOW, "DEBUGGER", "^^ above is reinterpereted_data from _vconcatenate_lvl_chunks");
         };
+
         ASSERT("pref.log", p_no);
         return reinterpereted_data;
     };
@@ -1084,6 +1193,7 @@ namespace Gmeng {
         std::vector<Unit> v_concat_chunks = _vconcatenate_lvl_chunks(level_t, cubic_render);
         return v_concat_chunks;
     };
+
     template <typename... Args>
     auto get_renderscale(Args&&... args) -> decltype(_vget_renderscale2dpartial_scalar(std::forward<Args>(args)...)) {
         return _vget_renderscale2dpartial_scalar(std::forward<Args>(args)...);
@@ -1100,6 +1210,7 @@ namespace Gmeng {
             __final__ += camera.draw_unit(unit);
         return __final__;
     };
+
     /// returns the camera of the current level, with drawpoints included in level_t->display.viewpoint
     inline std::string get_lvl_view(Gmeng::Level& level_t, std::vector<Unit> concat_chunks, bool cubic_render = true) {
         __functree_call__(Gmeng::get_lvl_view);
@@ -1203,12 +1314,14 @@ namespace Gmeng {
             ptr++;
             if (cubic_render) skip_y_position = dp.y+1; // v8.2.1-d / skip repeating already-drawn line
         };
+
         auto time_fin = GET_TIME() - time_start;
         level_t.display.camera.frame_time = time_fin;
         gm_log("get_lvl_view -> level view rendered");
         if (global.debugger) {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
         };
+
         /// remove \n newlines and return base, with formatters to split units
         ASSERT("pref.log", DISABLE());
         return g_joinStr(g_splitStr(__final__, "\n"), "");
@@ -1258,6 +1371,7 @@ struct textblob_t {
                 return false;
             return true;
         };
+
         Gmeng::Camera<0,0> cam_hide;
         bool placed = false;
         bool hidestate = false;

@@ -1,5 +1,7 @@
 #include <iostream>
+
 #include "../lib/bin/gmeng.h"
+#include "../lib/bin/utils/serialization.cpp"
 
 using namespace Gmeng;
 using namespace Gmeng::Util;
@@ -25,6 +27,10 @@ void reset() {
     texture real_cake_texture = default_texture_search("01_cake_txtr");
     texture table_texture = default_texture_search("03_table");
 
+    texture balloon_texture = default_texture_search("05_balloon");
+    texture balloon_texture_2 = default_texture_search("05_balloon");
+    texture_replace_color(balloon_texture_2, RED, GREEN);
+
     level.chunks.at(0) = { { {0, 0}, {99, 99} },
         {
             model_from_txtr( cake_texture, cfg.model_positions["player"] ), // this is actually the player
@@ -36,11 +42,16 @@ void reset() {
 
             model_from_txtr(gift_texture, cfg.model_positions["gift1"]),
             model_from_txtr(gift_texture, cfg.model_positions["gift2"]),
+
+            model_from_txtr(balloon_texture, cfg.model_positions["balloon1"]),
+            model_from_txtr(balloon_texture_2, cfg.model_positions["balloon2"]),
         }
     };
 
     level.display.viewpoint = { {0,0}, { cfg.DEF_DELTAX, cfg.DEF_DELTAY } };
     level.display.set_resolution(cfg.DEF_DELTAX, cfg.DEF_DELTAY);
+
+    if (filesystem::exists("cur_level.glvl")) read_level_data("cur_level.glvl", level);
 
     ev.level = &level;
 };
@@ -66,23 +77,11 @@ int main(int argc, char** argv) {
     texture gift_texture = default_texture_search("02_gift");
     texture real_cake_texture = default_texture_search("01_cake_txtr");
     texture table_texture = default_texture_search("03_table");
-    level.load_chunk({ { {0, 0}, {99, 99} },
-        {
-            model_from_txtr( cake_texture, cfg.model_positions["player"] ), // this is actually the player
+    level.load_chunk({ { {0, 0}, {99, 99} }, {} });
 
-            model_from_txtr(table_texture, cfg.model_positions["table1"]),
-            model_from_txtr(table_texture, cfg.model_positions["table2"]),
+    /// initially load state
+    reset();
 
-            model_from_txtr(real_cake_texture, cfg.model_positions["cake"]),
-
-            model_from_txtr(gift_texture, cfg.model_positions["gift1"]),
-            model_from_txtr(gift_texture, cfg.model_positions["gift2"]),
-        }
-    });
-
-    level.display.viewpoint = { {0,0}, { *DEF_DELTAX, *DEF_DELTAY } };
-    level.display.set_resolution(*DEF_DELTAX, *DEF_DELTAY);
-    ev.level = &level;
     std::vector<Unit> renderscale;
 
     ev.add_hook({ INIT }, [&](Level* level, EventInfo* info) {
@@ -90,6 +89,8 @@ int main(int argc, char** argv) {
         renderscale = get_renderscale(*level);
         level->display.camera.clear_screen();
         ev.call_event(FIXED_UPDATE, *info);
+        level->display.set_cursor_visibility(false);
+        write_level_data("cur_level.glvl", *level);
     });
 
     ev.add_hook( { FIXED_UPDATE },
@@ -228,5 +229,6 @@ int main(int argc, char** argv) {
 
     do_event_loop(&ev);
     std::cout << "end program\n";
+    level.display.set_cursor_visibility(true);
     return 0;
 };

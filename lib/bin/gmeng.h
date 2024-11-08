@@ -316,7 +316,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "10.1.0";
+    static std::string version = "10.2.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -409,7 +409,8 @@ namespace Gmeng {
     };
     extern void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2);
     extern Gmeng::texture LoadTexture(std::string __fname);
-	struct modifier {
+
+    struct modifier {
 		public:
 			std::string name = "v_unallocated_modifier"; int value = 0;
 	};
@@ -417,6 +418,7 @@ namespace Gmeng {
 		public:
 			std::vector<modifier> values = {};
 	};
+
 	struct RendererOptions {
 		public:
 		bool countObjects = false; bool useTitle = false;

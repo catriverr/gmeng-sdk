@@ -507,6 +507,7 @@ namespace Gmeng::TerminalUtil {
 #endif
 
 
+/// Event Hook System
 namespace Gmeng {
     using std::vector, std::string;
 
@@ -816,6 +817,10 @@ static gmeng_properties_t default_properties = {
 
         { "gift1", { 0, 22 } },
         { "gift2", { 44, 22 } },
+
+        { "balloon1", { 4, 4 } },
+        { "balloon2", { 37, 7 } },
+
 
         { "CAKE_INTERACT_TIMES", { 1, 20 } },
     },
