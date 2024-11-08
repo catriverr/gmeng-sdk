@@ -4,7 +4,24 @@
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `2/11/2024`.
+Latest entry is dated `8/11/2024`.
+
+**8/11/2024 (release)** Gmeng version 10.2.0 Released.
+> Gmeng now allows writing & reading Level files fully.
+> Level files are no longer stored as string-based parsable files, instead they are
+> binaries. To import serialization & level file reloading capabilities, import the serialization header.
+> ```c
+> #include <gmeng/utils/serialization.cpp>
+>
+> int main(int argc, char** argv) {
+>    Gmeng::Level level;
+>    read_level_data("./level.glvl", level);
+>    // logic..
+>    write_level_data("./level.glvl", level);
+> };
+> ````
+> You may also inspect, and although limitedly edit, .GLVL level files with the new CLI utility.
+> To use this, compile the default target with `make all` or `make` and run the command with `./gmeng glvl <filename>`
 
 **2/11/2024 (release)** Gmeng version 10.1.0 Released.
 > Gmeng now has a Game State system which allows for **PARTIAL** reloading of level data.

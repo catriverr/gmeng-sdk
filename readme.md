@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(2-Nov-2024) info**: 10.1.0: game state binaries & general improvements | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(8-Nov-2024) info**: 10.2.0: level file binary loading | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
