@@ -2,8 +2,6 @@
 #include <cstddef>
 #include <cstring>
 #include <ncurses.h>
-#include <iostream>
-#include <fstream>
 #include <string>
 #include "../gmeng.h"  // Replace with your actual header
 #include "../utils/serialization.cpp"
@@ -62,6 +60,7 @@ void getinput(const char *format, void *value, const char* autoval = "") {
         strcpy((char*)value, buffer);  // Copy the buffer to the provided string
     }
 };
+
 
 void display_header(WINDOW* win, const std::string& filename, const Gmeng::Level& level) {
     mvwprintw(win, 1, 0, ("[ Gmeng "+ (Gmeng::version) +" - build "+(GMENG_BUILD_NO)+" ]").c_str());
@@ -233,28 +232,27 @@ void navigate_and_edit(WINDOW* win, Gmeng::Level& level) {
 class level_file_editor_command_t : public Gmeng_Commandline::Subcommand {
   public:
     level_file_editor_command_t(string name, string desc): Subcommand(name, desc) {};
-
     void run(vector<std::string> args) {
-        if (args.size() < 1) {
+        if (args.size() < 1 || !filesystem::exists(args.at(0))) {
             LOG("~r~ERROR!~n~ please provide a filename.\n\t~g~Usage:~n~ " + Gmeng::global.executable + " ~b~glvl~n~ <filename>");
             return;
-        }
-
+        };
+   ///
         filename = args[0];
-
+   ///
         read_level_data(filename, level);
-
+   ///
         initscr();
         cbreak();
         noecho();
         keypad(stdscr, TRUE);
-
+   ///
         int height, width;
         getmaxyx(stdscr, height, width);
         WINDOW* main_win = stdscr;
         display_header(main_win, filename, level);
         navigate_and_edit(main_win, level);
-
+   ///
         endwin(); // Clean up ncurses
         write_level_data(filename, level);
         return;

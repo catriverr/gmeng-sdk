@@ -411,12 +411,18 @@ namespace Gmeng {
     extern Gmeng::texture LoadTexture(std::string __fname);
 
     struct modifier {
-		public:
-			std::string name = "v_unallocated_modifier"; int value = 0;
+	  public:
+		std::string name = "v_unallocated_modifier"; int value = 0;
 	};
 	struct ModifierList {
-		public:
-			std::vector<modifier> values = {};
+	  public:
+		std::vector<modifier> values = {};
+
+        int get_value(std::string key) {
+            for (const auto& val : values)
+                if (val.name == key) return val.value;
+            return -1;
+        };
 	};
 
 	struct RendererOptions {

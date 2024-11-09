@@ -1092,6 +1092,13 @@ namespace Gmeng {
             std::reverse(__v.end(), __v.begin()) ;
     };
 
+    template<typename __vtype__>
+    inline std::vector<__vtype__> mirror(std::vector<__vtype__> __v, bool returntyped = true) {
+        __functree_call__(Gmeng::mirror);
+        std::reverse(__v.begin(), __v.end());
+        return __v;
+    };
+
     /// concatenates all chunks within a level, according for a 2d space
     /// of which boundaries are set by the level's header base_template.
     /// returned as a vector<string>, which consist of rendered Gmeng::Unit rows

@@ -1,10 +1,13 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
+#include <deque>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <array>
 #include <cstring>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
@@ -589,6 +592,10 @@ namespace Gmeng {
     typedef struct EventLoop {
         int id; Gmeng::Level* level;
 
+        ModifierList modifiers = { {
+            modifier { "allow_console", 1 }
+        } };
+
         /// Processes, used for registering event calls for the
         /// next tick of the event loop. Called with `UPDATE` event
         vector<EventHook> processes;
@@ -682,6 +689,7 @@ namespace Gmeng {
 
     typedef struct EventLoop_Controller_State {
         Event last_event = INIT;
+        bool console_open;
     } EventLoop_Controller_State;
 };
 
@@ -693,22 +701,269 @@ namespace Gmeng {
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
+std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
+    std::deque<std::string> lines;
+
+    int i = 0;
+    while (i < ss.size()) {
+        lines.push_back(ss.at(i));
+        if (lines.size() > n) {
+            lines.pop_front();
+        };
+        i++;
+    };
+
+    return lines;
+};
+
+static std::vector<std::string> GAME_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
+#define GAME_LOG(x) GAME_LOGSTREAM.push_back(x)
+
+
+std::deque<std::string> gmeng_log_get_last_lines(int n = 5) {
+    return get_last_n_lines(GAME_LOGSTREAM, n);
+};
+
+static std::string dev_console_input = "";
+static bool already_writing = false;
+static Gmeng::EventInfo* dev_next = nullptr;
+static bool dev_console_open = false;
+static bool dev_console_first_open = true;
+
+static bool crash_protector = false;
+
+static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::EventLoop*)>> > commands = {
+        { "echo", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            params.erase(params.begin());
+            GAME_LOG(g_joinStr(params, " "));
+            return 0;
+        } },
+        { "crash", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            /// this will crash with a segmentation fault.
+            if (!crash_protector && !(params.size() > 0 && params.at(0) == "now")) crash_protector = true, GAME_LOG("kaboom? run again to confirm.");
+            else {
+                int* ptr = nullptr;
+                *ptr = 42;
+            };
+            return 1;
+        } },
+        { "exit", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            ev->level->display.set_cursor_visibility(true);
+            Gmeng::TerminalUtil::set_raw_mode(false);
+            Gmeng::TerminalUtil::set_non_blocking(false);
+            Gmeng::TerminalUtil::disable_mouse_tracking();
+            exit(0);
+            return 0;
+        } },
+        { "mod", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            params.erase(params.begin());
+            if (params.size() < 2) { GAME_LOG("usage: mod modifier_name val<int>"); return 1; };
+            int val = std::stoi(params.at(1));
+            ev->level->display.camera.set_modifier(params.at(0), val);
+            return 0;
+        } },
+        { "clear", [](vector<string>, Gmeng::EventLoop* ev) -> int { GAME_LOGSTREAM.clear(); return 0; } },
+        { "refresh", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+                ev->level->display.camera.clear_screen();
+                return 0;
+            } },
+        { "help", [](vector<string>, Gmeng::EventLoop*) -> int {
+                GAME_LOG("figure it out lol");
+            } },
+        { "info", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+                GAME_LOG("level " + ev->level->name + "");
+                GAME_LOG("desc: " + ev->level->desc);
+                GAME_LOG("chunks: " + v_str(ev->level->chunks.size()));
+                int model_count = 0;
+                for (const auto ch : ev->level->chunks) {
+                    model_count += ch.models.size();
+                };
+                GAME_LOG("models: "$(model_count)"F");
+                GAME_LOG("frame time: "$(ev->level->display.camera.frame_time)"ms");
+                GAME_LOG("draw time: "$(ev->level->display.camera.draw_time)"ms");
+            } }
+};
+
+int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
+    __functree_call__(gmeng_run_dev_command);
+
+    using namespace Gmeng;
+    using namespace Gmeng::Renderer;
+    using std::string, std::vector, std::deque, std::cout;
+
+    vector<string> params = g_splitStr(command, " ");
+
+    if (params.size() < 1) return -1;
+
+    Level* level = ev->level;
+    Display* display = &ev->level->display;
+    Camera<0, 0>* camera = &ev->level->display.camera;
+
+
+    int state = -11151; /// no command found
+    for (auto &cmd : commands) {
+        string name; std::function<int(vector<string>, EventLoop*)> handler;
+        std::tie(name, handler) = cmd;
+
+        if (name == params[0]) state = handler(params, ev);
+    };
+    if (state == -11151) GAME_LOG("unknown command: " + params.at(0));
+    ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+    return state == -11151 ? 1 : state;
+};
+
+void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
+    if (!dev_console_open) return;
+    if (already_writing) {
+        dev_next = info; return;
+    };
+    if (dev_next != nullptr) {
+        auto next = *dev_next;
+        dev_next = nullptr;
+        gmeng_dev_console(ev, &next);
+    };
+    already_writing = true;
+    using namespace Gmeng;
+    using namespace Gmeng::Renderer;
+    using std::string, std::vector, std::deque, std::cout;
+
+    EventInfo dd_info = *info;
+    bool run = false;
+    std::string cmd = "";
+
+    int CONSOLE_WIDTH = 38;
+
+    if (info->EVENT == KEYPRESS) {
+        switch (info->KEYPRESS_CODE) {
+            case 27: /// esc
+                dd_info.KEYPRESS_CODE = '~';
+                ev->call_event(KEYPRESS, dd_info);
+                return;
+                break;
+            case 10: /// enter
+                run = true;
+                cmd = dev_console_input;
+                dev_console_input = "";
+                break;
+            case 127: /// backspace
+                if (dev_console_input.length() > 0) dev_console_input.pop_back();
+                break;
+            case '~':
+                break;
+            default:
+                if (dev_console_input.length() >= CONSOLE_WIDTH-7) return;
+                dev_console_input += info->KEYPRESS_CODE;
+                break;
+        };
+    };
+
+    int last_result = -1;
+
+    if (run == true) run = false, last_result = gmeng_run_dev_command(ev, cmd);
+    if (ev->cancelled) return;
+
+    int CUR_COLOR = last_result == -1 ? color_t::YELLOW : ( last_result == 0 ? GREEN : RED );
+
+    Display* display = &ev->level->display;
+    drawpoint delta_xy = { _vcreate_vp2d_deltax(display->viewpoint), _vcreate_vp2d_deltay(display->viewpoint) };
+    Camera<0, 0>* camera = &ev->level->display.camera;
+
+    color_t CONSOLE_OUTLINE_COLOR = CYAN;
+
+
+    #define OUTLINE "+" + repeatString("-", CONSOLE_WIDTH-2) + "+"
+
+    deque<string> log_last = gmeng_log_get_last_lines(9);
+
+
+    log_last.push_front(OUTLINE);
+    log_last.push_front("| gmeng " + version + "-" + GMENG_BUILD_NO + " debugger");
+    while(log_last.at(0).length() < CONSOLE_WIDTH-1) log_last.at(0) += " ";
+    log_last.at(0) += "|";
+
+    camera->set_curXY( -1, delta_xy.x+2 );
+    cout << colors[CONSOLE_OUTLINE_COLOR] << OUTLINE << resetcolor;
+    int i = 0;
+    for (int j = 0; i < log_last.size(); i++) {
+        string data = log_last.at(i);
+
+        camera->set_curXY(i, delta_xy.x+2);
+
+        if (i != 0 && i != 1 &&
+            data.length() > CONSOLE_WIDTH-4) data = data.substr(0, CONSOLE_WIDTH-7) + "...";
+
+        if (i == 0 || i == 1) { cout << colors[CONSOLE_OUTLINE_COLOR] << data << resetcolor; continue; };
+
+        while (data.length() < CONSOLE_WIDTH-4) data += " ";
+
+        cout << colors[CONSOLE_OUTLINE_COLOR] << "| " << resetcolor << data << colors[CONSOLE_OUTLINE_COLOR] << " |" << resetcolor;
+    };
+    /// unused
+    int d = 0;
+    while (i < 11) {
+        camera->set_curXY(i, delta_xy.x+2);
+        cout << colors[CONSOLE_OUTLINE_COLOR] << "|" << resetcolor << repeatString(" ", CONSOLE_WIDTH-2) << colors[CONSOLE_OUTLINE_COLOR] << "|" << resetcolor;
+        i++;
+    };
+    camera->set_curXY(i+d, delta_xy.x+2);
+    cout << colors[CONSOLE_OUTLINE_COLOR] << OUTLINE << resetcolor;
+    camera->set_curXY(1+i+d, delta_xy.x+2);
+
+    std::string commandline = dev_console_input + Gmeng::c_unit;
+    while(commandline.length() < CONSOLE_WIDTH-4) commandline += " ";
+
+    cout << colors[CONSOLE_OUTLINE_COLOR] << "| " << boldcolor << colors[CUR_COLOR] << ">> " << resetcolor << commandline << colors[CONSOLE_OUTLINE_COLOR] << '|' << resetcolor;
+
+    camera->set_curXY(2+i+d, delta_xy.x+2);
+    cout << colors[CONSOLE_OUTLINE_COLOR] << OUTLINE << resetcolor;
+
+    already_writing = false;
+};
+
 #ifndef _WIN32
 /// runs an event loop instance
 /// (this means handling the level as the main event loop / the instance of the game)
 int do_event_loop(Gmeng::EventLoop* ev) {
+    __functree_call__(do_event_loop);
     Gmeng::EventLoop_Controller_State state;
+
+    char* term_prog = getenv("TERM_PROGRAM");
+    if ( strcmp(term_prog, "tmux") == 0) {
+        /// TMUX slows down input handling
+        /// and writing to stdout exteremly.
+        /// show warning against this.
+        /// Do not modify this warning.
+        ev->level->display.camera.clear_screen();
+        std::cout << Gmeng::colors[Gmeng::RED] << "WARNING!" << Gmeng::resetcolor;
+        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal emulator as TMUX.\n";
+        std::cout << "Tmux is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
+        std::cout << "as it slows down input receiver signals, introduces massive input lag,";
+        std::cout << " is unable to handle multiple keypresses at once";
+        std::cout << " and slows down output writing by up to 5000%.\n";
+        std::cout << "If your terminal depends on tmux for true color output,";
+        std::cout << " do not run this game with it.\n\n";
+        std::cout << "Recommended Terminal Programs With True Color Support:";
+        std::cout << "\n- windows: Windows Terminal\n";
+        std::cout << "- macOS: iTerm2\n";
+        std::cout << "- linux: the default tty will suffice.\n";
+        std::cout << "\nPress CTRL+C to quit.\n";
+        std::cout << "\nPress any key to continue anyway. (just exit tmux.. don't be stubborn)";
+        cin.ignore();
+    };
 
     if (Gmeng::main_event_loop != nullptr) return 1;
     Gmeng::main_event_loop = ev;
 
     char buf[64];
 
+    if (ev->cancelled) return -1;
+
     if (!ev->cancelled) ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
 
     Gmeng::_ucreate_thread([&]() {
         while (!ev->cancelled) {
-            ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
+            if (!state.console_open) ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
+            else gmeng_dev_console(ev, &Gmeng::NO_EVENT_INFO);
             ev->progress_tick();
         };
     });
@@ -716,6 +971,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); /// total bytes read
         Gmeng::Event t_event = Gmeng::UNKNOWN;
+        Gmeng::EventInfo info;
         if (n > 0) { /// if the event is not null
             buf[n] = '\0'; /// string terminate
             if (strstr(buf, "\033[<") != nullptr) {
@@ -746,7 +1002,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     continue;
                 };
 
-                Gmeng::EventInfo info = {
+                info = {
                     .EVENT = event_tp,
                     .KEYPRESS_CODE = 0,
                     .MOUSE_X_POS = x-1,
@@ -754,26 +1010,45 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     .prevent_default = false
                 };
 
-                ev->call_event(event_tp, info);
                 t_event = event_tp;
             } else {
                 /// KEYBOARD EVENTS (keypress)
                 /// KEYCODE IS buf[0];
-                Gmeng::EventInfo info = {
+                info = {
                     .EVENT = Gmeng::KEYPRESS,
                     .KEYPRESS_CODE = buf[0],
                     .MOUSE_X_POS = -1,
                     .MOUSE_Y_POS = -1,
                     .prevent_default = false,
                 };
-                ev->call_event(Gmeng::KEYPRESS, info);
+
+                if (ev->modifiers.get_value("allow_console") == 1) {
+                    if (info.KEYPRESS_CODE == '~') {
+                        if (state.console_open) ev->level->display.camera.clear_screen();
+                        state.console_open = !state.console_open;
+                        dev_console_open = state.console_open;
+                        gmeng_dev_console(ev, &info);
+                    };
+                    Gmeng::EventInfo d = {
+                        .EVENT = Gmeng::MOUSE_CLICK_END_ANY,
+                        .KEYPRESS_CODE = 0,
+                        .MOUSE_X_POS = 0,
+                        .MOUSE_Y_POS = 0,
+                        .prevent_default = false
+                    };
+                    ev->call_event(Gmeng::MOUSE_CLICK_END_ANY, d);
+                };
+
                 t_event = Gmeng::KEYPRESS;
             };
         };
+
         Gmeng::EventInfo scope = {
             .EVENT = t_event
         };
-        ev->call_event(Gmeng::FIXED_UPDATE, scope);
+
+        if (!state.console_open) ev->call_event(info.EVENT, info), ev->call_event(Gmeng::FIXED_UPDATE, scope);
+        else gmeng_dev_console(ev, &info);
     };
 
     gm_log("main game event loop (with id "$(ev->id)") closed");

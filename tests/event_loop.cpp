@@ -51,7 +51,7 @@ void reset() {
     level.display.viewpoint = { {0,0}, { cfg.DEF_DELTAX, cfg.DEF_DELTAY } };
     level.display.set_resolution(cfg.DEF_DELTAX, cfg.DEF_DELTAY);
 
-    if (filesystem::exists("cur_level.glvl")) read_level_data("cur_level.glvl", level);
+    if (filesystem::exists("envs/proto_level.glvl")) read_level_data("envs/proto_level.glvl", level);
 
     ev.level = &level;
 };
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
         level->display.camera.clear_screen();
         ev.call_event(FIXED_UPDATE, *info);
         level->display.set_cursor_visibility(false);
-        write_level_data("cur_level.glvl", *level);
+        write_level_data("envs/proto_level.glvl", *level);
     });
 
     ev.add_hook( { FIXED_UPDATE },
