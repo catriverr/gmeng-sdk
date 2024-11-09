@@ -30,6 +30,10 @@
     #include <limits.h>
 #endif
 
+#define sleep std::this_thread::sleep_for
+#define ms std::chrono::milliseconds
+
+
 #define time_rn std::chrono::system_clock::now().time_since_epoch()
 #define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
 

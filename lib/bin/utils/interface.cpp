@@ -26,8 +26,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#define sleep std::this_thread::sleep_for
-#define ms std::chrono::milliseconds
 
 #ifndef BUTTON5_PRESSED
     #define BUTTON5_PRESSED true
