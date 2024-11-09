@@ -30,8 +30,6 @@
     #include <limits.h>
 #endif
 
-#define sleep std::this_thread::sleep_for
-#define ms std::chrono::milliseconds
 
 
 #define time_rn std::chrono::system_clock::now().time_since_epoch()
@@ -927,13 +925,13 @@ static void patch_argv_global(int argc, char* argv[]) {
 #if _WIN32 == false
 #include "utils/network.cpp"
 #ifndef GMENG_NO_CURSES
+    /// for github build workflow
     #include "types/interface.h"
     #include "utils/interface.cpp"
-    /// for github build workflow
+#endif
 #if GMENG_SDL
     #include "types/window.h"
     #include "utils/window.cpp"
-#endif
 #endif
 #endif
 #include "utils/util.cpp"

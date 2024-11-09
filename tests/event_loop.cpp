@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
                         prev_color = color;
                         renderscale = get_renderscale(*level);
                         ev.call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
-                        sleep(ms( std::max(cfg.model_positions["CAKE_INTERACT_TIMES"].x, cfg.model_positions["CAKE_INTERACT_TIMES"].y - (int)(GET_TIME()-tim)) ));
+                        std::this_thread::sleep_for(std::chrono::milliseconds( std::max(cfg.model_positions["CAKE_INTERACT_TIMES"].x, cfg.model_positions["CAKE_INTERACT_TIMES"].y - (int)(GET_TIME()-tim)) ));
                     };
                     texture_replace_color(level->base.lvl_template, prev_color, BLUE);
                 };
