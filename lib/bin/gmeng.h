@@ -1,5 +1,6 @@
 #pragma once
 #include <codecvt>
+#include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
@@ -18,7 +19,9 @@
 #include <sstream>
 #include <functional>
 #include <atomic>
+
 #include "src/objects.cpp"
+
 #include <filesystem>
 #if _WIN32 == false
 #include <sys/ioctl.h> //ioctl() and TIOCGWINSZ
@@ -38,6 +41,7 @@
 #ifndef GMENG_BUILD_NO
     #define GMENG_BUILD_NO "(UNKNOWN_BUILD)"
 #endif
+
 
 
 /// Gets the current working directory
@@ -129,6 +133,7 @@ static not_nullptr_t<int>* not_nullptr = &not_nullptr_ref;
             x,                                      \
             __FUNCTION__                            \
         )
+
 #define GET_PREF(x, f) Gmeng::Assertions::get_assert( \
             x, f                                      \
         )
@@ -389,10 +394,6 @@ namespace Gmeng {
     };
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
 	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
-    // back when any of you
-    // meant something due to
-    // somebody talking about you guys
-
     // unicode characters for the 'unit' pixel
     // terminal-only - not used with sdl2 or ncurses
     // for ncurses, see wc_unit
@@ -845,22 +846,84 @@ static wchar_t* repeat_wstring(const wchar_t* wc, int times) {
     return str;
 };
 
+/// converts a wide string to a normal string.
 static std::string ws2s(const std::wstring& wstr) {
     using convert_typeX = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
     return converterX.to_bytes(wstr);
-}
+};
+
+
+static std::map<std::string, std::function<void()>> gmeng_warnings =
+{
+    { "tmux", []() {
+        /// TMUX slows down input handling
+        /// and writing to stdout extremely.
+        /// show warning against this.
+        /// Do not modify this warning.
+        std::cout << Gmeng::colors[Gmeng::RED] << "WARNING!" << Gmeng::resetcolor;
+        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal emulator as TMUX.\n";
+        std::cout << "\nTMUX is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
+        std::cout << "as it slows down input receiver signals, introduces massive input lag,\n";
+        std::cout << "is unable to handle multiple keypresses at once";
+        std::cout << " and slows down output writing by up to 5000%.\n\n";
+        std::cout << "If your terminal depends on TMUX for true color output,";
+        std::cout << " do not run this game with it.\nGmeng supports 16-color terminals by default. You do not need TMUX.\n\n";
+        std::cout << "Recommended Terminal Programs Without TMUX Dependency:";
+        std::cout << "\n- windows: Windows Terminal\n";
+        std::cout << "- macOS: iTerm2\n";
+        std::cout << "- linux / Windows Subsystem for linux: the default tty will suffice.\n";
+        std::cout << "\nPress CTRL+C to quit.\n";
+        std::cout << "\nPress any key to continue anyway. (just exit tmux.. don't be stubborn)";
+        cin.get();
+    } },
+    { "windows", []() {
+        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << "Gmeng (the engine this game runs on) has identified your OS as WINDOWS." << '\n';
+        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << Gmeng::boldcolor << "This error is raised by the engine itself, not the game." << Gmeng::resetcolor << '\n';
+        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << "Currently, Gmeng only supports unix based operating systems." << '\n';
+        std::cout << '\n';
+        std::cout << Gmeng::colors[Gmeng::BLUE] << "ONGOING EFFORTS: PORTING GMENG TO WINDOWS :: " << Gmeng::colors[Gmeng::CYAN] << Gmeng::boldcolor << "https://github.com/catriverr/gmeng-sdk https://gmeng.org\n";
+        std::cout << Gmeng::resetcolor << "Contribute to the project.\n";
+    } }
+};
+
+// internal warning method.
+// displays warnings related to functions of the engine.
+// do not use this method for your game. implement your own
+// warning screen mechanisms.
+static void _gmeng_show_warning(std::string warning_, char* filename, int fileline) {
+    printf("\033c"); // clear screen
+    if (gmeng_warnings.count(warning_) != 0) {
+        gmeng_warnings.find(warning_)->second();
+    } else {
+        /// default warning
+
+        std::cout << Gmeng::colors[Gmeng::RED];
+        std::cout << "GMENG WARNING!" << Gmeng::resetcolor;
+        std::cout << " <gmeng-default-warning-page>\n";
+        std::cout << "[gmeng is the engine that powers this game - this warning is produced by the engine itself]";
+
+        std::cout << "\n\nan internal subsystem of gmeng (" << get_filename(filename) << ':' << fileline << ")]\n";
+        std::cout << "has invoked a warning for '" << warning_ << "',\n";
+        std::cout << "but a custom warning screen for it is not defined.\n";
+
+        std::cout << "\nthis could be caused by correlated programming errors\nin the code for this game and out-of-bound function calls.\n";
+        std::cout << "\nit is advised to report this to the developers of this game\nwith a full copy of the files `gmeng.log` and `gmeng-functree.log`\nthat can be found in the current folder/directory.\n";
+
+        std::cout << "\npress CTRL+C to quit or any other key to continue anyway.\n";
+
+        std::cin.get();
+    };
+};
+
+#define gmeng_show_warning(x) _gmeng_show_warning( x, __FILE__, __LINE__ )
+
 
 ///// __controller_satisfy__
-///// OS Check for windows
+///// OS Error for Windows
 static void print_windows_error_message() {
-    __annot__(print_windows_error_message, "explains to a user using windows why windows cannot run gmeng.");
     __functree_call__(print_windows_error_message);
-    std::cout << Gmeng::colors[4] << "libgmeng-abi: __excuse__" << std::endl;
-    std::cout << "INTERNAL: __gmeng_platform__, __gmeng_threading__, __stdlib__, __libc++-abi__, __std_com_apple_main_pthread__" << std::endl;
-    std::cout << "Gmeng is not available in a core-platform other than darwin ( apple_kernel )." << std::endl;
-    std::cout << "current_platform: win32 ( WINDOWS_NT )" << std::endl;
-    std::cout << "__gmeng_halt_execution__( CAUSE( gmeng::global.v_exceptions->__find__( \"controller.platform\" ) ) && CAUSE( \"__environment_not_suitable__\" ) )" << Gmeng::resetcolor << std::endl;
+    gmeng_show_warning("windows");
     exit(1);
 };
 
@@ -938,4 +1001,9 @@ static void patch_argv_global(int argc, char* argv[]) {
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;
+
+static g::LinearRenderBufferPositionController lrbpc;
+static gm::HorizontalRenderBufferPositionController hrbpc;
+static gmeng::t_charpos a;
+
 #endif

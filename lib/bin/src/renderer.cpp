@@ -697,7 +697,7 @@ namespace Gmeng {
 
             inline Gmeng::chunk get_chunk(int id) {
                 __functree_call__(Gmeng::Level::__private__::get_chunk);
-                return this->chunks[id];
+                return this->chunks.at(id);
             };
 
             inline void set_chunk(int id, Gmeng::chunk chunk) {

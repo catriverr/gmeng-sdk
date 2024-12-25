@@ -1,3 +1,4 @@
+#pragma once
 #include "cli/index.h"
 #include "gmeng.h"
 
@@ -9,6 +10,7 @@
 /// LESS CAPABLE WITH OPTIONS BUT WILL BE MORE STABLE
 /// AND BETTER FOR NEWER USERS
 
+#define GMENG_USES_EASY_MODE 1
 
 /// @since 9.1.0
 
@@ -17,6 +19,7 @@
 #define gmeng_version Gmeng::version
 #define gmeng_gobal Gmeng::global
 #define gmeng_functree Gmeng::functree
+#define gmeng_build GMENG_BUILD_NO
 
 #define set_gmeng_arguments patch_argv_global
 #define set_gmeng_cli_arguments Gmeng_Commandline::patch_argv
@@ -38,7 +41,7 @@
 #define join_threads Gmeng::_ujoin_threads
 #define clear_threads Gmeng::_uclear_threads
 
-#define LOG gm_log
+#define _LOG gm_log
 
 /// RENDERER
 

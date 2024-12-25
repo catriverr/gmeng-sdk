@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #endif
 #include <functional>
 #include <unordered_map>
@@ -19,6 +20,33 @@
 #include <vector>
 #include <sstream>
 
+long long current_time_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+// Stream handler function type definition
+struct stream_util;
+
+using stream_handler_func = std::function<void(std::string&, long long, stream_util&)>;
+
+#define streamstr(x) std::to_string(current_time_ms()) + "|" + x
+
+
+// Stream utility struct
+struct stream_util {
+    int client_fd;  // Client file descriptor for the connection
+    std::string host;
+    int port;
+
+    stream_util(int fd, const std::string& h, int p) : client_fd(fd), host(h), port(p) {}
+
+    // Method to send data to the stream
+    void send_data(const std::string& data) {
+        send(client_fd, data.c_str(), data.size(), 0);
+    }
+};
 
 
 /// CLIENT
@@ -98,7 +126,7 @@ response_t send_request(const std::string& url, const std::string& authorization
 };
 
 /// OVERLOAD for post requests
-response_t send_request(const std::string& url, const std::string& authorization = "NONE", const std::string& method = "GET", const std::string& body = "") {
+response_t send_request(const std::string& url, const std::string& authorization = "NONE", const std::string& method = "POST", const std::string& body = "") {
 #if _WIN32 == false
     __functree_call__(Gmeng::send_request::overload::POST_BODY);
     CURL* curl;
@@ -196,6 +224,7 @@ public:
     std::atomic<bool> exited;
     std::atomic<bool> running;
 
+    gmserver_t() = default;
     gmserver_t(int port) : port(port), server_fd(-1), running(false) {
         __functree_call__(gmserver_t::__constructor__::gmserver_t);
     };
@@ -208,7 +237,13 @@ public:
         if (server_fd == -1) {
             gm_log( "Error creating socket");
             return;
-        }
+        };
+
+        int opt = 1;
+        /// for reusable sockets, to prevent kernel quitting the program because
+        /// the program is attempting to load a TIME_WAIT port (if another program recently used the port)
+        int sb = setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        if (sb < 0) gm_log("set sockopt failed, if the port is in TIME_WAIT this server  won't start\n");
 
         // Prepare sockaddr_in structure
         sockaddr_in address;
@@ -276,6 +311,11 @@ public:
         }
     }
 
+    void create_stream_path(path_type_t type, std::string path, stream_handler_func handler) {
+        if (type == path_type_t::GET) get_stream_paths.insert_or_assign(path, handler);
+        else post_stream_paths.insert_or_assign(path, handler);
+    };
+
     void stop() {
         __functree_call__(gmserver_t::stop);
         this->running = false;
@@ -288,8 +328,8 @@ public:
     }
 
 private:
-    void handle_request(int client_fd, prequisite_client prequisites) {
-#if _WIN32 == false
+    void handle_request(int client_fd, prequisite_client& prequisites) {
+#ifndef _WIN32
         __functree_call__(gmserver_t::__private__::handle_request);
 
         const int max_length = 1024;
@@ -306,19 +346,72 @@ private:
 
         // Prepare HTTP response
         response res;
-        res.status_code = 200; // Default status code
+        res.status_code = 201;
+        /// whether or not the request is to start a stream.
+        std::string stream_prefix = "/&stream";
 
+        // on_request event listener can be added here
+        std::cout << req.path << " " << req.body << " " << req.remote.address << '\n';
+
+        if (req.method == "GET" && req.path.starts_with(stream_prefix)) {
+            auto stream_path = "/" + req.path.substr(stream_prefix.size());
+            if (get_stream_paths.find(stream_path) != get_stream_paths.end()) {
+                handle_stream(client_fd, stream_path, get_stream_paths[stream_path]);
+                return;
+            }
+        } else if (req.method == "POST" && req.path.starts_with(stream_prefix)) {
+            auto stream_path = "/" + req.path.substr(stream_prefix.size());
+            if (post_stream_paths.find(stream_path) != post_stream_paths.end()) {
+                handle_stream(client_fd, stream_path, post_stream_paths[stream_path]);
+                return;
+            }
+        }
+
+        // Normal request handling
         if (req.method == "GET" && get_paths.count(req.path)) {
-            get_paths[req.path](req, res);
+            get_paths[req.path](const_cast<request&>(req), res);
         } else if (req.method == "POST" && post_paths.count(req.path)) {
-            post_paths[req.path](req, res);
+            post_paths[req.path](const_cast<request&>(req), res);
         } else {
             res.status_code = 404;
             res.body = "Not Found";
         }
 
-        // Send HTTP response
         send_response(client_fd, res);
+#endif
+    };
+
+    std::string stream_initconn = "INITCONN";
+
+    void handle_stream(int client_fd, const std::string& path, stream_handler_func handler_func) {
+#ifndef _WIN32
+        char buffer[1024];
+        stream_util util(client_fd, path, this->port);
+
+        handler_func(stream_initconn, 0, util);
+
+        while (this->running.load()) {
+            int read_bytes = read(client_fd, buffer, sizeof(buffer) - 1);
+            if (read_bytes <= 0) break;
+            buffer[read_bytes] = '\0';
+
+            std::string data(buffer);
+            auto delimiter_pos = data.find('|');
+            if (delimiter_pos != std::string::npos) {
+                long long client_timestamp = std::stoll(data.substr(0, delimiter_pos));
+                long long latency = current_time_ms() - client_timestamp;
+
+                std::string message = data.substr(delimiter_pos + 1);
+
+                if (message == "&endstream") break;
+
+                handler_func(message, latency, util);
+
+            } else {
+                std::string response = streamstr("&nack.body");
+                send(client_fd, response.c_str(), response.size(), 0);
+            };
+        };
 #endif
     }
 
@@ -369,6 +462,10 @@ private:
 
     std::unordered_map<std::string, std::function<void(request&, response&)>> get_paths;
     std::unordered_map<std::string, std::function<void(request&, response&)>> post_paths;
+
+    /// stream paths
+    std::unordered_map<std::string, stream_handler_func> get_stream_paths;
+    std::unordered_map<std::string, stream_handler_func> post_stream_paths;
 };
 
 
@@ -476,4 +573,114 @@ namespace Gmeng::Networking {
             return { c_drawpoint(v[0]), c_drawpoint(v[1]) };
         };
     };
+
+    /// definition for rcon server
+    struct rcon_server_def_t {
+        int port = 7389; std::string password = v_str(g_mkid());
+
+        bool allow_multiple_clients = false;
+        bool unsafe_responses = false;
+
+        bool enabled = false;
+    };
 };
+
+
+
+#ifndef _WIN32
+int send_stream_request(path_type_t method, const std::string& full_path, stream_handler_func handler_func) {
+    size_t protocol_end = full_path.find("://") + 3;
+    size_t host_end = full_path.find('/', protocol_end);
+    std::string host_port = full_path.substr(protocol_end, host_end - protocol_end);
+    std::string path = full_path.substr(host_end);
+
+    // Find the port
+    size_t colon_pos = host_port.find(':');
+    std::string host = host_port.substr(0, colon_pos);
+    int port = std::stoi(host_port.substr(colon_pos + 1));  // Extract port number
+
+    // Create socket
+    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_fd < 0) {
+        std::cout << "Error opening socket\n";
+        return 1;
+    }
+
+    struct hostent* server = gethostbyname(host.c_str());
+    if (server == nullptr) {
+        std::cerr << "Error resolving host\n";
+        close(client_fd);
+        return 2;
+    }
+
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    memcpy(&server_addr.sin_addr.s_addr, server->h_addr_list[0], server->h_length);
+
+    // Connect to the server
+    if (connect(client_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        std::cerr << "Connection failed.\n";
+        close(client_fd);
+        return 3;
+    }
+
+    // Prepare the HTTP request
+    std::string request_str = std::string(method == path_type_t::GET ? "GET" : "POST") + " " + path + " HTTP/1.1\r\n";
+    request_str += "Host: " + host + "\r\n";
+    request_str += "Connection: close\r\n";
+    request_str += "\r\n";
+
+    // Send the HTTP request to the server
+    if (send(client_fd, request_str.c_str(), request_str.size(), 0) < 0) {
+        std::cerr << "Error sending HTTP request\n";
+        close(client_fd);
+        return 4;
+    };
+
+    // Prepare the stream initialization message with timestamp
+    std::string message = "INITCONN"; // Stream initialization command
+    std::string message_with_timestamp = streamstr(message);
+    // Send the stream initialization message
+    if (send(client_fd, message_with_timestamp.c_str(), message_with_timestamp.size(), 0) < 0) {
+        std::cerr << "Error sending stream message\n";
+        close(client_fd);
+        return 5;
+    }
+
+    stream_util util(client_fd, host, port);
+
+    // Read server response
+    char buffer[1024];
+    while (true) {
+        int read_bytes = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (read_bytes <= 0) {
+            std::cerr << "Server closed connection or error occurred\n";
+            break;
+        }
+        buffer[read_bytes] = '\0';
+
+        // Process received data and calculate latency
+        std::string data(buffer);
+        auto delimiter_pos = data.find('|');
+        if (delimiter_pos != std::string::npos) {
+            long long server_timestamp = std::stoll(data.substr(0, delimiter_pos));
+            long long latency = current_time_ms() - server_timestamp;
+
+            std::string message = data.substr(delimiter_pos + 1);
+
+            if (message == "&endstream") break;
+
+            // Call the handler function with the message, latency, and stream_util
+            handler_func(message, latency, util);
+        } else {
+            util.send_data(streamstr("unparsable data / ignored"));
+        };
+    }
+
+    // Close the connection
+    close(client_fd);
+    return 0;
+}
+#endif

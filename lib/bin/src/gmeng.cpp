@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include <deque>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <array>
 #include <cstring>
@@ -20,7 +19,80 @@
     #define GMENG_MAX_MAP_SIZE 32767
 #endif
 
+/// in-text number variable input like `"hi user"$(id)"`
 #define $(x) + v_str(x) +
+
+#ifdef _WIN32
+#include <conio.h>  // For _getch() on Windows
+#else
+#include <termios.h>
+#include <unistd.h>
+#endif
+
+void setRawMode(bool enable) {
+#ifndef _WIN32
+    static struct termios oldt, newt;
+    if (enable) {
+        tcgetattr(STDIN_FILENO, &oldt);  // Get current terminal settings
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO);  // Disable canonical mode and echo
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);  // Apply new settings immediately
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);  // Restore old settings
+    }
+#endif
+}
+
+
+
+/// text input in the console with output feedback
+std::string lineinput(bool secret = false) {
+    std::string input;
+
+    if (secret) {
+        #ifdef _WIN32
+        char ch;
+        while (true) {
+            ch = _getch();  // Get character without echoing on Windows
+            if (ch == '\r') {  // Enter key on Windows
+                std::cout << std::endl;
+                break;
+            } else if (ch == '\b') {  // Backspace
+                if (!input.empty()) {
+                    input.pop_back();
+                    std::cout << "\b \b";  // Remove the last asterisk
+                }
+            } else {
+                input.push_back(ch);
+                std::cout << '*' << std::flush;  // Display asterisk instead of character
+            }
+        }
+        #else
+        setRawMode(true);  // Enable raw mode on Unix-like systems
+        char ch;
+        while (true) {
+            ch = getchar();
+            if (ch == '\n') {  // Enter key
+                std::cout << std::endl;
+                break;
+            } else if (ch == 127 || ch == '\b') {  // Backspace (127 or '\b')
+                if (!input.empty()) {
+                    input.pop_back();
+                    std::cout << "\b \b" << std::flush;  // Remove the last asterisk
+                }
+            } else {
+                input.push_back(ch);
+                std::cout << '*' << std::flush;  // Display asterisk immediately
+            }
+        }
+        setRawMode(false);  // Restore original terminal settings
+        #endif
+    } else {
+        std::getline(std::cin, input);
+    }
+
+    return input;
+};
 
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     __functree_call__(g_trace_trajectory);
@@ -463,7 +535,6 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 #include <termios.h>
 #endif
 #include <fcntl.h>
-#include <errno.h>
 
 
 #ifndef _WIN32
@@ -624,6 +695,8 @@ namespace Gmeng {
             TerminalUtil::set_non_blocking(false);
             gm_log(""$(id)": disabled non blocking input mode");
             TerminalUtil::disable_mouse_tracking();
+
+            server.stop();
 #endif
         };
 
@@ -683,6 +756,34 @@ namespace Gmeng {
                 } else continue;
             };
         };
+
+        void init_server(Networking::rcon_server_def_t server) {
+            this->rcon_opt = server;
+            this->server.port = server.port;
+
+            this->server.create_path(path_type_t::GET, "/",
+            [&](request& req, response& res) {
+                res.status_code = 200;
+                res.body = this->level->name + "/" + this->level->desc;
+            });
+
+            this->server.create_path(path_type_t::POST, "/",
+            [&](request& req, response& res) {
+                res.status_code = 200;
+                res.body = this->level->name + "/" + this->level->desc;
+            });
+        };
+        void init_server(bool state) {
+            if (!state) server.stop();
+            else;
+        };
+
+        void reset_server() {};
+
+        Networking::rcon_server_def_t rcon_opt;
+        gmserver_t server;
+
+        int RCON_REMOTE_COUNT = 0;
     } EventLoop;
 
     EventLoop* main_event_loop = nullptr;
@@ -716,12 +817,14 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
     return lines;
 };
 
-static std::vector<std::string> GAME_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
-#define GAME_LOG(x) GAME_LOGSTREAM.push_back(x)
+
+static std::vector<std::string> PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
+static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
+#define GAME_LOG(x) GAME_LOGSTREAM->push_back(x)
 
 
 std::deque<std::string> gmeng_log_get_last_lines(int n = 5) {
-    return get_last_n_lines(GAME_LOGSTREAM, n);
+    return get_last_n_lines(*GAME_LOGSTREAM, n);
 };
 
 static std::string dev_console_input = "";
@@ -731,6 +834,7 @@ static bool dev_console_open = false;
 static bool dev_console_first_open = true;
 
 static bool crash_protector = false;
+static int CONSOLE_WIDTH = 38;
 
 static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::EventLoop*)>> > commands = {
         { "echo", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
@@ -749,9 +853,11 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         } },
         { "exit", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             ev->level->display.set_cursor_visibility(true);
+#ifndef _WIN32
             Gmeng::TerminalUtil::set_raw_mode(false);
             Gmeng::TerminalUtil::set_non_blocking(false);
             Gmeng::TerminalUtil::disable_mouse_tracking();
+#endif
             exit(0);
             return 0;
         } },
@@ -762,7 +868,7 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             ev->level->display.camera.set_modifier(params.at(0), val);
             return 0;
         } },
-        { "clear", [](vector<string>, Gmeng::EventLoop* ev) -> int { GAME_LOGSTREAM.clear(); return 0; } },
+        { "clear", [](vector<string>, Gmeng::EventLoop* ev) -> int { GAME_LOGSTREAM->clear(); return 0; } },
         { "refresh", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 ev->level->display.camera.clear_screen();
                 return 0;
@@ -812,17 +918,47 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
     return state == -11151 ? 1 : state;
 };
 
+void remote_console_setup(Gmeng::EventLoop* ev) {
+    if (ev->rcon_opt.enabled) {
+        ev->init_server(ev->rcon_opt);
+        ev->server.create_path(path_type_t::POST, "/rcon_login",
+        [&](request& req, response& res){
+            if (ev->RCON_REMOTE_COUNT >= 1 && !ev->rcon_opt.allow_multiple_clients) {
+                res.status_code = ev->rcon_opt.unsafe_responses ? 403 : 401;
+                return (void) 0;
+            };
+        });
+    } else return (void) 0;
+};
+
+void dev_console_animation(Gmeng::EventLoop* ev) {
+    Gmeng::Camera<0, 0>* camera = &ev->level->display.camera;
+    Gmeng::Renderer::Display* display = &ev->level->display;
+    Gmeng::Renderer::drawpoint delta_xy = { Gmeng::_vcreate_vp2d_deltax(display->viewpoint), Gmeng::_vcreate_vp2d_deltay(display->viewpoint) };
+
+    int total_lines = 15;
+    for (int i = 0; i < total_lines; i++) {
+        camera->clear_screen();
+    };
+};
+
 void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     if (!dev_console_open) return;
+
     if (already_writing) {
         dev_next = info; return;
     };
+
     if (dev_next != nullptr) {
         auto next = *dev_next;
         dev_next = nullptr;
+
         gmeng_dev_console(ev, &next);
     };
+
+    dev_console_open = true;
     already_writing = true;
+
     using namespace Gmeng;
     using namespace Gmeng::Renderer;
     using std::string, std::vector, std::deque, std::cout;
@@ -831,7 +967,6 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     bool run = false;
     std::string cmd = "";
 
-    int CONSOLE_WIDTH = 38;
 
     if (info->EVENT == KEYPRESS) {
         switch (info->KEYPRESS_CODE) {
@@ -865,7 +1000,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     int CUR_COLOR = last_result == -1 ? color_t::YELLOW : ( last_result == 0 ? GREEN : RED );
 
     Display* display = &ev->level->display;
-    drawpoint delta_xy = { _vcreate_vp2d_deltax(display->viewpoint), _vcreate_vp2d_deltay(display->viewpoint) };
+    drawpoint delta_xy = { Gmeng::_vcreate_vp2d_deltax(display->viewpoint), Gmeng::_vcreate_vp2d_deltay(display->viewpoint) };
     Camera<0, 0>* camera = &ev->level->display.camera;
 
     color_t CONSOLE_OUTLINE_COLOR = CYAN;
@@ -884,6 +1019,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     camera->set_curXY( -1, delta_xy.x+2 );
     cout << colors[CONSOLE_OUTLINE_COLOR] << OUTLINE << resetcolor;
     int i = 0;
+
     for (int j = 0; i < log_last.size(); i++) {
         string data = log_last.at(i);
 
@@ -898,6 +1034,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 
         cout << colors[CONSOLE_OUTLINE_COLOR] << "| " << resetcolor << data << colors[CONSOLE_OUTLINE_COLOR] << " |" << resetcolor;
     };
+
     /// unused
     int d = 0;
     while (i < 11) {
@@ -929,26 +1066,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     char* term_prog = getenv("TERM_PROGRAM");
     if ( strcmp(term_prog, "tmux") == 0) {
-        /// TMUX slows down input handling
-        /// and writing to stdout exteremly.
-        /// show warning against this.
-        /// Do not modify this warning.
-        ev->level->display.camera.clear_screen();
-        std::cout << Gmeng::colors[Gmeng::RED] << "WARNING!" << Gmeng::resetcolor;
-        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal emulator as TMUX.\n";
-        std::cout << "Tmux is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
-        std::cout << "as it slows down input receiver signals, introduces massive input lag,";
-        std::cout << " is unable to handle multiple keypresses at once";
-        std::cout << " and slows down output writing by up to 5000%.\n";
-        std::cout << "If your terminal depends on tmux for true color output,";
-        std::cout << " do not run this game with it.\n\n";
-        std::cout << "Recommended Terminal Programs With True Color Support:";
-        std::cout << "\n- windows: Windows Terminal\n";
-        std::cout << "- macOS: iTerm2\n";
-        std::cout << "- linux: the default tty will suffice.\n";
-        std::cout << "\nPress CTRL+C to quit.\n";
-        std::cout << "\nPress any key to continue anyway. (just exit tmux.. don't be stubborn)";
-        cin.ignore();
+        gmeng_show_warning("tmux");
     };
 
     if (Gmeng::main_event_loop != nullptr) return 1;
@@ -957,14 +1075,20 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     char buf[64];
 
     if (ev->cancelled) return -1;
+    else ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
 
-    if (!ev->cancelled) ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
+    bool curstate = state.console_open;
 
     Gmeng::_ucreate_thread([&]() {
         while (!ev->cancelled) {
             if (!state.console_open) ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
             else gmeng_dev_console(ev, &Gmeng::NO_EVENT_INFO);
             ev->progress_tick();
+
+            if (curstate != state.console_open && !state.console_open) {
+                ev->level->display.camera.clear_screen();
+                curstate = state.console_open;
+            };
         };
     });
 

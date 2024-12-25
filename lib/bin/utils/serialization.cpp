@@ -278,7 +278,7 @@ void write_level_data(std::string filename, Gmeng::Level& level) {
     out.close();
 };
 
-/// Reads data of a Level object from a file.]
+/// Reads data of a Level object from a file.
 void read_level_data(std::string filename, Gmeng::Level& level) {
     std::ifstream inf(filename, std::ios::binary);
     if (!inf.is_open()) {
@@ -291,5 +291,28 @@ void read_level_data(std::string filename, Gmeng::Level& level) {
     deserialize_modifier_list(level.display.camera.modifiers, inf);
 
     inf.close();
+};
+
+
+/// Writes out data of a Level object to a stream, which can later be reloaded with read_level_data().
+void write_level_data(std::ostream& out, Gmeng::Level& level) {
+    if (!out) {
+        gm_log("ERROR: could not write to stream for binary level data.");
+        return;
+    }
+
+    serialize_level(level, out);
+    serialize_modifier_list(level.display.camera.modifiers, out);
+};
+
+/// Reads data of a Level object from a stream.
+void read_level_data(std::istream& inf, Gmeng::Level& level) {
+    if (!inf) {
+        gm_log("ERROR: could not read from stream for binary level data.");
+        return;
+    }
+
+    deserialize_level(level, inf);
+    deserialize_modifier_list(level.display.camera.modifiers, inf);
 };
 #define GMENG_SERIALIZATION_INIT 1
