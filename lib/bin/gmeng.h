@@ -323,7 +323,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "10.2.0";
+    static std::string version = "10.3.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -998,6 +998,7 @@ static void patch_argv_global(int argc, char* argv[]) {
 #endif
 #endif
 #include "utils/util.cpp"
+#include "src/audio.cpp"
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;

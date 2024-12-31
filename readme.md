@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(8-Nov-2024) info**: 10.2.0: level file binary loading | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(31-Dec-2024) info**: 10.3.0: Audio Engine Implementation | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
@@ -63,6 +63,8 @@ builds:
     make test2 (builds unit tests / tests/test.cpp)
     make compile (builds your target file / specified in buildoptions.mk or `make configure`)
     make compile-windows (builds your target file / cross compiled to windows)
+    make compile-file filename=<file.cpp> (builds the file defined in filename)
+    make compile-file-windows filename=<file.cpp> (builds the file defined in filename, for windows target)
 options:
     make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows]
     make configure

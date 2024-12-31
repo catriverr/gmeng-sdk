@@ -1,13 +1,13 @@
 # Compiler and flags
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
+CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
 # Compiler to Windows
 WINDOWS_CXX := i686-w64-mingw32-g++ # MinGW compiler for unix-to-windows cross compile.
-WINDOWS_CXXFLAGS := -std=c++20 -Wno-write-strings -Wno-return-type -static -static-libgcc -static-libstdc++ -lpthread -pthread
+WINDOWS_CXXFLAGS := -std=c++20 -Wno-write-strings -Wno-return-type -static -static-libgcc -static-libstdc++ -lpthread -pthread -lwinmm
 
 USE_NCURSES := true
 USE_EXTERNAL := false
@@ -80,7 +80,7 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 ifeq ($(UNAME_S), Linux)
-	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings
+	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings -lasound
 	USE_NCURSES := false
 endif
 
@@ -201,5 +201,14 @@ compile-windows:
 	@echo EXECUTABLE WILL BE NAMED\: ./game.exe
 	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(TARGET_NAME) -o game.exe
 
+
+compile-file:
+	@echo "Compiling file: $(filename)"
+	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(filename) -o $(basename $(filename))
+
+compile-file-windows:
+	@echo "Cross compiling file: $(filename)"
+	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(filename) -o $(basename $(filename))$(suffix .exe)
+
 # Phony targets
-.PHONY: all test test2 debug no-ncurses warnings configure compile compile-windows
+.PHONY: all test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows

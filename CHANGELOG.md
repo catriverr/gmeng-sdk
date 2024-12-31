@@ -4,7 +4,15 @@
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `8/11/2024`.
+Latest entry is dated `31/12/2024`.
+
+**31/12/2024 (release)** Gmeng 10.3.0: Gmeng now has an Audio Engine.
+> The engine is able to play desired frequencies and chords of frequencies.
+> The engine also has an example usage file in `tests/audio_test.cpp`. Check it out for examples.
+> This version also comes with server stream capabilities which later on will be able to communicate with clients
+> for Gmeng Multiplayer. The makefile also includes options to build specific files instead of defining a target file, usable with `make compile-file filename=<file.cpp>`.
+> Check the readme for more information about this parameter.
+
 
 **8/11/2024 (release)** Gmeng version 10.2.0 Released.
 > Gmeng now allows writing & reading Level files fully.
