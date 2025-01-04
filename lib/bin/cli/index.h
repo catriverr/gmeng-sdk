@@ -21,7 +21,7 @@ namespace Gmeng_Commandline {
     };
 
     static const execution_scope gmng_user = execution_scope(false, g_mkid(), get_username() + ":tty");
-    static const execution_scope gmng_internal = execution_scope(true, 0, "gmeng:internal");    
+    static const execution_scope gmng_internal = execution_scope(true, 0, "gmeng:internal");
 
     static int argc = 0;
     static char** argv;
@@ -136,6 +136,7 @@ namespace Gmeng_Commandline {
 
 #include "./commands.cc"
 #include "./level_editor.cc"
+#include "./basic_songmaker.cc"
 
 #define __GMENG_COMMANDLINE_IMPORTS__ true
 

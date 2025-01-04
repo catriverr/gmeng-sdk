@@ -105,7 +105,7 @@ void init_audio_output() {
 };
 
 // Function to play a frequency
-void play_frequency(double frequency, unsigned int duration) {
+void play_frequency(double frequency, unsigned int duration = -1) {
     OSStatus result;
     if (audio_output == nullptr) init_audio_output();
     // Initialize the AudioUnit
@@ -133,7 +133,7 @@ void play_frequency(double frequency, unsigned int duration) {
 
     // Run for some time (duration of the note)
     std::this_thread::sleep_for(std::chrono::milliseconds(duration));
-    if (frequency != 0) play_frequency(0, 0);
+    if (frequency != 0 && duration != -1) play_frequency(0, 0);
 };
 
 void delete_audio_output() {

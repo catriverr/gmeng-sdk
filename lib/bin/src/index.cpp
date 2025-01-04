@@ -74,6 +74,5 @@ int main(int argc, char** argv) {
         params.erase(params.begin());
         Gmeng_Commandline::get_subcommand(subcmd)->run(params);
     };
-    _gthread_catchup();
     return 0;
 };
