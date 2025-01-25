@@ -6,7 +6,10 @@
 #include "../gmeng.h"
 #include "../src/audio.cpp"
 #include "../cli/index.h"
-#include <ncursesw/ncurses.h>
+
+#ifndef GMENG_NO_CURSES
+#include "../utils/interface.cpp"
+
 
 using namespace Gmeng;
 
@@ -326,3 +329,5 @@ static audio_editor_command_t AEC("songmaker", "Basic songmaker utility for Gmen
 static Gmeng_Commandline::InterfaceRegistrar register_AEC(
     std::make_unique<audio_editor_command_t>( AEC )
 );
+
+#endif
