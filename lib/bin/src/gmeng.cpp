@@ -820,7 +820,14 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 
 static std::vector<std::string> PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
 static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
-#define GAME_LOG(x) GAME_LOGSTREAM->push_back(x)
+
+#define GAME_LOG(str)                                              \
+    do {                                                           \
+        auto splitEntries = g_splitStr(str, "\n");                 \
+        for (const auto& entry : splitEntries) {                   \
+            GAME_LOGSTREAM->push_back(entry);                      \
+        }                                                          \
+    } while (0)
 
 
 std::deque<std::string> gmeng_log_get_last_lines(int n = 5) {
@@ -842,10 +849,22 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             GAME_LOG(g_joinStr(params, " "));
             return 0;
         } },
+        { "setwidth", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            params.erase(params.begin());
+            if (params.size() < 1) {
+                GAME_LOG("usage: setwidth <console_width(int)>");
+                GAME_LOG("this command will crash the game\nif you use a non-integer-conversible parameter");
+                return 1;
+            } else CONSOLE_WIDTH = std::stoi(params.at(0));
+            return 0;
+        } },
         { "crash", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             /// this will crash with a segmentation fault.
-            if (!crash_protector && !(params.size() > 0 && params.at(0) == "now")) crash_protector = true, GAME_LOG("kaboom? run again to confirm.");
-            else {
+            params.erase(params.begin());
+            if (!crash_protector && !(params.size() > 0 && params.at(0) == "now")) {
+                crash_protector = true;
+                GAME_LOG("kaboom? run again to confirm.");
+            } else {
                 int* ptr = nullptr;
                 *ptr = 42;
             };
@@ -863,7 +882,7 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         } },
         { "mod", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             params.erase(params.begin());
-            if (params.size() < 2) { GAME_LOG("usage: mod modifier_name val<int>"); return 1; };
+            if (params.size() < 1) { GAME_LOG("usage: mod modifier_name val<int>"); return 1; };
             int val = std::stoi(params.at(1));
             ev->level->display.camera.set_modifier(params.at(0), val);
             return 0;
@@ -875,6 +894,20 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             } },
         { "help", [](vector<string>, Gmeng::EventLoop*) -> int {
                 GAME_LOG("figure it out lol");
+                GAME_LOG("just kidding just run `helpcmd`");
+                return 0;
+            } },
+        { "helpcmd", [](vector<string>, Gmeng::EventLoop*) -> int {
+                for (auto& cmd : commands) {
+                    string name; std::function<int(vector<string>, Gmeng::EventLoop*)> handler;
+                    std::tie(name, handler) = cmd;
+                    GAME_LOG("cmd: `" + name + "`");
+                };
+                GAME_LOG("");
+                GAME_LOG("p.s.");
+                GAME_LOG("gmeng internally doesn't have descriptions for any of these functions");
+                GAME_LOG("try running the command or guess from the name");
+                return 0;
             } },
         { "info", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 GAME_LOG("level " + ev->level->name + "");
@@ -887,6 +920,7 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 GAME_LOG("models: "$(model_count)"F");
                 GAME_LOG("frame time: "$(ev->level->display.camera.frame_time)"ms");
                 GAME_LOG("draw time: "$(ev->level->display.camera.draw_time)"ms");
+                return 0;
             } }
 };
 
@@ -905,13 +939,14 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
     Display* display = &ev->level->display;
     Camera<0, 0>* camera = &ev->level->display.camera;
 
+    std::string cmdname = params[0];
 
     int state = -11151; /// no command found
     for (auto &cmd : commands) {
         string name; std::function<int(vector<string>, EventLoop*)> handler;
         std::tie(name, handler) = cmd;
 
-        if (name == params[0]) state = handler(params, ev);
+        if (name == cmdname) state = handler(params, ev);
     };
     if (state == -11151) GAME_LOG("unknown command: " + params.at(0));
     ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
