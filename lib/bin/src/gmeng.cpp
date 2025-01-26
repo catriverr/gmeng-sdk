@@ -1,4 +1,5 @@
 #pragma once
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
@@ -19,7 +20,7 @@
     #define GMENG_MAX_MAP_SIZE 32767
 #endif
 
-/// in-text number variable input like `"hi user"$(id)"`
+/// in-text number variable input like `"hi user"$(id)""`
 #define $(x) + v_str(x) +
 
 #ifdef _WIN32
@@ -305,18 +306,25 @@ namespace Gmeng {
 		};
 
         /// @deprecated do not use
+        /// this function does not have functionality anyways,
+        /// and will do nothing. Kept here for backwards-compatibility
+        /// for the sake of it.
 		inline void AddEntity(int entityId, Objects::G_Entity entity) {
             __functree_call__(Gmeng::Camera::__no_impl__::AddEntity);
 			//working on
 		};
 
-        /// @deprecated
+        /// @deprecated do not use
+        /// this function does not have functionality anyways,
+        /// and will do nothing. Kept here for backwards-compatibility
+        /// for the sake of it.
 		inline void RemoveEntity(int entityId) {
             __functree_call__(Gmeng::Camera::__no_impl__::RemoveEntity);
 			//working on
 		};
 
         /// @deprecated
+        /// receives the coordinates of an entity
 		inline Objects::coord GetPos(int entityId) {
             __functree_call__(Gmeng::Camera::GetPos);
 			bool exists;
@@ -373,6 +381,10 @@ namespace Gmeng {
                 return bgcolors_bright[current_unit.color] + " " + Gmeng::resetcolor;
             };*/ // v8.2.2-d: this expects the units to be in Y-index ordered
             if (current_unit.color == next_unit.color) {
+                if (this->has_modifier("wireframe_render")) {
+                    if (prefer_second) return bgcolors[next_unit.color] + colors[BLACK] + ((current_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + Gmeng::resetcolor;
+                    else return bgcolors[current_unit.color] + colors[BLACK] + ((next_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + Gmeng::resetcolor;
+                };
                 return bgcolors_bright[current_unit.color] + colors[current_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + Gmeng::c_outer_unit + Gmeng::resetcolor;
             };
             if (current_unit.special && !prefer_second) {
@@ -849,11 +861,22 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             GAME_LOG(g_joinStr(params, " "));
             return 0;
         } },
+        { "restart", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            GAME_LOG("[gmeng_internal] restarting...");
+            GAME_LOG("replacing current executable image...\nexecvp()");
+            int state = restart_program();
+            if (state != 0) {
+                GAME_LOG("an error occurred while restarting\nthe current program.\n");
+                GAME_LOG("gmeng state: "$(state)" - errno: "$(errno)"");
+            };
+
+            return 0;
+        } },
         { "setwidth", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             params.erase(params.begin());
             if (params.size() < 1) {
                 GAME_LOG("usage: setwidth <console_width(int)>");
-                GAME_LOG("this command will crash the game\nif you use a non-integer-conversible parameter");
+                GAME_LOG("this command will crash the game\nif you use a\nnon-integer-conversible parameter");
                 return 1;
             } else CONSOLE_WIDTH = std::stoi(params.at(0));
             return 0;

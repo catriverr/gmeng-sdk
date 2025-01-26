@@ -1,4 +1,5 @@
 #pragma once
+#include <cerrno>
 #include <codecvt>
 #include <cstdio>
 #include <cstdlib>
@@ -70,8 +71,6 @@ static std::string get_username() {
     if (username) return std::string(username);
     else return std::string();
 };
-
-
 
 #ifdef __GMENG_OBJECTINIT__
 
@@ -458,11 +457,16 @@ namespace Gmeng {
         bool dev_console; bool debugger;
         bool log_stout; bool dev_mode;
         bool dont_hold_back; bool shush;
-        bool weird_ass;
+        bool weird_ass; bool restarted_instance;
 
         std::string executable;
+        std::string raw_executable_name;
+
         std::string user;
         std::string pwd;
+
+        int prog_argc;
+        char** prog_argv;
 
     } __global_object__;
     /// static__ , global_controllers__
@@ -472,7 +476,8 @@ namespace Gmeng {
         .dont_hold_back = false, .shush = false,
         .weird_ass = false,
     };
-    static std::ofstream outfile("gmeng.log");
+
+    static std::ofstream outfile;
 };
 
 inline void controller_set(int index, std::string value) {
@@ -678,7 +683,7 @@ static void _gm_log(const char* file_, int line, const char* func, std::string _
     };
 
     std::string file = get_filename(std::string(file_)); // remove path, only use filename
-        std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
+    std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
         #if __GMENG_LOG_TO_COUT__ == true
             if (Gmeng::global.log_stout) std::cout << msg << std::endl;
         #endif
@@ -687,9 +692,11 @@ static void _gm_log(const char* file_, int line, const char* func, std::string _
         #endif
         std::string _uthread = _uget_thread();
         std::string __vl_log_message__ = "(" + get_curtime() + ") " + std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
+
         Gmeng::logstream << __vl_log_message__;
         __gmeng_write_log__("gmeng.log", __vl_log_message__);
         if (Gmeng::global.dev_console) _utext(Gmeng::logc, __vl_log_message__);
+
         #if __GMENG_DRAW_AFTER_LOG__ == true
             if (Gmeng::global.dev_console) _udraw_display(Gmeng::logc);
         #endif
@@ -749,10 +756,16 @@ static void init_logc(int ms = 250) {
     #if __GMENG_DISABLE_LOG__ == true
         return;
     #endif
-    __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
-    __gmeng_write_log__("gmeng.log", "Gmeng "+Gmeng::version+" (build " + GMENG_BUILD_NO + ").\n\nDocumentation available in https://gmeng.org.\nGmeng is an open source project. https://gmeng.org/git.\nPlease report bugs or unexpected behaviour at https://gmeng.org/report.\n\nGmeng: Go-To Console Game Engine.\n\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
-    __gmeng_write_log__("gmeng.log", "----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n", true);
-    __gmeng_write_log__("gmeng.log", "Global Variables\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n", true);
+    if (!Gmeng::global.restarted_instance) {
+        /// initialize the log
+        __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
+        __gmeng_write_log__("gmeng.log", "Gmeng "+Gmeng::version+" (build " + GMENG_BUILD_NO + ").\n\nDocumentation available in https://gmeng.org.\nGmeng is an open source project. https://gmeng.org/git.\nPlease report bugs or unexpected behaviour at https://gmeng.org/report.\n\nGmeng: Go-To Console Game Engine.\n\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
+        __gmeng_write_log__("gmeng.log", "----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n", true);
+        __gmeng_write_log__("gmeng.log", "Global Variables\n\t- restarted_instance: " + std::string(Gmeng::global.restarted_instance ? "true" : "false" ) + "\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n", true);
+    } else {
+        /// print restart message
+        __gmeng_write_log__("gmeng.log", "-- RESTARTED GMENG INSTANCE --\n");
+    };
 
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
             __functree_call__(_glog_thread_create);
@@ -927,25 +940,58 @@ static void print_windows_error_message() {
     exit(1);
 };
 
+/// Patches gmeng's 'global' variables required by the engine,
+/// used for stuff like parsing command-line arguments.
+/// Generally, this method should be run for almost
+/// every program depending on gmeng.
+///
+/// While edge cases are existent, if you do not extensively know
+/// what this method does, it is advised to run it in your
+/// `main()` function.
 static void patch_argv_global(int argc, char* argv[]) {
     __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
     __functree_call__(patch_argv_global);
+
     #if _WIN32
         print_windows_error_message();
         return;
     #endif
+
     Gmeng::global.pwd = get_cwd();
     Gmeng::global.user = get_username();
+
 #if _WIN32 == false
+    Gmeng::global.prog_argc = argc;
+    Gmeng::global.prog_argv = argv;
+
     Gmeng::global.executable = (std::string(argv[0]).substr(std::string(argv[0]).rfind("/") + 1)).c_str();
+    Gmeng::global.raw_executable_name = argv[0];
+
+    char *restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
+
+    std::vector<char *> v_argv;
+    for (int i = 0; i < argc; i++) {
+        v_argv.push_back(argv[i]);
+    };
+
+    int has_restart_flag = std::count(v_argv.begin(), v_argv.end(), restart_flag);
+    bool restarted_instance = false;
+    if (has_restart_flag > 0) restarted_instance = true;
+    Gmeng::global.restarted_instance = restarted_instance;
+
+    if (!restarted_instance) Gmeng::outfile.open("gmeng.log");
+    else Gmeng::outfile.open("gmeng.log", std::ios::app);
+
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
+
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
             __functree_call__(__gmeng__help__menu__);
             struct winsize size;
             ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
             int times = size.ws_col-11;
+
             __gmeng_write_log__("gmeng.log", "command-line argument requested help menu\n");
             SAY("~Br~\x0F~h~\x0F~y~GMENG " + (Gmeng::version) + "~n~ | " + Gmeng::colors[6] + "Terminal-Based 2D Game Engine~n~ | Help Menu\n");
             SAY("~_~~st~" + repeatString("-", times+11) + "~n~\n");
@@ -978,6 +1024,52 @@ static void patch_argv_global(int argc, char* argv[]) {
     };
     init_logc();
 #endif
+};
+
+
+/// Restarts the current executable/program.
+/// Requires `patch_argv_global()` to have been called.
+/// This method runs `execvp` from the `unistd.h` library
+/// to replace the current program image in the memory
+/// with a new instance of the current program, in `argv[0]`.
+static int restart_program() {
+    __annot__(restart_program, "Restarts the current executable.");
+    __functree_call__(restart_program);
+
+    std::string arg0 = Gmeng::global.raw_executable_name;
+
+    if (arg0.empty()) {
+        gm_log("cannot restart program: `Gmeng::global.raw_executable_name` is empty. `patch_argv_global()` must be called with the correct arguments before this function can be used");
+        return 1;
+    };
+
+    // add `restarted-instance` flag to argv if it does not exist
+    char *restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
+    bool flag_exists = false;
+
+    for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
+        if (std::strcmp(Gmeng::global.prog_argv[i], restart_flag) == 0) {
+            flag_exists = true;
+            break;
+        }
+    };
+
+    std::vector<char *> new_argv;
+
+    for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
+        new_argv.push_back(Gmeng::global.prog_argv[i]);
+    };
+
+    if (!flag_exists) new_argv.push_back(restart_flag);
+
+    gm_log("restarting program...");
+
+    if (execvp(arg0.c_str(), new_argv.data()) == -1) {
+        gm_log("cannot restart program: `execvp()` returned non-zero value (-1): " + std::to_string(errno));
+        return 2;
+    };
+
+    return 0;
 };
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
