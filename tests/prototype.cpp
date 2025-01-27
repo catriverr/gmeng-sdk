@@ -1,4 +1,16 @@
-#include <cwchar>
+/// this is (was) an exact copy (at the time of its creation) of the 'tests/event_loop.cpp'
+/// file.
+///
+/// not used/updated anymore, but kept as a 'prototype game' example
+/// that beginners can use as a road point.
+/// even though it does not contain any annotations or comments lol,
+/// just functions.
+
+
+/// (c) catriverr, 2024
+/// see .github/CODEOWNERS
+
+
 #include <iostream>
 #include "../lib/bin/gmeng.h"
 

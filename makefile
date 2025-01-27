@@ -86,7 +86,7 @@ endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
     CXXFLAGS += -fsanitize=address
-	CXXFLAGS += -g
+	CXXFLAGS += -g -pg
 endif
 
 
@@ -144,7 +144,7 @@ include $(current_dir)/make/buildcheck.mk
 
 ifeq ($(DEBUG_MODE),true)
 	CXXFLAGS += -fsanitize=address
-	CXXFLAGS += -g
+	CXXFLAGS += -g -pg
 endif
 
 ifeq ($(USE_EXTERNAL),true)

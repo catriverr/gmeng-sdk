@@ -322,7 +322,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "10.3.0";
+    static std::string version = "10.4.0-d";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -769,7 +769,7 @@ static void init_logc(int ms = 250) {
 
     if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
             __functree_call__(_glog_thread_create);
-        for ( ;; ) {
+/*        for ( ;; ) {
             if (!Gmeng::global.dev_console) continue;
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
                Gmeng::completelog << Gmeng::logstream.str();
@@ -779,9 +779,8 @@ static void init_logc(int ms = 250) {
             };
             _udraw_display(Gmeng::logc);
             std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        }
+        }*/
         /// close log file
-        Gmeng::outfile.close();
     });
 };
 
