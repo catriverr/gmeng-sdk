@@ -24,6 +24,7 @@
 #define $(x) + v_str(x) +
 
 #ifdef _WIN32
+#include <windows.h> // at some point it will be important
 #include <conio.h>  // For _getch() on Windows
 #else
 #include <termios.h>
@@ -52,6 +53,9 @@ std::string lineinput(bool secret = false) {
 
     if (secret) {
         #ifdef _WIN32
+        // windows support even though
+        // we don't even slightly have
+        // compatibility with it
         char ch;
         while (true) {
             ch = _getch();  // Get character without echoing on Windows
@@ -95,12 +99,17 @@ std::string lineinput(bool secret = false) {
     return input;
 };
 
+// generates a trajectory between two coordinates (x1,y1), (x2, y2)
+// using the most efficient path towards point 2
 std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
     __functree_call__(g_trace_trajectory);
+
     std::vector<Objects::coord> coordinates;
+
     int dx = abs(x2 - x1); int dy = abs(y2 - y1);
     int sx = (x1 < x2) ? 1 : -1; int sy = (y1 < y2) ? 1 : -1;
     int err = dx - dy;
+
     while (x1 != x2 || y1 != y2) {
         Objects::coord point;
         point.x = x1; point.y = y1;
@@ -108,13 +117,15 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
         int err2 = 2 * err;
         if (err2 > -dy) { err -= dy; x1 += sx; }
         if (err2 < dx) { err += dx; y1 += sy; }
-    }
+    };
+
     // Include the final point (x2, y2)
     Objects::coord point;
     point.x = x2; point.y = y2;
     coordinates.push_back(point);
-return coordinates;
-}
+
+    return coordinates;
+};
 
 namespace Gmeng {
     /// v10.1.0
@@ -131,35 +142,54 @@ namespace Gmeng {
     /// All displays are rendered through this class.
 	template<std::size_t _w, std::size_t _h>
 	class Camera { /// v8.2.1: Camera, v4.1.0: CameraView, v1.0.0: WorldMap
-	  public:
-        std::size_t w = _w; std::size_t h = _h;
+      public:
+        /// width of the Camera.
+        /// can be set by template parameters with Camera<5, 5>.
+        /// or can be set with Camera<0, 0>.SetResolution(5, 5);
+        std::size_t w = _w;
+        /// height of the Camera.
+        /// can be set by template parameters with Camera<5, 5>.
+        /// or can be set with Camera<0, 0>.SetResolution(5, 5);
+        std::size_t h = _h;
+        // frame time, calculated internally
+        // time in milliseconds for frame generation
         uint32_t frame_time = 0;
+        // draw time, currently not internally calculated
+        // time in milliseconds for frame drawing (to the output)
         uint32_t draw_time = 0;
 
         ModifierList modifiers = {
-			.values = std::vector<modifier> {
+			{
                 /// should be moved to the Game Event Loop.
-				modifier { .name="noclip",             .value=0 },
+				modifier { .name="noclip",                  .value=0 },
                 /// force_update disallows draw() from just writing the
                 /// output in raw_unit_map, forcing a call to update() first.
-				modifier { .name="force_update",       .value=0 },
+				modifier { .name="force_update",            .value=0 },
                 /// should be moved to the Game Event Loop.
-				modifier { .name="allow_plugins",      .value=1 },
+				modifier { .name="allow_plugins",           .value=1 },
                 /// deprecated
-				modifier { .name="cast_events",        .value=1 },
+				modifier { .name="cast_events",             .value=1 },
                 /// for deprecated logging methods
-				modifier { .name="allow_writing_plog", .value=1 },
+				modifier { .name="allow_writing_plog",      .value=1 },
                 /// cubic render, squishes units into squares [|] instead of
                 /// writing them as 1x2 full unit characters [I].
-                modifier { .name="cubic_render",       .value=1 } // enabled since v8.2.2-d
+                modifier { .name="cubic_render",            .value=1 } // enabled since v8.2.2-d
 			}
 		};
 
+        // Display map, contains the current
+        // screen data in units
 		DisplayMap<_w, _h> display_map;
+        // raw unit map, contains the rendered units
+        // to be written to the console output
 		std::string raw_unit_map[GMENG_MAX_MAP_SIZE];
-		uint32_t entitytotal = 0;
+
 
         /// #region DEPRECATED
+
+        // @deprecated - kept for backwards compatibility
+        // contains the total entity count
+        uint32_t entitytotal = 0;
 
         // @deprecated entities will be handled as individual models
         // instead of individual units in the future.
@@ -171,15 +201,18 @@ namespace Gmeng {
         // an input pipe for a parent program, but it's kept for backwards compatibility
         // with older versions of gmeng (the 1.1 framework) which use this functionality.
 		EventHandler event_handler;
+
         // @deprecated Player objects ( 1.1 entity definitions ) are deprecated
         // since we now use models instead of specific units for players.
 		Objects::G_Player player = {};
+
         // @deprecated kept only for backwards compatibility
 		Unit playerunit = {};
         // @deprecated kept only for backwards compatibility
 		bool player_init = false;
 
         /// #endregion DEPRECATED
+
 
         /// Sets the resolution of the camera.
 		inline void SetResolution(std::size_t w, std::size_t h) {
@@ -268,74 +301,58 @@ namespace Gmeng {
 			return final;
 		};
 
-		inline bool has_modifier(std::string name) { for (const Gmeng::modifier& modifier : modifiers.values) if (modifier.name == name && modifier.value == 1) return true; return false; };
+        /// checks for internal camera modifiers
+		inline bool has_modifier(std::string name) {
+            //__functree_call__(Gmeng::Camera::update_modifier);
+            for (const Gmeng::modifier& modifier : modifiers.values)
+                if (modifier.name == name && modifier.value == 1) return true;
+            return false;
+        };
+
+        /// updates internal camera modifiers
 		inline void update_modifier(Gmeng::modifier& modifier, int value) {
             __functree_call__(Gmeng::Camera::update_modifier);
             modifier.value = value;
         };
 
+        /// sets internal camera modifiers
 		inline void set_modifier(std::string name, int value) {
             __functree_call__(Gmeng::Camera::set_modifier);
+
 			int vi = g_find_modifier(this->modifiers.values, name);
     			if (vi != -1) this->update_modifier(this->modifiers.values[vi], value);
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
 
         /// @deprecated players will not be handled this way in coming versions.
+        /// sets the unit at x,y point to a player object with an entityId
 		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
 			__functree_call__(Gmeng::Camera::SetPlayer);
+
             for (int i = 0; i < this->entitytotal; i++) {
 				Objects::G_Entity entity = this->entitymap[i];
 				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
 			};
+
 			int goto_loc = (y != -1) ? ((y*this->w)+x) : (x);
 			if (goto_loc > this->w*this->h) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates @ pos(" +v_str(x)+ "," +v_str(y)+ ") [" + v_str(goto_loc) + "/" + v_str(this->w*this->h) +" - " + (y == -1 ? "1d local" : "2d local") +"]");
 			if (!this->display_map.unitmap[goto_loc].collidable && !force) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates: the unit at location " + v_str(x) + "," + v_str(y) + " is not collidable");
-			this->entitymap[entityId] = player;
+
+            this->entitymap[entityId] = player;
 			int pos = goto_loc;
+
 			this->playerunit = this->display_map.unitmap[pos];
-			this->display_map.unitmap[goto_loc] = Gmeng::Unit{
+
+            this->display_map.unitmap[goto_loc] = Gmeng::Unit{
 				.color=player.colorId,.collidable=false,.is_player=true,.is_entity=false,
 				.player=player
 			};
+
 			this->player = player;
 			this->player.coords.x = x; //FIX
 			this->player.coords.y = y; //FIX
 			this->entitytotal++;
 			this->player_init = true;
-		};
-
-        /// @deprecated do not use
-        /// this function does not have functionality anyways,
-        /// and will do nothing. Kept here for backwards-compatibility
-        /// for the sake of it.
-		inline void AddEntity(int entityId, Objects::G_Entity entity) {
-            __functree_call__(Gmeng::Camera::__no_impl__::AddEntity);
-			//working on
-		};
-
-        /// @deprecated do not use
-        /// this function does not have functionality anyways,
-        /// and will do nothing. Kept here for backwards-compatibility
-        /// for the sake of it.
-		inline void RemoveEntity(int entityId) {
-            __functree_call__(Gmeng::Camera::__no_impl__::RemoveEntity);
-			//working on
-		};
-
-        /// @deprecated
-        /// receives the coordinates of an entity
-		inline Objects::coord GetPos(int entityId) {
-            __functree_call__(Gmeng::Camera::GetPos);
-			bool exists;
-			Objects::G_Entity entity;
-			for (int i = 0; i < this->entitytotal; i++) {
-				Objects::G_Entity ent = this->entitymap[i];
-				if (ent.entityId == entityId) { exists = true; entity = this->entitymap[i]; break; };
-				continue;
-			};
-			if (!exists) throw std::invalid_argument("no such object: cannot get location");
-			return entity.coords;
 		};
 
         /// sets the cursor's position (accounted for the frame)
@@ -347,11 +364,22 @@ namespace Gmeng {
             std::cout << "\033[" << x+2 << ";" << y+2 << "H"; return; // extra numbers account for the border around the map.
 		};
 
+        /// resets the cursor to the 0,0 position of the terminal
 		inline void reset_cur() {
             __functree_call__(Gmeng::Camera::reset_cur);
 			this->set_curXY(-2, -2);
 		};
 
+        /// returns the 1D vector index of a unit
+        /// as a 2D coordinate.
+        ///
+        /// eg.
+        /// ```
+        /// { 0, 1, 2, 3, 4,
+        ///   5, 6, 7, 8, 9 }
+        /// camera.width = 5
+        /// get_xy(7) = { .y=1, .x=3 };
+        /// ```
 		inline Objects::coord get_xy(int __p1) {
             __functree_call__(Gmeng::Camera::get_xy);
 			int __p1_x = __p1 / this->w;
@@ -360,6 +388,7 @@ namespace Gmeng {
 		};
 
         /// draws some infographics to the screen.
+        /// like the F3 menu in the minecraft engine.
         inline void draw_info(int x = 0, int y = 0) {
             /// __functree_call__(Gmeng::Camera::draw_info);
             this->set_curXY(y,x);
@@ -371,6 +400,7 @@ namespace Gmeng {
             WRITE_PARSED("[ viewport_size: "$(this->w)"x"$(this->h)" ]   ");
         };
 
+        /// draws a 'Unit' object and returns it as a printable string
 		inline std::string draw_unit(Gmeng::Unit __u, Gmeng::Unit __nu = Unit { .is_entity=1 }, bool prefer_second = false) {
 			Gmeng::Unit current_unit = __u;
             // check if cubic render is preferred, and a next unit is provided
@@ -390,24 +420,35 @@ namespace Gmeng {
                 };
                 return bgcolors_bright[current_unit.color] + colors[current_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + Gmeng::c_outer_unit + Gmeng::resetcolor;
             };
+
             if (current_unit.special && !prefer_second) {
                 return bgcolors_bright[current_unit.color] + boldcolor + colors[current_unit.special_clr] + current_unit.special_c_unit + resetcolor;
             } else if (nu && next_unit.special && ( !current_unit.special || prefer_second )) {
                 return bgcolors_bright[next_unit.color] + boldcolor + colors[next_unit.special_clr] + next_unit.special_c_unit + resetcolor;
             };
+
 			if (current_unit.transparent) {
 				funit_color = Gmeng::colors[7];
             }; if (nu && next_unit.transparent) {
                 bunit_color = Gmeng::bgcolors[7];
             };
+
             if (this->has_modifier("wireframe_render")) {
                 std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (nu ? Gmeng::colors[next_unit.color] : "") + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
                 return final;
             };
+
 			std::string final = ( nu ? ( (next_unit.color == WHITE ? bgcolors_bright[WHITE] : bgcolors_bright[next_unit.color]) + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
 			return final;
 		};
 
+        /// rewrites the position given as parameter to the function
+        /// from the raw_unit_map.
+        ///
+        /// this is useful for changes for only a single frame like
+        /// a flashing or rapidly color changing unit because this
+        /// method allows updating the screen without updating the
+        /// entire screen buffer.
 		inline void rewrite_mapping(const std::vector<int>& positions) {
             __functree_call__(Gmeng::Camera::rewrite_mapping);
 			for (std::size_t i=0;i<positions.size();i++) {
@@ -425,16 +466,7 @@ namespace Gmeng {
 			std::cout << "\033[2J\033[1;1H";
 		};
 
-        inline void set_entTag(std::string __nt) {
-            __functree_call__(Gmeng::Camera::set_entTag);
-            this->player.c_ent_tag = __nt;
-        };
-
-        inline std::string get_entTag() {
-            __functree_call__(Gmeng::Camera::get_entTag);
-            return this->player.c_ent_tag;
-        };
-
+        /// @deprecated
 		inline void rewrite_full() {
             __functree_call__(Gmeng::Camera::rewrite_full);
 			this->clear_screen();
@@ -443,6 +475,7 @@ namespace Gmeng {
 			std::cout << this->draw() << std::endl;
 		};
 
+        /// @deprecated - kept for 1.1 compatibility.
 		inline void MovePlayer(int entityId, int width, int height) {
             __functree_call__(Gmeng::Camera::MovePlayer);
 			int move_to_in_map = (height*this->w)+width;
@@ -480,25 +513,8 @@ namespace Gmeng {
 			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
 			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
 		};
-
-		inline void MoveEntity(int entityId, int width, int height) {
-            __functree_call__(Gmeng::Camera::MoveEntity);
-			int move_to_in_map = (height*this->w)+width;
-			bool exists = false;
-			Objects::G_Entity entity;
-			for (int i = 0; i < this->entitytotal; i++) {
-				Objects::G_Entity ent = this->entitymap[i];
-				if (ent.entityId == entityId) { exists = true; entity = this->entitymap[i]; break; };
-				continue;
-			};
-			if (!exists) throw std::invalid_argument("recieved invalid entityId: no such entity");
-			if (move_to_in_map > this->_w*this->_h) return;
-			Gmeng::Unit location_in_map = this->display_map.unitmap[move_to_in_map];
-			if (!location_in_map.collidable) return;
-			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=0,.collidable=false,.is_entity=true};
-
-		};
 	};
+
 	template<std::size_t _w, std::size_t _h>
 	inline Camera<_w, _h> UseRenderer(Gmeng::G_Renderer<_w, _h> __r) {
         __functree_call__(Gmeng::UseRenderer);
