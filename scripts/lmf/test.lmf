@@ -1,0 +1,34 @@
+pedantic=false;type=6;moveindex=0
+
+#$! test script using lmf
+#$! I'm not quite sure how this will work yet
+#$! how will i even parse this syntax
+#$! god only knows
+
+#FILE entity_move.sc
+
+use_set [gmeng] [gmeng.entity] [gmeng.util] [gmeng.util.log]
+
+func entity_handle &entity &level
+
+log_write( "in level {level::id} entity move {entity::name} from {entity::coord::x},{entity::coord:y} to {entity::coord:new_x}, {entity::coord::new_y}" );
+
+endfunc
+
+fraudulent_hook({event::entity_move}, {entity_handle});
+
+#END_FILE
+
+#FILE map_load.sc
+
+use_set [gmeng] [gmeng.util] [gmeng.util.log]
+
+func load_handle &file
+
+log_write("loaded file {file::name}");
+
+endfunc
+
+fraudulent_hook({event::file_load}, {load_handle})
+
+#END_FILE
