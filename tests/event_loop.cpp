@@ -86,15 +86,18 @@ int main(int argc, char** argv) {
 
     ev.add_hook({ INIT }, [&](Level* level, EventInfo* info) {
         std::cout << "Initialized the Game Event Hook (external hook received this event)\n";
+
         renderscale = get_renderscale(*level);
+
         level->display.camera.clear_screen();
+
         ev.call_event(FIXED_UPDATE, *info);
         level->display.set_cursor_visibility(false);
+
         write_level_data("envs/proto_level.glvl", *level);
     });
 
-    ev.add_hook( { FIXED_UPDATE },
-    [&](Level* level, EventInfo* info) {
+    ev.add_hook( { FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
         if (info->EVENT == MOUSE_MOVE) return;
         std::string lvl_view = get_lvl_view(*level, renderscale);
         emplace_lvl_camera(*level, lvl_view);
@@ -102,7 +105,7 @@ int main(int argc, char** argv) {
         auto time = GET_TIME();
         std::cout << level->display.camera.draw() << "\n" << Gmeng::resetcolor;
         level->display.camera.draw_time = GET_TIME() - time;
-        level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
+        if (level->display.camera.modifiers.get_value("draw_info") == 1) level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
     });
 
     ev.add_hook({ KEYPRESS }, [&](Level* level, EventInfo* info) {

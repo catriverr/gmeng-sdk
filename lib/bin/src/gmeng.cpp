@@ -11,6 +11,9 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+
+#include "../../../include/noble/lib/scripts/arch.cc" // NOBLE: No Bad Language Esoterics (https://github.com/catriverr/noble)
+                                                      // used for .dylib prebuilt C++ script handling.
 #include "../gmeng.h"
 
 /// MAX MAP SIZE
@@ -535,17 +538,22 @@ namespace Gmeng {
 
 #include "../utils/network.cpp"
 
+/// since we only support 1 server per game instance,
+/// we set it as a namespace to the Gmeng namespace.
 namespace Gmeng::RemoteServer {
     static bool state = false;
     static gmserver_t server(7385);
+    /// password
     static std::string aplpass = v_str(g_mkid());
     static std::thread* thread;
 };
 
+/// creates the RemoteServer thread
 static void _gremote_server_apl(bool state, std::string aplpass) {
     __functree_call__(_gremote_server_apl);
     Gmeng::RemoteServer::state = state;
     Gmeng::RemoteServer::aplpass = aplpass;
+
     auto thread_t = Gmeng::_ucreate_thread([&]() {
         Gmeng::RemoteServer::server.run();
         Gmeng::RemoteServer::server.create_path(path_type_t::POST, "/stop", [&](request req, response res) {
@@ -554,6 +562,7 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
             else res.status_code = 401, res.body = "e_unauthorized";
         });
     });
+
     Gmeng::RemoteServer::thread = &thread_t;
 };
 
@@ -569,6 +578,7 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
 
 
 #ifndef _WIN32
+/// Terminal Utility for raw mode, text drawing, mouse tracking, etc
 namespace Gmeng::TerminalUtil {
     void enable_mouse_tracking()  { std::cout << "\033[?1006h\033[?1003h\n" << std::flush; };
     void disable_mouse_tracking() { std::cout << "\033[?1006l\033[?1003l\n" << std::flush; };
@@ -597,7 +607,9 @@ namespace Gmeng::TerminalUtil {
         };
     }
 
-    void set_non_blocking(bool state) { /// DO NOT USE, IT CAN NOT BE DISABLED
+    // not a function that can be disabled.
+    // I tried.
+    void set_non_blocking(bool state) {
         if (state) {
             int flags = fcntl(STDIN_FILENO, F_GETFL);
             flags |= O_NONBLOCK;
@@ -616,6 +628,9 @@ namespace Gmeng::TerminalUtil {
 namespace Gmeng {
     using std::vector, std::string;
 
+    // applicable events for the game loop
+    //
+    // note that these events aren't what happens in a game itself, rather its interactions with the engine.
     enum Event {
         INIT,
         UPDATE,
@@ -659,20 +674,20 @@ namespace Gmeng {
 
     const std::string& get_event_name(Event event) {
 
-
         if (event < 0 || event >= EVENT_COUNT) {
             static const std::string unknown = "UNKNOWN";
             return unknown;
         };
 
         return event_names[event];
-    }
+    };
 
     string list_events(vector<Event> events) {
         string final;
         for (const auto ev : events) {
             final += get_event_name(ev) + ", ";
         };
+        final.pop_back(); /// remove final ' '
         return final;
     };
 
@@ -744,12 +759,14 @@ namespace Gmeng {
             if (this->tick_handler) return;
             this->tick_handler = true;
             int i = 0;
+
             for (auto proc : this->processes) {
                 /// delete the process
                 this->processes.erase(this->processes.begin()+i);
                 proc.handler(this->level, &Gmeng::NO_EVENT_INFO);
                 i++;
             };
+
             this->tick_handler = false;
             /// clear next tick processes.
         };
@@ -852,6 +869,7 @@ namespace Gmeng {
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
+/// returns the last n lines of a vector of strings
 std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
     std::deque<std::string> lines;
 
@@ -868,7 +886,7 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 };
 
 
-static std::vector<std::string> PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
+static std::vector<std::string>  PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
 static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
 
 #define GAME_LOG(str)                                              \
@@ -1026,13 +1044,20 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 GAME_LOG("frame time: "$(ev->level->display.camera.frame_time)"ms");
                 GAME_LOG("draw time: "$(ev->level->display.camera.draw_time)"ms");
                 return 0;
+            } },
+
+        { "runscript", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+                if (params.size() < 1) { GAME_LOG("usage: runscript <script name>"); GAME_LOG("runs a NOBLE prebuilt script."); return 1; };
+
             } }
 };
 
 /// executes a developer command to the target of an EventLoop pointer '* ev'
-int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
+/// 'noecho' means no INTERNAL output will be generated by the command to the console.
+/// the command can still echo text. It just will not generate logs like 'unknown command', or splitter lines
+int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho = false) {
     __functree_call__(gmeng_run_dev_command);
-
+#define _GAME_LOG(x) if (!noecho) do { GAME_LOG(x); } while(0)
     using namespace Gmeng;
     using namespace Gmeng::Renderer;
     using std::string, std::vector, std::deque, std::cout;
@@ -1041,8 +1066,8 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
 
     if (params.size() < 1) return -1; // no empty commands like ' ' or ''
 
-    GAME_LOG("> " + command); // command name
-    GAME_LOG(repeatString("=", CONSOLE_WIDTH-4)); // vertical line seperator
+    _GAME_LOG("> " + command); // command name
+    _GAME_LOG(repeatString("*", CONSOLE_WIDTH-4)); // vertical line seperator
 
     Level* level = ev->level;
     Display* display = &ev->level->display;
@@ -1059,13 +1084,13 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command) {
         if (name == cmdname) state = handler(params, ev);
     };
 
-    if (state == -11151) GAME_LOG("unknown command: " + params.at(0));
+    if (state == -11151) { _GAME_LOG("unknown command: " + params.at(0)); }
     else if (state == -13) no_line = true; // don't draw vertical line seperator
 
     variables.at(0) = { "errorlevel", state }; // set the errorlevel value
     ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO); // fixed update can be called afterwards
 
-    if (!no_line) GAME_LOG(repeatString("=", CONSOLE_WIDTH-4)); // vertical line seperator
+    if (!no_line) _GAME_LOG(repeatString("*", CONSOLE_WIDTH-4)); // vertical line seperator
     return state == -11151 ? 1 : (state == -13 ? 0 : state);
 };
 
@@ -1093,6 +1118,8 @@ void dev_console_animation(Gmeng::EventLoop* ev) {
     };
 };
 
+static bool gmeng_console_state_change_modifier = false;
+
 void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     if (!dev_console_open) return;
 
@@ -1118,6 +1145,10 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     using namespace Gmeng::Renderer;
     using std::string, std::vector, std::deque, std::cout;
 
+    if (!gmeng_console_state_change_modifier) {
+        gmeng_run_dev_command(ev, "refresh", true);
+    };
+
     EventInfo dd_info = *info;
     bool run = false;
     std::string cmd = "";
@@ -1139,6 +1170,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
                 if (dev_console_input.length() > 0) dev_console_input.pop_back();
                 break;
             case '~':
+                gmeng_console_state_change_modifier = true;
                 break;
             default:
                 if (dev_console_input.length() >= CONSOLE_WIDTH-7) return;
@@ -1245,6 +1277,10 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::_ucreate_thread([&]() {
         while (!ev->cancelled) {
             if (state.console_open) gmeng_dev_console(ev, &Gmeng::NO_EVENT_INFO); // developer console is on, no raw update.
+            else if (gmeng_console_state_change_modifier) {
+                gmeng_console_state_change_modifier = false;
+                gmeng_run_dev_command(ev, "refresh", true); // refresh the screen
+            };
         };
     });
 

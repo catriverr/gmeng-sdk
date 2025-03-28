@@ -207,6 +207,21 @@ void deserialize_chunk(Gmeng::chunk& ch, std::istream& in) {
 };
 
 
+
+
+void serialize_entity(const Gmeng::Entity& entity, std::ostream& out) {
+    out.write(reinterpret_cast<const char*>(&entity.id), sizeof(entity.id));
+    serialize_drawpoint(entity.position, out);
+    serialize_texture(entity.sprite, out);
+};
+
+void deserialize_entity(Gmeng::Entity& entity, std::istream& in) {
+    in.read(reinterpret_cast<char*>(&entity.id), sizeof(entity.id));
+    deserialize_drawpoint(entity.position, in);
+    deserialize_texture(entity.sprite, in);
+};
+
+
 void serialize_level_base(const Gmeng::Renderer::LevelBase& level, std::ostream& out) {
     serialize_texture(level.lvl_template, out);
     out.write(reinterpret_cast<const char*>(&level.width), sizeof(level.width));
@@ -315,4 +330,5 @@ void read_level_data(std::istream& inf, Gmeng::Level& level) {
     deserialize_level(level, inf);
     deserialize_modifier_list(level.display.camera.modifiers, inf);
 };
+
 #define GMENG_SERIALIZATION_INIT 1

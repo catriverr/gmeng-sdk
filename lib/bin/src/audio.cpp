@@ -14,6 +14,7 @@ constexpr double PI = 3.14159265358979323846;
 #include <CoreAudio/CoreAudio.h>
 
 
+// Audio Interfaces
 namespace Gmeng::Audio {
     static const double kSampleRate = 44100.0;
     static double phase = 0.0;  // Phase for sine wave

@@ -69,7 +69,7 @@ export namespace builder {
     };
     export async function texture4_0(name: string = null): Promise<TSGmeng.fw4_texture> {
         process.stdout.write('\x1b[?25l'); // hide cursor
-        let cubic_render = true;
+        let cubic_render = false;
         console.clear();
         /// v! important - transparent units
         let vt_name = name ?? lv_objname("txtr");
@@ -108,7 +108,7 @@ export namespace builder {
         };
         let prev_curpos = v2d_curpos;
         let v1d_curpos = () => { return (v2d_curpos.y*texture.width)+v2d_curpos.x; };
-        function _urender1(val: TSGmeng.Unit, val2: TSGmeng.Unit = null): string { return _urender_basic_unit(val, val2) };
+        function _urender1(val: TSGmeng.Unit, val2: TSGmeng.Unit = null): string { return _urender_basic_unit(val, null) };
         function _urender(): string { let final_ = ``; for (let i = 0; i < texture.units.length; i++) {  final_ += _urender1(texture.units[i]); }; return final_; };
         console.clear();
         function _uplace_cursor() {
@@ -119,16 +119,16 @@ export namespace builder {
                 let vindx = v2d_curpos.y >= 3 ? (texture.width*3) : 0;
                 let pl = v2d_curpos.y % 2 != 0 && v2d_curpos.y==0 ? (texture.width) : (-texture.width);
                 let drawn_unit = [redone_texture_units[v1d_curpos()-vindx],redone_texture_units[v1d_curpos()+(v2d_curpos.y!=0?pl:0)-vindx]];
-                console.log(`unit at cursor: ${_urender_basic_unit(drawn_unit[0],drawn_unit[1])} | id: ${v1d_curpos()}`)
+                console.log(`unit at cursor: ${_urender_basic_unit(drawn_unit[0])} | id: ${v1d_curpos()}`)
                 let selector = 1;
                 if (v2d_curpos.y % 2 == 0) selector = 0;
                 let dagkurdu = drawn_unit[selector];
                 drawn_unit[selector] = cur_unit;
                 process.stdout.cursorTo(v_pos+v2d_curpos.x,4+Math.floor(v2d_curpos.y/2));
-                process.stdout.write(_urender_basic_unit(drawn_unit[0],drawn_unit[1]));
+                process.stdout.write(_urender_basic_unit(drawn_unit[0]));
             } else {
                 process.stdout.cursorTo(0, process.stdout.rows-2);
-                console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()],texture.units[v1d_curpos()+texture.width])} | id: ${v1d_curpos()}`)
+                console.log(`unit at cursor: ${_urender_basic_unit(texture.units[v1d_curpos()])} | id: ${v1d_curpos()}`)
                 process.stdout.cursorTo(v_pos+v2d_curpos.x, 4 + v2d_curpos.y);
                 if (texture.units[v1d_curpos()].color == cur_unit.color) return process.stdout.write(TSGmeng.bgcolors[cur_unit.color] + TSGmeng.colors[0] +  "+" + TSGmeng.resetcolor);
                 process.stdout.write(_urender_basic_unit(cur_unit));
@@ -150,7 +150,7 @@ export namespace builder {
                 if (i == _gu_selected) c.selected = true;
                 c.selected ? 
                 console.log(`-> ${tui.clr(c.name, `orange`)} -> ${tui.clr(cur_unit[c.name] + ` `, `green`)}${c.name == `color` || c.name == `special_clr` ? ` ${TSGmeng.colors[cur_unit[c.name]] + TSGmeng.c_unit.repeat(2) + TSGmeng.resetcolor} ` : ``}`) : 
-                console.log(`-- ${tui.clr(c.name, `yellow`)} -> ${tui.clr(cur_unit[c.name] + ` ` ?? `<null>      `, `swamp`)} `);
+                console.log(`-- ${tui.clr(c.name, `yellow`)} -> ${tui.clr(cur_unit[c.name] + ` ` + `<null>      `, `swamp`)} `);
                 c.selected = false; /// so that when it changes we dont have to trace the previous selection
             });
             console.log(tui.clr(`[tab]       to switch selection`, `grayish`));
@@ -189,13 +189,12 @@ export namespace builder {
             let skip_to = -1;
             texture.units.forEach((u, i) => {
                 let y = Math.floor(i / texture.width);
-                if (y != 0 && y % 2 == 0) return;
                 let nx_unit = texture.units[i + texture.width];
                 if (i == 0) { ln += _urender1(u,nx_unit); return; };
                 if (i == texture.units.length - 1) { ln += _urender1(u,nx_unit); final.push(ln); return; };
                 if (i % texture.width == 0) { final.push(ln), ln = ``; };
                 if (!cubic_render) ln += _urender1(u);
-                else ln += _urender1(u, nx_unit);
+                else ln += _urender1(u, null);
             });
             return final;
         };

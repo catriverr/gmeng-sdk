@@ -586,9 +586,25 @@ namespace Gmeng {
     class Level;
 
     class Entity {
+      public:
+        // well, brave calling this a "sprite".
         texture sprite;
+        // position of the Entity.
+        // The position is not CENTRAL.
+        // The 'position' value returns the position of the 1st unit of the
+        // entity.
+        // For example:
+        //
+        // 'o' for map, 'x' for entity units
+        //
+        // oooo
+        // ooXx
+        // ooxx
+        //
+        // the capitalised 'X' is the position value.
+        // So in this case it would be (x=2,y=1)
         Renderer::drawpoint position;
-        // random id
+        // random id, to differenciate entities
         int id = g_mkid();
 
         Entity(texture model_, Renderer::drawpoint pos_) :
@@ -610,6 +626,21 @@ namespace Gmeng {
 
         virtual void interact( Entity_Interaction, Level* ) { /* no default behaviour */ };
 
+        /// Method to be called periodically at every FIXED_UPDATE event
+        /// overriding this method allows you to give functionality & AI to entities.
+        ///
+        /// Examples of this can be following the player,
+        /// checking for proximity with other entities, etc.
+        virtual void periodic( EventLoop* ) { /* no default behaviour */ };
+
+        /// This method is called periodically every 250ms for all entities.
+        /// It is to provide animation capabilities with a stable interval.
+        ///
+        /// This way, you do not have to rely on the periodic() method to animate
+        /// the texture of an entity.
+        ///
+        /// NOT REQUIRED! Animated sprites are optional.
+        virtual void animate( EventLoop* ) { /* no default behaviour */ };
     };
 
     class Level {

@@ -210,5 +210,10 @@ compile-file-windows:
 	@echo "Cross compiling file: $(filename)"
 	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(filename) -o $(basename $(filename))$(suffix .exe)
 
+compile-script:
+	@echo "Compiling NOBLE prebuilt shared library: $(filename)"
+	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) -shared -fPIC -o $(basename $(filename))$(suffix .dylib) $(filename)
+	@echo "Written out to: $(basename $(filename))$(suffix .dylib)"
+
 # Phony targets
-.PHONY: all test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
+.PHONY: all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
