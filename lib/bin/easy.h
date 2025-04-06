@@ -1,5 +1,4 @@
 #pragma once
-#include "cli/index.h"
 #include "gmeng.h"
 
 #include "src/textures.cpp"
@@ -22,7 +21,6 @@
 #define gmeng_build GMENG_BUILD_NO
 
 #define set_gmeng_arguments patch_argv_global
-#define set_gmeng_cli_arguments Gmeng_Commandline::patch_argv
 
 /// VGM Methods
 #define vgm Gmeng::vgm_defaults
@@ -38,8 +36,8 @@
 /// THREADS
 
 #define thread_catchup _gthread_catchup
-#define join_threads Gmeng::_ujoin_threads
-#define clear_threads Gmeng::_uclear_threads
+#define join_threads Gmeng::join_threads
+#define clear_threads Gmeng::clear_threads
 
 #define _LOG gm_log
 

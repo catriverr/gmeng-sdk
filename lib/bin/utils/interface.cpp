@@ -465,7 +465,7 @@ namespace Gmeng {
         void Screen::report_mouse_pos(bool state) {
             __functree_call__(Gmeng::UI::Screen::report_mouse_pos);
             this->should_report_mouse = state;
-            std::thread t_mousepos = Gmeng::_ucreate_thread([&]() {
+            std::thread t_mousepos = Gmeng::create_thread([&]() {
                 while (this->should_report_mouse) {
                     MEVENT event;
                     int ch = getch();

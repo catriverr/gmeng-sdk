@@ -18,6 +18,7 @@ jobs:
         export PKG_CONFIG_PATH="$(brew --prefix ncurses)/lib/pkgconfig"
         brew install pkg-config
         brew install ncurses
+        git submodule update --init --recursive
     - name: make engine
       run: make no-ncurses all
     - name: make tests

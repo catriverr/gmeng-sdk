@@ -20,6 +20,46 @@
 #include <vector>
 #include <sstream>
 
+/// the default port used by gmeng, default is 7388.
+#define GMENG_DEFAULT_PORT 7388
+
+
+// client prequisites
+struct prequisite_client {
+    char* IP_ADDRESS;
+    int req_id = g_mkid();
+};
+
+
+/// checks if a port is available, without disrupting
+/// operations using SO_REUSEADDR, which does not cast TIME_WAIT
+/// after the port is closed.
+bool check_port_availability(int port) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("Socket creation failed");
+        return false;
+    }
+
+    // Allow immediate reuse of the port
+    int opt = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    // Try to bind the socket to the given port
+    bool available = ::bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0;
+
+    // Close the socket
+    close(sock);
+
+    return available;
+};
+
+
 long long current_time_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
@@ -36,11 +76,17 @@ using stream_handler_func = std::function<void(std::string&, long long, stream_u
 
 // Stream utility struct
 struct stream_util {
-    int client_fd;  // Client file descriptor for the connection
+    // Client file descriptor for the connection
+    int client_fd;
+    // path of the host's server
     std::string host;
+    // port of the host's server
     int port;
+    // prequisites of the client
+    prequisite_client prequisites;
 
-    stream_util(int fd, const std::string& h, int p) : client_fd(fd), host(h), port(p) {}
+    // default constructor
+    stream_util(int fd, const std::string& h, int p, prequisite_client pr) : client_fd(fd), host(h), port(p), prequisites(pr) {};
 
     // Method to send data to the stream
     void send_data(const std::string& data) {
@@ -212,11 +258,6 @@ struct response {
     std::string body;
 };
 
-struct prequisite_client {
-    char* IP_ADDRESS;
-    int req_id = g_mkid();
-};
-
 // Server class definition
 class gmserver_t {
 public:
@@ -319,12 +360,13 @@ public:
     void stop() {
         __functree_call__(gmserver_t::stop);
         this->running = false;
-        if (this->server_fd != -1) {
-            close(server_fd);
-            this->server_fd = -1;
-            this->exited = true;
-            this->exited = true;
-        }
+
+        ::shutdown(server_fd, SHUT_RDWR);
+        ::close(server_fd);
+
+        this->server_fd = -1;
+        this->exited = true;
+        this->exited = true;
     }
 
 private:
@@ -351,18 +393,18 @@ private:
         std::string stream_prefix = "/&stream";
 
         // on_request event listener can be added here
-        std::cout << req.path << " " << req.body << " " << req.remote.address << '\n';
+        //std::cout << req.path << " " << req.body << " " << req.remote.address << '\n';
 
         if (req.method == "GET" && req.path.starts_with(stream_prefix)) {
             auto stream_path = "/" + req.path.substr(stream_prefix.size());
             if (get_stream_paths.find(stream_path) != get_stream_paths.end()) {
-                handle_stream(client_fd, stream_path, get_stream_paths[stream_path]);
+                handle_stream(client_fd, prequisites, stream_path, get_stream_paths[stream_path]);
                 return;
             }
         } else if (req.method == "POST" && req.path.starts_with(stream_prefix)) {
             auto stream_path = "/" + req.path.substr(stream_prefix.size());
             if (post_stream_paths.find(stream_path) != post_stream_paths.end()) {
-                handle_stream(client_fd, stream_path, post_stream_paths[stream_path]);
+                handle_stream(client_fd, prequisites, stream_path, post_stream_paths[stream_path]);
                 return;
             }
         }
@@ -383,10 +425,10 @@ private:
 
     std::string stream_initconn = "INITCONN";
 
-    void handle_stream(int client_fd, const std::string& path, stream_handler_func handler_func) {
+    void handle_stream(int client_fd, prequisite_client prequisites, const std::string& path, stream_handler_func handler_func) {
 #ifndef _WIN32
         char buffer[1024];
-        stream_util util(client_fd, path, this->port);
+        stream_util util(client_fd, path, this->port, prequisites);
 
         handler_func(stream_initconn, 0, util);
 
@@ -649,7 +691,7 @@ int send_stream_request(path_type_t method, const std::string& full_path, stream
         return 5;
     }
 
-    stream_util util(client_fd, host, port);
+    stream_util util(client_fd, host, port, *new prequisite_client);
 
     // Read server response
     char buffer[1024];

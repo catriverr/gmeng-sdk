@@ -54,6 +54,17 @@ $(info buildoptions selected. (WINDOWS))
 endif
 endif
 
+ifeq ($(filter build, $(MAKECMDGOALS)),build)
+ifeq ($(wildcard buildoptions.mk),)
+$(error run `make configure` to use `make build`.)
+else
+include buildoptions.mk
+$(info buildoptions selected.)
+endif
+endif
+
+
+
 # If no arguments were passed, check for buildoptions.mk
 ifndef skip_warning
 ifeq ($(wildcard buildoptions.mk),)
@@ -212,8 +223,21 @@ compile-file-windows:
 
 compile-script:
 	@echo "Compiling NOBLE prebuilt shared library: $(filename)"
-	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) -shared -fPIC -o $(basename $(filename))$(suffix .dylib) $(filename)
+	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib) $(filename)
 	@echo "Written out to: $(basename $(filename))$(suffix .dylib)"
 
+build:
+	@echo "BUILDING YOUR GAME"
+	@echo "..."
+	@echo "target file: $(TARGET_NAME)"
+	@echo "..."
+	@echo "COMPILING SCRIPTS"
+	sh ./scripts/sh/COMPILE_SCRIPTS.sh
+	@echo "..."
+	@echo "COMPILING ENGINE & SOURCE TARGET"
+	@echo "the game executable will be written to: ./game.out"
+	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(TARGET_NAME) -o game.out
+	@echo "..."
+	@echo "COMPILATION COMPLETE"
 # Phony targets
-.PHONY: all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
+.PHONY: build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows

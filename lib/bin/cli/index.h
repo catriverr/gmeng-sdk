@@ -89,7 +89,7 @@ namespace Gmeng_Commandline {
         /// use MSG(x)
         virtual void LOG(std::string data) final {
             std::string text = data;
-            replace_all(text, "\n", "\n" + repeatString(" ", 3 + (int)this->info.name.length()  ));
+            replace_all(text, "\n", "\n" + repeatString(" ", 14 + (int)this->info.name.length()  ));
             std::string msg = "(" + this->scope.name + ")[" + this->info.name + "] " + text;
             gm_log(msg);
             if (!check_scaremongerers()) SAY(msg + "\n");

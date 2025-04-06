@@ -159,6 +159,46 @@ register_gamestate_command(
     std::make_unique<gamestate_editor_t>( gamestate_editor_command )
 );
 
+
+
+class netstream_util_t : public Gmeng_Commandline::Subcommand {
+  public:
+    netstream_util_t(string _name, string _description) : Subcommand(_name, _description) {
+        this->info = {
+            .name = _name,
+            .description = _description
+        };
+    };
+
+    inline void run( vector<string> args ) override {
+        if (args.size() < 2) {
+            LOG("provide a server path");
+            LOG("usage: gmeng stream GET localhost:7388/&streamgame");
+            return;
+        };
+        std::string _method = args.at(0);
+        std::string path = args.at(1);
+        std::cout << _method << ' ' << path << '\n';
+        path_type_t method = _method == "GET" ? path_type_t::GET : path_type_t::POST;
+        std::cout << "sending request..\n";
+        send_stream_request(method, path,
+        [&](std::string& command, long long latency, stream_util& util) {
+            LOG (command);
+            std::cout << ">> ";
+            std::string ginput = lineinput(false);
+            util.send_data( streamstr(ginput) );
+        });
+        return;
+    };
+};
+
+static netstream_util_t netcmd("stream", "Connects to a Gmeng::Networking style network stream.");
+
+static Gmeng_Commandline::InterfaceRegistrar register_netstream_command(
+    std::make_unique<netstream_util_t>( netcmd )
+);
+
+
 void modify_properties(gmeng_properties_t& properties, std::string filename) {
     int highlight = 0;
     int mode = 0;  // 0 = Main properties, 1 = Model positions

@@ -77,19 +77,23 @@ static std::string get_username() {
 using std::vector;
 using std::string;
 
-
+// Custom ASSERT system for Gmeng,
+// not like traditional ASSERT though.
 namespace Gmeng::Assertions {
     typedef struct assert_t {
         enum jWRAP { ON = 0, OFF = 1, NOT_SET = 2 };
         std::map<string, jWRAP> headers;
         const char* bound;
     } vd_assert;
+
     typedef struct assert_data_t {
         string header;
         assert_t::jWRAP state;
         const char* bound;
     } assertable_t;
+
     static std::map<const char*, vd_assert> list;
+
     static vd_assert to_assert_t(assertable_t data) {
         vd_assert obj;
         obj.headers = std::map<string, vd_assert::jWRAP>();
@@ -97,10 +101,12 @@ namespace Gmeng::Assertions {
         obj.headers.emplace(data.header, data.state);
         return obj;
     };
+
     static void set_assert(assertable_t data) {
         if (!Assertions::list.contains(data.bound)) list.emplace(data.bound, to_assert_t(data));
         Assertions::list.find(data.bound)->second.headers.insert_or_assign(data.header, data.state);
     };
+
     static vd_assert::jWRAP get_assert(string header, const char* bound) {
         if (!Assertions::list.contains(bound)) return assert_t::NOT_SET;
         auto fd = Assertions::list.find(bound)->second.headers;
@@ -322,7 +328,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "10.4.0-d";
+    static std::string version = "10.4.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -675,6 +681,10 @@ static std::string get_curdate() {
     return date_stream.str();
 };
 
+// Gmeng's logging method.
+// Many internal systems, however this function shouldn't be called directly.
+// Use the gm_log() macro for automatic filename, code line and other useful
+// log info to be parsed into your message.
 static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
     if ((IS_DISABLED GET_PREF("pref.log", func))
     && !Gmeng::global.dont_hold_back) {
@@ -722,25 +732,25 @@ static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
 namespace Gmeng {
     /// i now realise this may not be very secure
     static std::vector<std::thread> v_threads;
-    static std::thread _ucreate_thread(std::function<void()> func) {
-        __functree_call__(Gmeng::_ucreate_thread);
+    static std::thread create_thread(std::function<void()> func) {
+        __functree_call__(Gmeng::create_thread);
         return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back());
     };
-    static void _uclear_threads() {
-        __annot__(Gmeng::_uclear_threads, "clears all used internal threads to prepare the environment for exiting.");
-        __functree_call__(Gmeng::_uclear_threads);
+    static void clear_threads() {
+        __annot__(Gmeng::clear_threads, "clears all used internal threads to prepare the environment for exiting.");
+        __functree_call__(Gmeng::clear_threads);
         v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end());
     };
-    static void _ujoin_threads() {
-        __annot__(Gmeng::_ujoin_threads, "joins all used internal threads by Gmeng. Ran before a program closes.");
-        __functree_call__(Gmeng::_ujoin_threads);
+    static void join_threads() {
+        __annot__(Gmeng::join_threads, "joins all used internal threads by Gmeng. Ran before a program closes.");
+        __functree_call__(Gmeng::join_threads);
         for (auto& thread : Gmeng::v_threads) {
-            gm_log("Gmeng::_ujoin_threads -> gm:v_thread, _ucreate_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread));
+            gm_log("Gmeng::join_threads -> gm:v_thread, create_thread() -> T_MEMADDR: " + _uconv_1ihx(_uget_addr(&thread)) + " - MAIN THREAD ID: " + _uget_thread() + " - T_THREAD_ID: " + _uthread_id(thread));
             try {
                 if (thread.joinable()) thread.join();
-                _uclear_threads();
+                clear_threads();
             } catch (std::exception& e) {
-                std::cerr << (Gmeng::colors[4] + "_ujoin_threads() -> *error :: could not join thread, skipping... (pretty big internal error please report / see https://gmeng.org/bug-report)");
+                std::cerr << (Gmeng::colors[4] + "join_threads() -> *error :: could not join thread, skipping... (pretty big internal error please report / see https://gmeng.org/bug-report)");
                 gm_log(" :::: error cause -> " + std::string(e.what())); };
         };
     };
@@ -767,7 +777,7 @@ static void init_logc(int ms = 250) {
         __gmeng_write_log__("gmeng.log", "-- RESTARTED GMENG INSTANCE --\n");
     };
 
-    if (!Gmeng::global.shush) Gmeng::_ucreate_thread([&]() {
+    if (!Gmeng::global.shush) Gmeng::create_thread([&]() {
             __functree_call__(_glog_thread_create);
 /*        for ( ;; ) {
             if (!Gmeng::global.dev_console) continue;
@@ -788,7 +798,7 @@ static void _gthread_catchup() {
     __annotation__(_gthread_catchup, "Gmeng::_uthread catchup function, attaches to all threads and clears them.");
     __functree_call__(_gthread_catchup);
     gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
-    Gmeng::_ujoin_threads();
+    Gmeng::join_threads();
 };
 
 static constexpr uint32_t _ghash(const char* data, size_t const size) noexcept {
@@ -896,6 +906,18 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
         std::cout << '\n';
         std::cout << Gmeng::colors[Gmeng::BLUE] << "ONGOING EFFORTS: PORTING GMENG TO WINDOWS :: " << Gmeng::colors[Gmeng::CYAN] << Gmeng::boldcolor << "https://github.com/catriverr/gmeng-sdk https://gmeng.org\n";
         std::cout << Gmeng::resetcolor << "Contribute to the project.\n";
+    } },
+
+    { "port", []() {
+        std::cout.clear();
+        std::cout << Gmeng::colors[Gmeng::RED] << "FAIL!" << Gmeng::resetcolor;
+        std::cout << " "  << "Gmeng (the engine this game runs on) has identified an external error in this game instance.\n"
+                  << "\n" << Gmeng::boldcolor << "This game (or the engine) has attempted to run the NOBLE script for client-side server instance handling." << Gmeng::resetcolor
+                  << " "  << "However, the system could not bind to a port in the 7388-7488 range.\n"
+                  << "\n" << Gmeng::boldcolor << "The port range of 7388 to 7488 must have at least one open port for GMENG to create a server instance.\n" << Gmeng::resetcolor
+                  << " "  << "Please empty one of these ports to run a server.\n"
+                  << "\n" << "Press any key to exit.\n";
+        cin.get();
     } }
 };
 

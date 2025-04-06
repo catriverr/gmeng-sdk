@@ -1,5 +1,6 @@
 #pragma once
 #include "../gmeng.h"
+
 #include <ios>
 #include <ostream>
 #include <vector>
@@ -18,7 +19,13 @@
  ///
  ///
 
+#include "./serialization_def.cpp"
+
+
+
 /// serialization for drawpoints
+///
+
 void serialize_drawpoint(const Gmeng::Renderer::drawpoint& dp, std::ostream& out) {
     out.write(reinterpret_cast<const char*>(&dp.x), sizeof(dp.x));
     out.write(reinterpret_cast<const char*>(&dp.y), sizeof(dp.y));
@@ -41,70 +48,6 @@ void deserialize_viewpoint(Gmeng::Renderer::viewpoint& vp, std::istream& in) {
 };
 
 
-/// Serializes a Unit object, and writes it to a stream.
-void serialize_unit(const Gmeng::Unit& unit, std::ostream& stream) {
-    stream.write(reinterpret_cast<const char*>(&unit.color), sizeof(unit.color));
-    stream.write(reinterpret_cast<const char*>(&unit.collidable), sizeof(unit.collidable));
-    stream.write(reinterpret_cast<const char*>(&unit.transparent), sizeof(unit.transparent));
-    stream.write(reinterpret_cast<const char*>(&unit.special), sizeof(unit.special));
-    stream.write(reinterpret_cast<const char*>(&unit.special_clr), sizeof(unit.special_clr));
-
-    size_t special_c_unit_size = unit.special_c_unit.size();
-    stream.write(reinterpret_cast<const char*>(&special_c_unit_size), sizeof(special_c_unit_size));
-    stream.write(unit.special_c_unit.c_str(), special_c_unit_size);
-}
-
-/// Reads a Unit object from a stream.
-void deserialize_unit(Gmeng::Unit& unit, std::istream& stream) {
-    stream.read(reinterpret_cast<char*>(&unit.color), sizeof(unit.color));
-    stream.read(reinterpret_cast<char*>(&unit.collidable), sizeof(unit.collidable));
-    stream.read(reinterpret_cast<char*>(&unit.transparent), sizeof(unit.transparent));
-    stream.read(reinterpret_cast<char*>(&unit.special), sizeof(unit.special));
-    stream.read(reinterpret_cast<char*>(&unit.special_clr), sizeof(unit.special_clr));
-
-
-    size_t special_c_unit_size;
-    stream.read(reinterpret_cast<char*>(&special_c_unit_size), sizeof(special_c_unit_size));
-    unit.special_c_unit.resize(special_c_unit_size);
-    stream.read(&unit.special_c_unit[0], special_c_unit_size);
-}
-
-
-/// Writes a Texture object to a stream.
-void serialize_texture(const Gmeng::texture& tex, std::ostream& stream) {
-    stream.write(reinterpret_cast<const char*>(&tex.width), sizeof(tex.width));
-    stream.write(reinterpret_cast<const char*>(&tex.height), sizeof(tex.height));
-    stream.write(reinterpret_cast<const char*>(&tex.collidable), sizeof(tex.collidable));
-
-    size_t units_size = tex.units.size();
-    stream.write(reinterpret_cast<const char*>(&units_size), sizeof(units_size));
-    for (const auto& unit : tex.units) {
-        serialize_unit(unit, stream);
-    }
-
-    size_t name_size = tex.name.size();
-    stream.write(reinterpret_cast<const char*>(&name_size), sizeof(name_size));
-    stream.write(tex.name.c_str(), name_size);
-}
-
-/// Reads a Texture object from a stream.
-void deserialize_texture(Gmeng::texture& tex, std::istream& stream) {
-    stream.read(reinterpret_cast<char*>(&tex.width), sizeof(tex.width));
-    stream.read(reinterpret_cast<char*>(&tex.height), sizeof(tex.height));
-    stream.read(reinterpret_cast<char*>(&tex.collidable), sizeof(tex.collidable));
-
-    size_t units_size;
-    stream.read(reinterpret_cast<char*>(&units_size), sizeof(units_size));
-    tex.units.resize(units_size);
-    for (auto& unit : tex.units) {
-        deserialize_unit(unit, stream);
-    }
-
-    size_t name_size;
-    stream.read(reinterpret_cast<char*>(&name_size), sizeof(name_size));
-    tex.name.resize(name_size);
-    stream.read(&tex.name[0], name_size);
-};
 
 
 /// Writes a Model object to a stream.
@@ -208,18 +151,30 @@ void deserialize_chunk(Gmeng::chunk& ch, std::istream& in) {
 
 
 
+void serialize_entity(const std::unique_ptr<Gmeng::EntityBase>& entity, std::ostream& out) {
+    int id = entity->get_serialization_id();
+    out.write(reinterpret_cast<const char*>(&id), sizeof(id));
 
-void serialize_entity(const Gmeng::Entity& entity, std::ostream& out) {
-    out.write(reinterpret_cast<const char*>(&entity.id), sizeof(entity.id));
-    serialize_drawpoint(entity.position, out);
-    serialize_texture(entity.sprite, out);
+    entity->serialize(out); /// every derived entity class will have its own serialization system.
 };
 
-void deserialize_entity(Gmeng::Entity& entity, std::istream& in) {
-    in.read(reinterpret_cast<char*>(&entity.id), sizeof(entity.id));
-    deserialize_drawpoint(entity.position, in);
-    deserialize_texture(entity.sprite, in);
+std::unique_ptr<EntityBase> deserialize_entity(std::istream& in) {
+    int id;
+    in.read(reinterpret_cast<char*>(&id), sizeof(id));
+
+    auto factory_ = Gmeng::EntityBase::get_derived_factory();
+    auto derived_type = factory_.find(id);
+
+    //std::cout << factory_.size() << " FACTORY SIZE AMINA KOYIM\n";
+
+    //std::cout << "AMINA KODUMUN IDSI VAR TAMAM MI SADECE FACTORY YE KOYACAZ AMINAGOYIM " << id << '\n';
+
+    auto entity_ = derived_type->second();
+    entity_->deserialize(in); /// every derived entity class will have its own serialization system.
+    return std::move(entity_);
 };
+
+
 
 
 void serialize_level_base(const Gmeng::Renderer::LevelBase& level, std::ostream& out) {
@@ -245,6 +200,13 @@ void serialize_level(const Gmeng::Level& level, std::ostream& out) {
         serialize_chunk(chunk, out);
     };
 
+    size_t entity_count = level.entities.size();
+    out.write(reinterpret_cast<const char*>(&entity_count), sizeof(entity_count));
+
+    for (const auto& entity : level.entities) {
+        serialize_entity(entity, out);
+    };
+
     size_t desc_length = level.desc.size();
     out.write(reinterpret_cast<const char*>(&desc_length), sizeof(desc_length));
     out.write(level.desc.c_str(), desc_length);
@@ -263,6 +225,14 @@ void deserialize_level(Gmeng::Level& level, std::istream& in) {
     level.chunks.resize(chunk_count);
     for (auto& chunk : level.chunks) {
         deserialize_chunk(chunk, in);
+    };
+
+    size_t entity_count;
+    in.read(reinterpret_cast<char*>(&entity_count), sizeof(entity_count));
+
+    level.entities.resize(entity_count);
+    for (int i = 0; i < level.entities.size(); i++) {
+        level.entities[i] = std::move(deserialize_entity(in));
     };
 
     size_t desc_length;

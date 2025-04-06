@@ -131,6 +131,7 @@ std::vector<Objects::coord> g_trace_trajectory(int x1, int y1, int x2, int y2) {
 };
 
 namespace Gmeng {
+
     /// v10.1.0
     struct Positioned_Unit {
         Unit unit;
@@ -160,10 +161,17 @@ namespace Gmeng {
         // draw time, currently not internally calculated
         // time in milliseconds for frame drawing (to the output)
         uint32_t draw_time = 0;
+        // entity count, set by external Level controller class.
+        // will be 0 if used without external controller classes.
+        uint32_t entity_count;
+        // model count, set by external Level controller class.
+        // will be 0 if used without external controller classes.
+        uint32_t model_count;
 
+        // all modifiers for the camera
         ModifierList modifiers = {
 			{
-                /// should be moved to the Game Event Loop.
+                /// noclip modifier, disables all collision
 				modifier { .name="noclip",                  .value=0 },
                 /// force_update disallows draw() from just writing the
                 /// output in raw_unit_map, forcing a call to update() first.
@@ -176,8 +184,14 @@ namespace Gmeng {
 				modifier { .name="allow_writing_plog",      .value=1 },
                 /// cubic render, squishes units into squares [|] instead of
                 /// writing them as 1x2 full unit characters [I].
-                modifier { .name="cubic_render",            .value=1 } // enabled since v8.2.2-d
-			}
+                modifier { .name="cubic_render",            .value=1 }, // enabled since v8.2.2-d
+			    /// debug render mode, enables many different rendering
+                /// options, most notably model border rendering.
+                modifier { .name="debug_render",            .value=1 }, // since v10.4.0-d
+                /// wireframe render mode, draws wireframes on units with collision
+                /// info. X for no collision, x for collision.
+                modifier { .name="wireframe_render",        .value=0 },
+            }
 		};
 
         // Display map, contains the current
@@ -396,11 +410,36 @@ namespace Gmeng {
             /// __functree_call__(Gmeng::Camera::draw_info);
             this->set_curXY(y,x);
             std::cout << Gmeng::resetcolor;
-			WRITE_PARSED("[ gmeng $!__VERSION - build $!__BUILD ]   ");
+			WRITE_PARSED("[ ~r~gmeng ~y~$!__VERSION~n~ - build ~b~$!__BUILD~n~ ]   ");
             this->set_curXY(y+1,x);
-            WRITE_PARSED("[ frame_time: "$(this->frame_time)"ms, draw_time: "$(this->draw_time)"ms ]   ");
+            WRITE_PARSED("[ frame_time: ~g~"$(this->frame_time)"ms~n~, draw_time: ~y~"$(this->draw_time)"ms~n~ ]   ");
 			this->set_curXY(y+2,x);
-            WRITE_PARSED("[ viewport_size: "$(this->w)"x"$(this->h)" ]   ");
+            WRITE_PARSED("[ viewport_size: ~p~"$(this->w)"x"$(this->h)"~n~ ]   ");
+            this->set_curXY(y+3, x);
+            WRITE_PARSED("[ entities: ~b~"$(this->entity_count)"~n~, models: ~c~"$(this->model_count)"~n~ ]   ");
+            this->set_curXY( y+4, x );
+            WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
+            this->set_curXY( y+5, x );
+            WRITE_PARSED("modifiers:");
+            this->set_curXY( y+6, x );
+
+#define nmb2(x) (x == 1 ? "~g~" + v_str(x) + "~n~" : "~y~" + v_str(x) + "~n~")
+#define nmb_(x) (x < 0 ? "~r~" + v_str(x)+"~n~" : nmb2(x))
+#define nmb(x) (x == 0 ? "~p~" + v_str(x) + "~n~" : nmb_(x))
+
+            WRITE_PARSED("cubic_render: " + nmb(
+                this->modifiers.get_value("cubic_render")
+            ) + " | debug_render: " + nmb(
+                this->modifiers.get_value("debug_render")
+            ) + "   ");
+            this->set_curXY( y+7, x );
+            WRITE_PARSED("noclip: " + nmb(
+                this->modifiers.get_value("noclip")
+            ) + " | wireframe_render: " + nmb(
+                this->modifiers.get_value("wireframe_render")
+            ) + "   ");
+            this->set_curXY( y+8, x );
+            WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
         };
 
         /// draws a 'Unit' object and returns it as a printable string
@@ -554,7 +593,7 @@ static void _gremote_server_apl(bool state, std::string aplpass) {
     Gmeng::RemoteServer::state = state;
     Gmeng::RemoteServer::aplpass = aplpass;
 
-    auto thread_t = Gmeng::_ucreate_thread([&]() {
+    auto thread_t = Gmeng::create_thread([&]() {
         Gmeng::RemoteServer::server.run();
         Gmeng::RemoteServer::server.create_path(path_type_t::POST, "/stop", [&](request req, response res) {
             bool body_matches = req.body == Gmeng::RemoteServer::aplpass;
@@ -622,6 +661,11 @@ namespace Gmeng::TerminalUtil {
     };
 };
 #endif
+
+
+// Game log
+static std::vector<std::string>  PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
+static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
 
 
 /// Event Hook System
@@ -692,12 +736,22 @@ namespace Gmeng {
     };
 
     typedef struct EventInfo {
+        /// The name of the Event
         Event EVENT;
+        /// If it is a KEYPRESS event, this determines the keycode.
         char KEYPRESS_CODE;
+        /// If it is a mouse event, the X position of the mouse.
         int MOUSE_X_POS;
+        /// If it is a mouse event, the Y position of the mouse.
         int MOUSE_Y_POS;
 
+        /// Prevents default behaviour
+        /// from executing
         bool prevent_default = false;
+        /// Alternative usage.
+        /// usually triggered by holding shift.
+        /// one example is using shift + scroll for left-right movement instead of usual down-up movement.
+        bool alternative = false;
     } EventInfo;
 
     EventInfo NO_EVENT_INFO = EventInfo { Gmeng::UNKNOWN, 0, -1, -1, false };
@@ -711,10 +765,11 @@ namespace Gmeng {
     } EventHook;
 
     typedef struct EventLoop {
-        int id; Gmeng::Level* level;
+        int id; Gmeng::Level* level; std::vector<std::string>* logstream = GAME_LOGSTREAM;
 
         ModifierList modifiers = { {
-            modifier { "allow_console", 1 }
+            modifier { "allow_console", 1 },
+            modifier { "server_passkey", 738867 }
         } };
 
         /// Processes, used for registering event calls for the
@@ -796,18 +851,20 @@ namespace Gmeng {
                 } else continue;
             };
 
-            if (info.prevent_default) return;
             /// If the event is cancelled via &EventInfo.prevent_default = true,
             /// do not run the default hook for it (if one exists)
+            if (info.prevent_default) return;
 
             for (auto& hook : this->defaults) {
                 if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
                 if (global.dev_mode || global.debugger) gm_log("call to default event hook(id="$(hook.id)") for event " + get_event_name(ev));
-                    hook.handler( this->level, &info );
+                    hook.locked = true;
                     /// Runs the handler for the hook
                     /// Keep in mind that hooks may have more than one handler,
                     /// so it may need to check for the EVENT value (in EventInfo)
                     /// since v10.0.0
+                    hook.handler( this->level, &info );
+                    hook.locked = false;
                 } else continue;
             };
         };
@@ -861,11 +918,17 @@ namespace Gmeng {
     } EventLoop_Controller_State;
 };
 
+/// alternatives
+#define MOUSE_REST_4_CHECKER(x) x == 4 ? Gmeng::MOUSE_CLICK_LEFT_START : (\
+                                       x == 6 ? Gmeng::MOUSE_CLICK_RIGHT_START : (\
+                                           x == 39 ? Gmeng::MOUSE_MOVE : Gmeng::UNKNOWN ))
+#define MOUSE_REST_3_CHECKER(x) x == 71 ? Gmeng::MOUSE_SCROLL_DOWN : (\
+                                        x == 70 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_4_CHECKER(x) )
 #define MOUSE_REST_2_CHECKER(x) x == 0 ? Gmeng::MOUSE_CLICK_LEFT_START : (\
                                         x == 1 ? Gmeng::MOUSE_CLICK_MIDDLE_START : (\
                                                 x == 2 ? Gmeng::MOUSE_CLICK_RIGHT_START : (\
                                                         x == 3 ? Gmeng::MOUSE_CLICK_END_ANY : (\
-                                                                x == 35 ? Gmeng::MOUSE_MOVE : Gmeng::UNKNOWN) )))
+                                                                x == 35 ? Gmeng::MOUSE_MOVE : MOUSE_REST_3_CHECKER(x)) )))
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
@@ -886,8 +949,7 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 };
 
 
-static std::vector<std::string>  PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
-static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
+#ifndef GMENG_COMPILING_SCRIPT
 
 #define GAME_LOG(str)                                              \
     do {                                                           \
@@ -897,6 +959,17 @@ static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
         }                                                          \
     } while (0)
 
+#else
+
+#define GAME_LOG(str)                                                                                                             \
+    do {                                                                                                                          \
+        auto splitEntries = g_splitStr(str, "\n");                                                                                \
+        for (const auto& entry : splitEntries) {                                                                                  \
+            ev->logstream->push_back("[" + get_filename(std::string(__FILE__)) + ":" + std::to_string(__LINE__) + "] " + entry); \
+        }                                                                                                                         \
+    } while (0)
+
+#endif
 
 std::deque<std::string> gmeng_log_get_last_lines(int n = 5) {
     return get_last_n_lines(*GAME_LOGSTREAM, n);
@@ -909,8 +982,8 @@ static bool dev_console_open = false;
 static bool dev_console_first_open = true;
 
 static bool crash_protector = false;
-static int CONSOLE_WIDTH = 38;
-static int CONSOLE_HEIGHT = 9;
+static int CONSOLE_WIDTH = 80;
+static int CONSOLE_HEIGHT = 20;
 
 
 
@@ -933,6 +1006,29 @@ static vector< std::tuple<string, int> > variables = {
     { "*!", 0 }, // ptr to variables[0] (errorlevel)
 };
 
+
+
+#ifndef GMENG_COMPILING_SCRIPT
+// EXTERNS FOR NOBLE SCRIPTS
+// all NOBLE scripts must use these methods for their functionality.
+// scripts can not be executed from different entrypoint functions,
+// but can have multiple of the gmeng-provided entries for different
+// types of execution such as a command based initialization entry
+// and a periodic control entry.
+
+
+// NOBLE SCRIPT HELPER FOR GMENG
+//
+// Command-based, executed once
+extern "C" int gmeng_script_command( Gmeng::EventLoop* );
+// NOBLE SCRIPT HELPER FOR GMENG
+//
+// Periodic, executed with FIXED_UPDATE
+extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
+
+#endif
+
+
 /// commands for the in-game developer console/
 /// the commands defined below (the default implementations)
 /// are part of the gmeng internal toolkit.
@@ -948,6 +1044,14 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         { "echo", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             params.erase(params.begin());
             GAME_LOG(g_joinStr(params, " "));
+            return 0;
+        } },
+        { "stopserver", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+            ev->server.stop();
+            return 0;
+        } },
+        { "force_update", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+            ev->call_event(Gmeng::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
             return 0;
         } },
         { "restart", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
@@ -1006,6 +1110,8 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         { "mod", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             params.erase(params.begin());
             if (params.size() < 1) { GAME_LOG("usage: mod modifier_name val<int>"); return 1; };
+            if (params.size() < 2) {
+                GAME_LOG("modifier " + std::string(params.at(0)) + std::string(" = ") + v_str(ev->level->display.camera.modifiers.get_value(params.at(0)))); return 0; };
             int val = std::stoi(params.at(1));
             ev->level->display.camera.set_modifier(params.at(0), val);
             return 0;
@@ -1015,12 +1121,12 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 ev->level->display.camera.clear_screen();
                 return -13; // -13 means no vertical line to divide the console after the command is ran
             } },
-        { "help", [](vector<string>, Gmeng::EventLoop*) -> int {
+        { "help", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 GAME_LOG("figure it out lol");
                 GAME_LOG("just kidding just run `helpcmd`");
                 return 0;
             } },
-        { "helpcmd", [](vector<string>, Gmeng::EventLoop*) -> int {
+        { "helpcmd", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 for (auto& cmd : commands) {
                     string name; std::function<int(vector<string>, Gmeng::EventLoop*)> handler;
                     std::tie(name, handler) = cmd;
@@ -1047,8 +1153,44 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             } },
 
         { "runscript", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
-                if (params.size() < 1) { GAME_LOG("usage: runscript <script name>"); GAME_LOG("runs a NOBLE prebuilt script."); return 1; };
+                if (params.size() < 2) { GAME_LOG("usage: runscript <script name>"); GAME_LOG("runs a NOBLE prebuilt script."); return 1; };
+                std::string filename = params.at(1);
+                if (!filesystem::exists(filename)) {
+                    GAME_LOG("ERR: script \"" + filename + "\" doesn't exist, filesystem::exists() nonzero");
+                    return 1;
+                };
+                #ifndef GMENG_COMPILING_SCRIPT
+                try {
+                    GAME_LOG("file exists, pass");
+                    GAME_LOG("initializing script...");
+                    GAME_LOG("importing noble dylib handle");
+                    // actual import
+                    // handle of the dylib
+                    auto scr_handle = noble_file_open(filename);
+                    GAME_LOG("script import OK");
 
+                    GAME_LOG("attempting to execute <script_obj_dir>::gmeng_script_command()");
+                    int comm_execution_result = noble_function(scr_handle, gmeng_script_command, ev);
+                    GAME_LOG("execution complete, command result: "$(comm_execution_result)".");
+
+                    dlclose(scr_handle);
+                    return 0;
+                } catch (const std::exception& e) {
+                    GAME_LOG("error at some point: " + std::string(e.what()) + " - can not execute script");
+                    return 1;
+                };
+
+                #else
+                GAME_LOG("how did you run this method from a string anyways");
+                return -1;
+                #endif
+            } },
+        { "save", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+                GAME_LOG("saving current gamestate & level data.");
+                // Exit should always save. It'd be the developer's fault if this didn't work, not ours.
+                // Even though it's extremely annoying to the user for the engine to do this.
+                ev->call_event(Gmeng::Event::EXIT, Gmeng::NO_EVENT_INFO);
+                return 0;
             } }
 };
 
@@ -1090,22 +1232,12 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho
     variables.at(0) = { "errorlevel", state }; // set the errorlevel value
     ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO); // fixed update can be called afterwards
 
-    if (!no_line) _GAME_LOG(repeatString("*", CONSOLE_WIDTH-4)); // vertical line seperator
+    if ( command != "refresh" ) ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+
+    if (!no_line && noecho) _GAME_LOG(repeatString("*", CONSOLE_WIDTH-4)); // vertical line seperator
     return state == -11151 ? 1 : (state == -13 ? 0 : state);
 };
 
-void remote_console_setup(Gmeng::EventLoop* ev) {
-    if (ev->rcon_opt.enabled) {
-        ev->init_server(ev->rcon_opt);
-        ev->server.create_path(path_type_t::POST, "/rcon_login",
-        [&](request& req, response& res) {
-            if (ev->RCON_REMOTE_COUNT >= 1 && !ev->rcon_opt.allow_multiple_clients) {
-                res.status_code = ev->rcon_opt.unsafe_responses ? 403 : 401;
-                return (void) 0;
-            };
-        });
-    } else return (void) 0;
-};
 
 void dev_console_animation(Gmeng::EventLoop* ev) {
     Gmeng::Camera<0, 0>* camera = &ev->level->display.camera;
@@ -1199,7 +1331,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 
 
     log_last.push_front(OUTLINE);
-    log_last.push_front("| gmeng " + version + "-" + GMENG_BUILD_NO + " debugger");
+    log_last.push_front("| gmeng " + version + "-" + GMENG_BUILD_NO + " debugger | " + g_splitStr(Gmeng::func_last.back(), " >>").front() + " " + g_splitStr(Gmeng::func_last.back(), "::").back() );
     while(log_last.at(0).length() < CONSOLE_WIDTH-1) log_last.at(0) += " ";
     log_last.at(0) += "|";
 
@@ -1253,9 +1385,12 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 /// for a correct instance of a Gmeng game, do_event_loop is the standard practice.
 int do_event_loop(Gmeng::EventLoop* ev) {
     __functree_call__(do_event_loop);
-    Gmeng::EventLoop_Controller_State state;
+    using namespace Gmeng;
+
+    EventLoop_Controller_State state;
 
     char* term_prog = getenv("TERM_PROGRAM");
+
     if ( strcmp(term_prog, "tmux") == 0) {
         gmeng_show_warning("tmux");
     };
@@ -1274,8 +1409,16 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     /// handler thread for raw UPDATE and developer console.
     /// this also handles the EventLoop::next_tick processes.
-    Gmeng::_ucreate_thread([&]() {
+    /// this also handles dev console processes.
+    create_thread([&]() {
         while (!ev->cancelled) {
+
+            ev->level->display.camera.entity_count = ev->level->entities.size();
+            unsigned int model_count = 0;
+            for ( auto chunk : ev->level->chunks )
+                model_count += chunk.models.size();
+            ev->level->display.camera.model_count = model_count;
+
             if (state.console_open) gmeng_dev_console(ev, &Gmeng::NO_EVENT_INFO); // developer console is on, no raw update.
             else if (gmeng_console_state_change_modifier) {
                 gmeng_console_state_change_modifier = false;
@@ -1283,7 +1426,18 @@ int do_event_loop(Gmeng::EventLoop* ev) {
             };
         };
     });
+#ifndef GMENG_COMPILING_SCRIPT
+    /// handler thread for all server utils.
+    /// not exactly for multiplayer, but for a server instance
+    /// that allows for external connection to the server.
+    create_thread([&]() -> void {
+        auto server_handle = noble_file_open("scripts/server.dylib");
 
+        int port = noble_function(server_handle, gmeng_script_command, ev);
+        GAME_LOG("server at port "$(port)" was closed");
+    });
+#endif
+    /// main handler thread, for the game events
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); /// total bytes read
         Gmeng::Event t_event = Gmeng::UNKNOWN; // current event
@@ -1319,12 +1473,18 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     continue;
                 };
 
+                bool is_alternative = (
+                    button == 39 || button == 4 || button == 6 || button == 71 || button == 70
+                //  shift+move      shift+LMB      shift+RMB      shift+SCROLLUP  shift+SCROLLDOWN
+                );
+
                 info = {
                     .EVENT = event_tp,
                     .KEYPRESS_CODE = 0,
                     .MOUSE_X_POS = x-1,
                     .MOUSE_Y_POS = y-1,
-                    .prevent_default = false
+                    .prevent_default = false,
+                    .alternative = is_alternative
                 };
 
                 t_event = event_tp;
@@ -1367,13 +1527,17 @@ int do_event_loop(Gmeng::EventLoop* ev) {
         if (!state.console_open) ev->call_event(info.EVENT, info), ev->call_event(Gmeng::FIXED_UPDATE, scope);
         else gmeng_dev_console(ev, &info);
     };
-
+    // exit scene, since the while loop broke, ev->cancelled is true.
     gm_log("main game event loop (with id "$(ev->id)") closed");
     Gmeng::main_event_loop = nullptr;
+
+    // disable all terminal modes
     Gmeng::TerminalUtil::set_non_blocking(false);
     Gmeng::TerminalUtil::set_raw_mode(false);
     Gmeng::TerminalUtil::disable_mouse_tracking();
-    Gmeng::_uclear_threads();
+
+    // clear threads
+    Gmeng::clear_threads();
     return 0;
 };
 #endif
@@ -1517,5 +1681,7 @@ gmeng_properties_t read_properties(const std::string& filename) {
     }
 
     inFile.close();
+
+
     return properties;
 };

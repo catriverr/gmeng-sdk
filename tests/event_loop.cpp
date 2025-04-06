@@ -10,6 +10,14 @@ static Level level;
 static gmeng_properties_t cfg;
 static EventLoop ev( {} );
 
+
+class Mogus : public Entity<Mogus> {
+  public:
+    int interaction_proximity = 10;
+}; REGISTER_ENTITY_TYPE( Mogus );
+
+
+
 void reset() {
     _uread_into_vgm("envs/models");
     if (!filesystem::exists("gamestate.cfg")) writeout_properties("gamestate.cfg", default_properties);
@@ -54,6 +62,7 @@ void reset() {
     if (filesystem::exists("envs/proto_level.glvl")) read_level_data("envs/proto_level.glvl", level);
 
     ev.level = &level;
+
 };
 
 int main(int argc, char** argv) {
@@ -94,11 +103,16 @@ int main(int argc, char** argv) {
         ev.call_event(FIXED_UPDATE, *info);
         level->display.set_cursor_visibility(false);
 
-        write_level_data("envs/proto_level.glvl", *level);
+        //write_level_data("envs/proto_level.glvl", *level);
     });
+
+    ev.add_hook( { EXIT }, [&](Level* level, EventInfo*) {
+        write_level_data("envs/proto_level.glvl", *level);
+    } );
 
     ev.add_hook( { FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
         if (info->EVENT == MOUSE_MOVE) return;
+        renderscale = get_renderscale(*level);
         std::string lvl_view = get_lvl_view(*level, renderscale);
         emplace_lvl_camera(*level, lvl_view);
         level->display.camera.reset_cur();
@@ -114,48 +128,67 @@ int main(int argc, char** argv) {
             ev.cancelled = true; // cancel the game event loop
             info->prevent_default = true; // disable other default hooks
         };
-        auto cake_model = level->chunks.at(0).models.at(0);
-        auto real_cake_model = level->chunks.at(0).models.at(3);
+
+        if (info->KEYPRESS_CODE == 'y') {
+            Mogus mogus_char;
+            mogus_char.position = { 30, 25 };
+            mogus_char.sprite = vd_find_texture(vgm_defaults::vg_textures, "smol_player");
+
+            level->entities.push_back( std::move( std::make_unique<Mogus>( mogus_char ) ) );
+        };
+
+        if (info->KEYPRESS_CODE == 'u') {
+            //ev.level->entities.clear();
+        };
+
+        auto cake_model = level->entities.at(0).get();
+
+        auto real_cake_model = level->chunks.at(0).models.at(2);
         bool nomove = info->prevent_default;
+
         switch (info->KEYPRESS_CODE) {
             case 'a': case 'A':
-                if (cake_model.position.x-((int)nomove) > 0) {
-                    cake_model.position.x--;
-                    if (cake_model.position.x-((int)nomove)-cake_model.width <= level->display.viewpoint.start.x) {
+                if (cake_model->position.x-((int)nomove) > 0) {
+                    cake_model->position.x--;
+                    if (cake_model->position.x-((int)nomove)-cake_model->sprite.width <= level->display.viewpoint.start.x) {
                         level->display.viewpoint.start.x--;
                         level->display.viewpoint.end.x--;
                     };
-                    if (nomove) cake_model.position.x++;
+                    if (nomove) cake_model->position.x++;
+                    if (info->KEYPRESS_CODE == 'A') cake_model->position.x--;
                 };
                 break;
             case 'd': case 'D':
-                if (cake_model.position.x+((int)nomove)+cake_model.width < level->base.width-1) {
-                    cake_model.position.x++;
-                    if (cake_model.position.x+((int)nomove)+((cake_model.width)*2) > level->display.viewpoint.end.x) {
+                if (cake_model->position.x+((int)nomove)+cake_model->sprite.width < level->base.width-1) {
+                    cake_model->position.x++;
+                    if (cake_model->position.x+((int)nomove)+((cake_model->sprite.width)*2) > level->display.viewpoint.end.x) {
                         level->display.viewpoint.start.x++;
                         level->display.viewpoint.end.x++;
                     };
-                    if (nomove) cake_model.position.x--;
+                    if (nomove) cake_model->position.x--;
+                    if (info->KEYPRESS_CODE == 'D') cake_model->position.x++;
                 };
                 break;
             case 'w': case 'W':
-                if (cake_model.position.y-((int)nomove) > 0) {
-                    cake_model.position.y--;
-                    if (cake_model.position.y-((int)nomove)-cake_model.height <= level->display.viewpoint.start.y) {
+                if (cake_model->position.y-((int)nomove) > 0) {
+                    cake_model->position.y--;
+                    if (cake_model->position.y-((int)nomove) <= level->display.viewpoint.start.y) {
                         level->display.viewpoint.start.y--;
                         level->display.viewpoint.end.y--;
                     };
-                    if (nomove) cake_model.position.y++;
+                    if (nomove) cake_model->position.y++;
+                    if (info->KEYPRESS_CODE == 'W') cake_model->position.y--;
                 };
                 break;
             case 's': case 'S':
-                if (cake_model.position.y+((int)nomove)+cake_model.height < level->base.height-1) {
-                    cake_model.position.y++;
-                    if (cake_model.position.y+((int)nomove)+((cake_model.height)*2) >= level->display.viewpoint.end.y) {
+                if (cake_model->position.y+((int)nomove)+cake_model->sprite.height < level->base.height-1) {
+                    cake_model->position.y++;
+                    if (cake_model->position.y+((int)nomove)+((cake_model->sprite.height)) >= level->display.viewpoint.end.y) {
                         level->display.viewpoint.start.y++;
                         level->display.viewpoint.end.y++;
                     };
-                    if (nomove) cake_model.position.y--;
+                    if (nomove) cake_model->position.y--;
+                    if (info->KEYPRESS_CODE == 'S') cake_model->position.y++;
                 };
                 break;
             case 'r': case 'R':
@@ -164,21 +197,19 @@ int main(int argc, char** argv) {
                     auto tim_ca = GET_TIME();
                     reset();
                     tim_ca = GET_TIME() - tim_ca;
-                    renderscale = get_renderscale(*level);
                     level->display.camera.set_curXY(3,*DEF_DELTAX+2);
                     WRITE_PARSED("RESET performed in "$(tim_ca)"ms");
                 };
                 level->display.camera.draw_info(*DEF_DELTAX+2, 0);
                 break;
             case 'e': case 'E':
-                if (calculate_proximity(cake_model.position, real_cake_model.position) <= 3) {
+                if (calculate_proximity(cake_model->position, real_cake_model.position) <= 3) {
                     color_t prev_color = BLUE;
                     for (int e = 0; e < cfg.A00_CAKE_INTERACT_LOOPC; e++) {
                         color_t color = (color_t)(e%8);
                         auto tim = GET_TIME();
                         texture_replace_color(level->base.lvl_template, prev_color, color);
                         prev_color = color;
-                        renderscale = get_renderscale(*level);
                         ev.call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
                         std::this_thread::sleep_for(std::chrono::milliseconds( std::max(cfg.model_positions["CAKE_INTERACT_TIMES"].x, cfg.model_positions["CAKE_INTERACT_TIMES"].y - (int)(GET_TIME()-tim)) ));
                     };
@@ -194,9 +225,7 @@ int main(int argc, char** argv) {
         if (level->display.viewpoint.end.x > level->base.width) level->display.viewpoint.end.x = level->base.width, level->display.viewpoint.start.x = level->base.width-*DEF_DELTAX;
         if (level->display.viewpoint.end.y > level->base.height) level->display.viewpoint.end.y = level->base.height, level->display.viewpoint.start.y = level->base.height-*DEF_DELTAY;
 
-        level->chunks.at(0).models.at(0) = cake_model;
-        level->chunks.at(0).models.at(3) = real_cake_model;
-        renderscale = get_renderscale(*level);
+        level->chunks.at(0).models.at(2) = real_cake_model;
     });
 
     ev.add_hook({ MOUSE_CLICK_LEFT_START, MOUSE_CLICK_MIDDLE_START, MOUSE_CLICK_RIGHT_START },
@@ -211,8 +240,7 @@ int main(int argc, char** argv) {
                         (int)level->chunks.at(0).models.at(0).height + info->MOUSE_Y_POS
                     }
             )) return;
-            level->chunks.at(0).models.at(0).position = { info->MOUSE_X_POS, info->MOUSE_Y_POS*2 };
-            renderscale = get_renderscale(*level);
+            level->entities.at(0)->position = { info->MOUSE_X_POS, info->MOUSE_Y_POS*2 };
         };
     });
 
@@ -220,13 +248,33 @@ int main(int argc, char** argv) {
     [&](Level* lv, EventInfo* info) {
         // asumes user goes down
         EventInfo info_d = EventInfo { KEYPRESS, '{', -1, -1, true };
-        if (info->EVENT == MOUSE_SCROLL_UP) {
-            lv->display.viewpoint.start.y--;
-            lv->display.viewpoint.end.y--;
-        } else if (info->EVENT == MOUSE_SCROLL_DOWN) {
-            lv->display.viewpoint.start.y++;
-            lv->display.viewpoint.end.y++;
-        };
+
+
+        switch ((int)info->alternative) { // shift key is pressed
+            case 0: { // not alternative
+                if (info->EVENT == MOUSE_SCROLL_UP) {
+                    lv->display.viewpoint.start.y--;
+                    lv->display.viewpoint.end.y--;
+                } else if (info->EVENT == MOUSE_SCROLL_DOWN) {
+                    lv->display.viewpoint.start.y++;
+                    lv->display.viewpoint.end.y++;
+                };
+            };
+            break;
+            case 1: { // alternative
+                if (info->EVENT == MOUSE_SCROLL_UP) {
+                    lv->display.viewpoint.start.x--;
+                    lv->display.viewpoint.end.x--;
+                } else if (info->EVENT == MOUSE_SCROLL_DOWN) {
+                    lv->display.viewpoint.start.x++;
+                    lv->display.viewpoint.end.x++;
+                };
+            };
+            break;
+        }
+
+
+
         ev.call_event(KEYPRESS, info_d);
     });
 

@@ -12,10 +12,12 @@
 
 using namespace Gmeng;
 
-#define PORT 7388
+#define GMENG_DEFAULT_PORT_1 7388
+
+
 
 void server(int argc, char** argv) {
-    gmserver_t server(PORT);
+    gmserver_t server(GMENG_DEFAULT_PORT_1);
 
     server.create_path(path_type_t::GET, "/",
     [&](request& req, response& res) -> void {
@@ -43,7 +45,7 @@ void client(int argc, char** argv) {
 #define LOG(x) std::cout << "[CLIENT] " << x << '\n'
     Level level;
     std::stringstream ss;
-    response_t req = send_request("http://localhost:" + v_str(PORT) + "/level", "NONE", "GET");
+    response_t req = send_request("http://localhost:" + v_str(GMENG_DEFAULT_PORT_1) + "/level", "NONE", "GET");
     ss << req.body;
     read_level_data(ss, level);
     LOG("LEVEL file fetch took "$(req.ping)"ms");
