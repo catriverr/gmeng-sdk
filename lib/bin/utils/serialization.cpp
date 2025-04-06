@@ -190,7 +190,25 @@ void deserialize_level_base(Gmeng::Renderer::LevelBase& level, std::istream& in)
 };
 
 
+float versionToFloat(const std::string& version) {
+    std::stringstream ss(version);
+    std::string major, minorPart, token;
+
+    // Get the major version
+    std::getline(ss, major, '.');
+
+    // Append all remaining parts into minorPart
+    while (std::getline(ss, token, '.')) {
+        minorPart += token;
+    }
+
+    std::string combined = major + "." + minorPart;
+    return std::stof(combined);
+};
+
+
 void serialize_level(const Gmeng::Level& level, std::ostream& out) {
+
     serialize_level_base(level.base, out);
 
     size_t chunk_count = level.chunks.size();
@@ -217,6 +235,7 @@ void serialize_level(const Gmeng::Level& level, std::ostream& out) {
 };
 
 void deserialize_level(Gmeng::Level& level, std::istream& in) {
+
     deserialize_level_base(level.base, in);
 
     size_t chunk_count;

@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(31-Dec-2024) info**: 10.3.0: Audio Engine Implementation | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(6-Apr-2025) info**: `10.4.0..11.0.0`: Scripting, Networking & Entities | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
@@ -49,7 +49,7 @@ To get started, clone the repository with
 git clone https://github.com/catriverr/gmeng-sdk
 git submodule update --init --recursive
 ```
-> [!WARNING]
+> [!INFO]
 > You will need to run `git submodule update --init --recursive`<br>
 > to include the sources for libraries & dependencies which gmeng uses.<br>
 > Currently, gmeng uses the following libraries:
@@ -65,8 +65,10 @@ builds:
     make compile-windows (builds your target file / cross compiled to windows)
     make compile-file filename=<file.cpp> (builds the file defined in filename)
     make compile-file-windows filename=<file.cpp> (builds the file defined in filename, for windows target)
+    make compile-script filename<file.cc> (buidls the file defined in filename, as a NOBLE shared library script)
+    make build (builds the target in Production mode, all scripts in the scripts/src directory and your target will be compiled)
 options:
-    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows]
+    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows/compile-file/compile-file-windows/compile-script/build]
     make configure
 ```
 - The `debug` option adds the `-g -O0 -fsanitize=address` flags to the compiler.

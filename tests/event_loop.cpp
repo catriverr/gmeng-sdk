@@ -138,7 +138,11 @@ int main(int argc, char** argv) {
         };
 
         if (info->KEYPRESS_CODE == 'u') {
-            //ev.level->entities.clear();
+            Player player;
+            player.position = { 0, 0 };
+            player.sprite = vd_find_texture(vgm_defaults::vg_textures, "mini_allah");
+
+            level->entities.push_back( std::move( std::make_unique<Player>(player) ) );
         };
 
         auto cake_model = level->entities.at(0).get();

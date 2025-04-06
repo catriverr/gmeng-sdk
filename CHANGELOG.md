@@ -4,7 +4,34 @@
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `31/12/2024`.
+Latest entry is dated `06/04/2025`.
+
+
+**06/04/2025 (release)** Gmeng 11.0.0: Entity handlers & Debug Rendering.
+> The engine now has fully-functional Entities. Save files have also
+> received the ability to save & load entities. Entities can be
+> derived from the `Gmeng::Entity` class. They have to be registered
+> to the EntityFactory with `REGISTER_ENTITY_TYPE( class_name )` (due to reflection purposes).
+> Each entity handles its serialization by itself. By default, the basic variables within the
+> `EntityBase` class will be saved. If derived entity classes require to save different info,
+> they can add a new `serialize()` and `deserialize()` method to their classes with an `override` modifier
+> to override the default serialization, and save changes. Keep in mind that this means you will have
+> to save the default variables as well, not just extras.
+
+
+**04/04/2025 (release)** Gmeng 10.4.0: Scripting & Client-side networking.
+> The engine has had an overhaul regarding code cleanliness and readibility,
+> and many of the functions now have comments about what they do.
+> This helps both in documentation and for contributions to the engine.
+> The engine now fully utilizes [`NOBLE Dynamic Shared Library Scripts`](https://github.com/catriverr/noble) and can run them
+> by itself, and via commandline with the new `runscript` command.
+> On another note, Client-Sided networking is now enabled by default, and users can
+> connect to an EventLoop instance with a gmeng networking-style stream.
+> Users can make use of the new `gmeng stream` subcommand in the CLI. EventLoop servers
+> reside in the port space of `7388-7488`. Servers can be password-protected by setting the
+> modifier `server_passkey` modifier in the EventLoop modifier list.
+
+
 
 **31/12/2024 (release)** Gmeng 10.3.0: Gmeng now has an Audio Engine.
 > The engine is able to play desired frequencies and chords of frequencies.
