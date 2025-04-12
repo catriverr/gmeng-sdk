@@ -158,7 +158,7 @@ void serialize_entity(const std::unique_ptr<Gmeng::EntityBase>& entity, std::ost
     entity->serialize(out); /// every derived entity class will have its own serialization system.
 };
 
-std::unique_ptr<EntityBase> deserialize_entity(std::istream& in) {
+std::unique_ptr<Gmeng::EntityBase> deserialize_entity(std::istream& in) {
     int id;
     in.read(reinterpret_cast<char*>(&id), sizeof(id));
 
@@ -171,7 +171,7 @@ std::unique_ptr<EntityBase> deserialize_entity(std::istream& in) {
 
     auto entity_ = derived_type->second();
     entity_->deserialize(in); /// every derived entity class will have its own serialization system.
-    return std::move(entity_);
+    return entity_;
 };
 
 
