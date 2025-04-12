@@ -1462,7 +1462,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     char* term_prog = getenv("TERM_PROGRAM");
 
-    if ( std::string(term_prog) == "tmux" ) {
+    if ( term_prog != nullptr && std::string(term_prog) == "tmux" ) {
         gmeng_show_warning("tmux");
     };
 
