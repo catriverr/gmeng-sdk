@@ -65,7 +65,7 @@ builds:
     make compile-windows (builds your target file / cross compiled to windows)
     make compile-file filename=<file.cpp> (builds the file defined in filename)
     make compile-file-windows filename=<file.cpp> (builds the file defined in filename, for windows target)
-    make compile-script filename<file.cc> (buidls the file defined in filename, as a NOBLE shared library script)
+    make compile-script filename=<file.cc> (builds the file defined in filename, as a NOBLE shared library script)
     make build (builds the target in Production mode, all scripts in the scripts/src directory and your target will be compiled)
 options:
     make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows/compile-file/compile-file-windows/compile-script/build]
@@ -79,11 +79,20 @@ options:
 
 ## Debugging
 Gmeng is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
+
+### Internal Engine Debugging
+Gmeng as its own testing utility for internal tests. Compile with:
 ```sh
 make test2; lldb ./tests/out/test.o
 ```
 to run different tests, add the `-l=0,1,2,3..8` flag to the `run` command in lldb.
 refer to the [Unit Tests](tests/test.cpp) file to see different tests and what they do.
+
+### External Application Debugging
+You may also compile with debugging parameters in `clang` too with the `make debug (compile,build,etc..make parameters)` parameter.
+```sh
+make debug build; lldb ./game.out```
+This will allow you to compile with debugger parameters.
 
 ## Flags & Command-line Arguments
 For **Gmeng**'s command-line arguments, refer to the `help` page in the command-line interface via:
