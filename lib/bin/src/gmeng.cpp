@@ -34,6 +34,13 @@
 #include <unistd.h>
 #endif
 
+#if GMENG_SDL_ENABLED == true
+/// SDL Imports
+#include "../types/window.h" // typedef
+#include "../utils/window.cpp" // util
+
+#endif
+
 void setRawMode(bool enable) {
 #ifndef _WIN32
     static struct termios oldt, newt;
@@ -764,34 +771,94 @@ namespace Gmeng {
         bool locked;
     } EventHook;
 
+#if GMENG_SDL
+    /// (Gmeng) WindowState for SDL-Based External screen
+    /// state type. Contains important information for SDL-Based
+    /// typings.
+    typedef struct SDL_EventLoop_State {
+        /// SDL Game Window container.
+        GameWindow* window = NULL;
+        /// SDL Image container. type `Gmeng::sImage` is required
+        /// for GameWindow::draw( image ), so the container for the camera
+        /// output is stored in the window state, see `types/window.h`.
+        sImage image;
+    } WindowState;
+#endif
+
+    /// Gmeng EventLoop Object.
+    /// EventLoop allows for a continuous running with very in-depth
+    /// default behaviour as well as error handling, so the engine can
+    /// do the heavy-lifting of rendering, running, optimizing and handling
+    /// a game instance in Gmeng.
+    ///
+    /// Only one EventLoop object can be ran per gmeng instance,
+    /// so no two games can be run at the same time with the same executable.
     typedef struct EventLoop {
         int id; Gmeng::Level* level; std::vector<std::string>* logstream = GAME_LOGSTREAM;
 
+        /// EventLoop Modifiers.
         ModifierList modifiers = { {
             modifier { "allow_console", 1 },
-            modifier { "server_passkey", 738867 }
+            modifier { "server_passkey", 738867 } /// Should be changed for better password-protection in custom servers.
         } };
 
         /// Processes, used for registering event calls for the
         /// next tick of the event loop. Called with `UPDATE` event
         vector<EventHook> processes;
 
+        /// Event Hooks of the Loop.
         vector<EventHook> hooks;
+        /// Default Event Hooks of the Loop. Can be cancelled by
+        /// external hooks to prevent default behaviour.
         vector<EventHook> defaults;
 
+        /// Modifier of whether the EventLoop is cancelled or not.
+        /// If cancelled is `true`, the game exits.
         bool cancelled = false;
 
-        EventLoop( vector<EventHook> hooks_ ) : hooks(hooks_) {
+        /// For External SDL Screen utility. Default to false.
+        /// Changing this with code will not modify the SDL
+        /// Window state, it is used for calcuations only.
+        ///
+        /// Setting this to `false` while an SDL window is open
+        /// will freeze it, and you will have to force exit
+        /// the window.
+        bool uses_sdl = false;
+
+        /// EventLoop Constructor, Parses external EventHooks if any is provided.
+        EventLoop( vector<EventHook> _hooks = {} ) : hooks( _hooks ), uses_sdl(false) {
             this->id = g_mkid();
             gm_log("" $(id) ": created main game eventloop with id " $(this->id) ".");
 
 #ifndef _WIN32
             TerminalUtil::enable_mouse_tracking();
-            gm_log("" $(id) ": enabled mouse tracking");
+            gm_log("" $(id) ": enabled mouse tracking (1006-rawmode)");
             TerminalUtil::set_raw_mode(true);
-            gm_log("" $(id) ": set terminal state to raw mode.");
+            gm_log("" $(id) ": set terminal input state to 1006-rawmode.");
 #endif
         };
+
+#if GMENG_SDL_ENABLED == true
+        /// SDL Game window of the GameLoop. Can be NULLPTR
+        /// if it is not used, see EventLoop::uses_sdl.
+        Gmeng::GameWindow* window = nullptr;
+        /// EventLoop constructor, this will set the SDL mode to TRUE, so if you're not
+        /// going to enable it use the EventLoop constructor for the terminal instead.
+        EventLoop( vector<EventHook> _hooks = {}, Gmeng::GameWindow* _window = nullptr ) : hooks( _hooks ), window( _window ), uses_sdl( _window != nullptr ) {
+            this->id = g_mkid();
+            gm_log(""$(id)": created main game eventloop with id "$(this->id)".");
+            gm_log(""$(id)": ENABLED EXTERNAL_SDL_WINDOW: This EventLoop will use an SDL-Based external window to draw game state.");
+            gm_log("-----");
+#ifndef _WIN32
+            gm_log(""$(id)": Enabling Terminal-Util functions as well as the SDL instance for dev-console system.");
+            TerminalUtil::enable_mouse_tracking();
+            gm_log(""$(id)": enabled mouse tracking (1006-rawmode)");
+            TerminalUtil::set_raw_mode(true);
+            gm_log(""$(id)": set terminal input state to 1006-rawmode.");
+#endif
+        };
+#endif // sdl_enabled?
+
 
         ~EventLoop() {
 #ifndef _WIN32
@@ -897,6 +964,7 @@ namespace Gmeng {
             else server.run();
         };
 
+        /// Will crash the game.
         void reset_server() {
             server.stop();
             server.run();
@@ -910,6 +978,7 @@ namespace Gmeng {
           bool tick_handler = false;
     } EventLoop;
 
+    /// Main Gmeng EventLoop, for accessibility from everywhere.
     EventLoop* main_event_loop = nullptr;
 
     typedef struct EventLoop_Controller_State {
@@ -930,9 +999,11 @@ namespace Gmeng {
                                                         x == 3 ? Gmeng::MOUSE_CLICK_END_ANY : (\
                                                                 x == 35 ? Gmeng::MOUSE_MOVE : MOUSE_REST_3_CHECKER(x)) )))
 #define MOUSE_REST_1_CHECKER(x) x == 65 ? Gmeng::MOUSE_SCROLL_DOWN : MOUSE_REST_2_CHECKER(x)
+/// Returns the Mouse Event from a sscanf(  ) for 1006-rawmode instanced mouse input.
+/// scroll up, scroll down, mouse move, left click, right click, etc.
 #define SELECT_MOUSE_EVENT(x) x == 64 ? Gmeng::MOUSE_SCROLL_UP : MOUSE_REST_1_CHECKER(x)
 
-/// returns the last n lines of a vector of strings
+/// (Gmeng) returns the last n lines of a vector of strings
 std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
     std::deque<std::string> lines;
 
@@ -1391,7 +1462,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     char* term_prog = getenv("TERM_PROGRAM");
 
-    if ( strcmp(term_prog, "tmux") == 0) {
+    if ( std::string(term_prog) == "tmux" ) {
         gmeng_show_warning("tmux");
     };
 
