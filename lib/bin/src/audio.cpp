@@ -229,7 +229,9 @@ void play_chord(std::vector<double>& frequencies, unsigned int duration, AudioUn
 };
 
 
-#else
+#endif
+
+#if _WIN32
 #error "GMENG AUDIO ENGINE: Unsupported Platform (only MacOS, Windows & Linux are supported).\nSEE https://gmeng.org"
 #endif
 
