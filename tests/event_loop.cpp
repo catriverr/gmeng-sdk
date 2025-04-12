@@ -8,13 +8,13 @@ using namespace Gmeng::Util;
 
 static Level level;
 static gmeng_properties_t cfg;
-static EventLoop ev( {} );
+static EventLoop ev;
 
-
+/// Example Entity Type
 class Mogus : public Entity<Mogus> {
   public:
     int interaction_proximity = 10;
-}; REGISTER_ENTITY_TYPE( Mogus );
+}; REGISTER_ENTITY_TYPE( Mogus ); /// Registers the Entity Type.
 
 
 
