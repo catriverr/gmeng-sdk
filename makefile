@@ -199,7 +199,7 @@ compile:
 	@echo TO CONFIGURE, USE make configure
 	@echo PROGRAM\: $(TARGET_NAME)
 	@echo TARGET WILL BE NAMED\: ./game.out
-	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(TARGET_NAME) -o game.out
+	$(CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
 
 compile-windows:
 	@echo CROSS COMPILING TO WINDOWS
@@ -210,20 +210,20 @@ compile-windows:
 	@echo COMPILING YOUR BUILDOPTIONS.MK
 	@echo TO CONFIGURE, EDIT THE FILE buildoptions.mk TO CHANGE YOUR TARGET
 	@echo EXECUTABLE WILL BE NAMED\: ./game.exe
-	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(TARGET_NAME) -o game.exe
+	$(WINDOWS_CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o game.exe
 
 
 compile-file:
 	@echo "Compiling file: $(filename)"
-	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(filename) -o $(basename $(filename))
+	$(CXX) $(filename) $(VERSIONFLAGS) $(CXXFLAGS) -o $(basename $(filename))
 
 compile-file-windows:
 	@echo "Cross compiling file: $(filename)"
-	$(WINDOWS_CXX) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(filename) -o $(basename $(filename))$(suffix .exe)
+	$(WINDOWS_CXX) $(filename) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o $(basename $(filename))$(suffix .exe)
 
 compile-script:
 	@echo "Compiling NOBLE prebuilt shared library: $(filename)"
-	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib) $(filename)
+	$(CXX) $(filename) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib)
 	@echo "Written out to: $(basename $(filename))$(suffix .dylib)"
 
 build:
@@ -236,7 +236,7 @@ build:
 	@echo "..."
 	@echo "COMPILING ENGINE & SOURCE TARGET"
 	@echo "the game executable will be written to: ./game.out"
-	$(CXX) $(VERSIONFLAGS) $(CXXFLAGS) $(TARGET_NAME) -o game.out
+	$(CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
 	@echo "..."
 	@echo "COMPILATION COMPLETE"
 # Phony targets
