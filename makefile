@@ -1,7 +1,7 @@
 # Compiler and flags
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl`
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
@@ -87,7 +87,7 @@ endif
 
 
 ifeq ($(UNAME_S), Darwin)
-	CXXFLAGS += -framework ApplicationServices
+	CXXFLAGS += -framework ApplicationServices -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 endif
 
 ifeq ($(UNAME_S), Linux)
