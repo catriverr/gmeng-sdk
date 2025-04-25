@@ -241,26 +241,26 @@ build:
 	@echo "COMPILATION COMPLETE"
 
 setup:
-	echo "setting up & installing binaries for gmeng..."
-	echo "(you may need root permissions, try sudo make setup if the installation fails)"
+	@echo "setting up & installing binaries for gmeng..."
+	@echo "(you may need root permissions, try sudo make setup if the installation fails)"
 	@if [ "$(UNAME_S)" = "Linux" ]; then\
         echo "---------------------------------------------------------------------------------";\
-		echo "detected linux-based operating system";\
+		echo "GMENG: detected linux-based operating system";\
 		echo "(if this is wrong, run the command make setup UNAME_S=<OS name>)";\
 		echo "---------------------------------------------------------------------------------";\
-		echo "updating the `apt` database...";\
+		echo "[gmeng-setup] updating the `apt` database...";\
 		apt-get update;\
 		echo "------------------------------";\
-		echo "installing libcurl4-openssl-dev...";\
+		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
 		apt-get -y install libcurl4-openssl-dev;\
 		echo;\
-		echo "installing libasound2 & libasound2-dev...";\
+		echo "[gmeng-setup] installing libasound2 & libasound2-dev...";\
 		apt-get -y install libasound2;\
 		apt-get -y install libasound2-dev;\
 		echo;\
 	fi
-	echo "setup process complete (this does not mean that it was successful, check the logs above for details)"
-	echo "if there were errors in the output, try running the command as root (sudo make setup)."
+	@echo "[gmeng-setup] setup process complete (this does not mean that it was successful, check the logs above for details)"
+	@echo "[gmeng-setup] if there were setup process errors in the output, try running the command as root (sudo make setup)."
 
 # Phony targets
 .PHONY: setup build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
