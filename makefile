@@ -251,6 +251,10 @@ setup:
 		echo "[gmeng-setup] updating the apt database...";\
 		apt-get update;\
 		echo "------------------------------";\
+		echo "[gmeng-setup]: installing pkgconf (pkg-config)...";\
+		apt-get -y install pkgconf;\
+		apt-get -y install pkg-config;\
+		echo;\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
 		apt-get -y install libcurl4-openssl-dev;\
 		echo;\
