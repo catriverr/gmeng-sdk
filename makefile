@@ -259,8 +259,12 @@ setup:
 		apt-get -y install libasound2-dev;\
 		echo;\
 	fi
-	@echo "[gmeng-setup] setup process complete (this does not mean that it was successful, check the logs above for details)"
+	@echo "[gmeng-setup] install process complete (this does not mean that it was successful, check the logs above for details)"
 	@echo "[gmeng-setup] if there were setup process errors in the output, try running the command as root (sudo make setup)."
+	@echo "------------------------------------------------------------------------------------------------------------------"
+	@echo "[gmeng-setup] initializing git submodules..."
+	git submodule update --init --recursive
+	@echo "[gmeng-setup] setup process complete"
 
 # Phony targets
 .PHONY: setup build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
