@@ -255,7 +255,7 @@ setup:
 		apt-get -y install pkgconf;\
 		apt-get -y install pkg-config;\
 		echo;\
-		echo "[gmeng-setup] install libncurses-dev (ncurses, ncursesw)..."
+		echo "[gmeng-setup] install libncurses-dev (ncurses, ncursesw)...";\
 		apt-get -y install libncurses-dev;\
 		echo;\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
