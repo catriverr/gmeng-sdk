@@ -21,6 +21,9 @@
 
 
 namespace Gmeng {
+    /// GameWindow Utility for SDL-Based EventLoops in Gmeng.
+    /// MUST USE `make use-external <...params>` FOR THIS UTILITY TO
+    /// BE INCLUDED IN YOUR APPLICATION.
     class GameWindow {
     public:
         GMENG_NULL_T __ = { not_nullptr };
@@ -53,6 +56,7 @@ namespace Gmeng {
                 SDL_Quit();
                 return;
             };
+
             std::string font_path = "assets/press_start.ttf";
             font = TTF_OpenFont(font_path.c_str(), 24); // Default font and size
             if (!font) {
@@ -75,7 +79,7 @@ namespace Gmeng {
             SDL_RenderCopy(renderer, txtr, &source_rect, &destination_rect);
         };
 
-        void text(string message, SDL_Point pos, SDL_Color color, SDL_Color bgcolor = { 0, 0, 0, 255 }) {
+        void text(string message, SDL_Point pos, SDL_Color color, SDL_Color bgcolor = { 0, 0, 0, 0 }) {
             SDL_Surface* text_surface = TTF_RenderText_Solid(this->font, message.c_str(), color);
             SDL_Texture* text_texture = SDL_CreateTextureFromSurface(this->renderer, text_surface);
             SDL_Rect text_rect = { pos.x, pos.y, text_surface->w, text_surface->h };

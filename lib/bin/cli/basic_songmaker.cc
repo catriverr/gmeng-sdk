@@ -8,6 +8,9 @@
 #include "../cli/index.h"
 
 #ifndef GMENG_NO_CURSES
+
+#if __APPLE__
+
 #include "../utils/interface.cpp"
 
 
@@ -330,4 +333,5 @@ static Gmeng_Commandline::InterfaceRegistrar register_AEC(
     std::make_unique<audio_editor_command_t>( AEC )
 );
 
+#endif
 #endif

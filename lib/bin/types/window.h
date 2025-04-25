@@ -1,4 +1,7 @@
 #pragma once
+/// FOR GMENG_SDL.
+
+
 
 #include <SDL2/SDL.h>
 #if GMENG_SDLIMAGE
@@ -12,11 +15,13 @@
 #include "SDL_ttf.h"
 
 namespace Gmeng {
+    /// (Gmeng) SDL Image
     struct sImage {
         int width, height;
         std::vector<color_t> content;
     };
 
+    /// RGB_UINT Colors
     static int rgb_colors[9][3] = {
         {255,255,255},
         {131, 165, 152},
@@ -28,6 +33,7 @@ namespace Gmeng {
         {40, 40, 40},
         {249, 128, 25}
     };
+    /// SDL Colors
     static SDL_Color scolors[9] = {
         {255,255,255  ,255},
         {131, 165, 152,255},
@@ -41,17 +47,13 @@ namespace Gmeng {
     };
 };
 
+/// (Gmeng) SDL-Color to uint32 color.
 static uint32_t color_to_uint32(const SDL_Color& color) {
     return (color.r << 24) | (color.g << 16) | (color.b << 8) | color.a;
 }
 
-// Function to create an SDL texture from a vector of SDL_Color
+/// (Gmeng) Function to create an SDL texture from a vector of SDL_Color / Gmeng::sImage layer
 static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
-    // __functree_call__(gmeng_external::__optional_utils__::libsdl2::make_texture);
-    // too many calls to this function
-    // will be fixed later as this is a performace drop
-    // it's fine for now though - these methods are not ready to be used within
-    // actual gmeng game instances
     uint32_t width = image.width;
     uint32_t height = image.height;
     std::vector<SDL_Color> units;
@@ -89,6 +91,7 @@ static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
 }
 
 #if GMENG_SDLIMAGE
+/// (Gmeng) returns an SDL Texture from `.png` files.
 static SDL_Texture* from_png(SDL_Renderer* renderer, const char* file_path) {
     __functree_call__(gmeng_external::__optional_utils__::libsdl2::from_png);
     // Load the PNG file into an SDL_Surface

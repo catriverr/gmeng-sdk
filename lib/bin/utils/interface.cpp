@@ -21,6 +21,10 @@
 #include <regex.h>
 #include <wchar.h>
 #include <memory>
+
+
+#if __APPLE__
+
 #include <ApplicationServices/ApplicationServices.h>
 #include <termios.h>
 #include <unistd.h>
@@ -1674,3 +1678,5 @@ namespace Gmeng {
 
 #define GMENG_CAN_USE_NCURSES true
 #define GMENG_UIELEMENTS_INIT true
+
+#endif

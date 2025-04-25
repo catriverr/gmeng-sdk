@@ -91,7 +91,7 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 ifeq ($(UNAME_S), Linux)
-	CXXFLAGS += -DGMENG_NO_CURSES -Wno-write-strings -lasound
+	CXXFLAGS += -Wno-write-strings -lasound
 	USE_NCURSES := false
 endif
 
@@ -239,5 +239,28 @@ build:
 	$(CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
 	@echo "..."
 	@echo "COMPILATION COMPLETE"
+
+setup:
+	echo "setting up & installing binaries for gmeng..."
+	echo "(you may need root permissions, try sudo make setup if the installation fails)"
+	@if [ "$(UNAME_S)" = "Linux" ]; then\
+        echo "---------------------------------------------------------------------------------";\
+		echo "detected linux-based operating system";\
+		echo "(if this is wrong, run the command make setup UNAME_S=<OS name>)";\
+		echo "---------------------------------------------------------------------------------";\
+		echo "updating the `apt` database...";\
+		apt-get update;\
+		echo "------------------------------";\
+		echo "installing libcurl4-openssl-dev...";\
+		apt-get -y install libcurl4-openssl-dev;\
+		echo;\
+		echo "installing libasound2 & libasound2-dev...";\
+		apt-get -y install libasound2;\
+		apt-get -y install libasound2-dev;\
+		echo;\
+	fi
+	echo "setup process complete (this does not mean that it was successful, check the logs above for details)"
+	echo "if there were errors in the output, try running the command as root (sudo make setup)."
+
 # Phony targets
-.PHONY: build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
+.PHONY: setup build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows

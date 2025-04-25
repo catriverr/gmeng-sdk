@@ -1048,6 +1048,8 @@ static void patch_argv_global(int argc, char* argv[]) {
 };
 
 
+
+
 /// Restarts the current executable/program.
 /// Requires `patch_argv_global()` to have been called.
 /// This method runs `execvp` from the `unistd.h` library
