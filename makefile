@@ -248,7 +248,7 @@ setup:
 		echo "GMENG: detected linux-based operating system";\
 		echo "(if this is wrong, run the command make setup UNAME_S=<OS name>)";\
 		echo "---------------------------------------------------------------------------------";\
-		echo "[gmeng-setup] updating the `apt` database...";\
+		echo "[gmeng-setup] updating the apt database...";\
 		apt-get update;\
 		echo "------------------------------";\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
