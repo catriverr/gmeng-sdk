@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(28-Apr-2025) info**: Continuous Linux compilation, `make setup` command | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(28-Apr-2025) info**: Linux compilation, `make setup` command | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
