@@ -43,7 +43,7 @@ sudo make setup
 > - `pkg-config & pkgconf` for implementing cflags for C++ compiler libraries,
 > - `libcurl4-openssl-dev` for easy telecommunications & networking functions,
 > - `libncurses-dev` for easy terminal-based UI creation on CLI commands,
-> - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architercture) audio engine,
+> - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architecture) audio engine,
 > - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities
 
 ### Build Options
