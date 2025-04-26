@@ -266,7 +266,27 @@ setup:
 		apt-get -y install libasound2-dev;\
 		echo;\
 	fi
-	@echo "[gmeng-setup] install process complete (this does not mean that it was successful, check the logs above for details)"
+	@if [ "$(UNAME_S)" = "Darwin" ]; then\
+        echo "---------------------------------------------------------------------------------";\
+		echo "GMENG: detected darwin-based (macOS) operating system";\
+		echo "(if this is wrong, run the command make setup UNAME_S=<OS name>)";\
+		echo "---------------------------------------------------------------------------------";\
+		echo "[gmeng-setup] this setup utility uses homebrew, the setup will install it if you haven't already.";\
+		sh ./scripts/sh/install_homebrew.sh;\
+		echo "[gmeng-setup] installing pkgconf (pkg-config)";\
+		brew install pkgconf;\
+		brew install pkg-config;\
+		echo;\
+		echo "[gmeng-setup] installing libncurses-dev...";\
+		brew install ncurses;\
+		echo;\
+		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
+		brew install curl;\
+		echo;\
+		echo "[gmeng-setup] Apple/ApplicationServices (default installed with macOS).";\
+		echo;\
+	fi
+	@echo "[gmeng-setup] installation process complete."
 	@echo "[gmeng-setup] if there were setup process errors in the output, try running the command as root (sudo make setup)."
 	@echo "------------------------------------------------------------------------------------------------------------------"
 	@echo "[gmeng-setup] initializing git submodules..."
