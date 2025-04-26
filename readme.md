@@ -39,12 +39,12 @@ sudo make setup
 > - [`catriverr/noble`](https://github.com/catriverr/noble) for scripting, script parsing and plugin support
 >
 > **libraries & utilities**<br>
-> - `homebrew` for installing & implementing libraries required by gmeng.
-> - `pkg-config & pkgconf` for implementing cflags for C++ compiler libraries.
+> - `homebrew` for installing & implementing libraries required by gmeng,
+> - `pkg-config & pkgconf` for implementing cflags for C++ compiler libraries,
 > - `libcurl4-openssl-dev` for easy telecommunications & networking functions,
 > - `libncurses-dev` for easy terminal-based UI creation on CLI commands,
-> - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architercture) audio engine.
-> - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities.
+> - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architercture) audio engine,
+> - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities
 
 ### Build Options
 ```make
