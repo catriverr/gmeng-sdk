@@ -10,51 +10,42 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(6-Apr-2025) info**: `10.4.0..11.0.0`: Scripting, Networking & Entities | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(28-Apr-2025) info**: Continuous Linux compilation, `make setup` command | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
 
 ## Building
 
-This project uses the [**GNU Make**](https://www.gnu.org/software/make/) build system for an easy building process. Currently, Gmeng only runs on `Darwin (MacOS)` systems.
+This project uses the [**GNU Make**](https://www.gnu.org/software/make/) build system for an easy building process. Gmeng currently runs on all `UNIX` (macOS & linux) systems.
+While a Windows port for Gmeng is being worked on it is not yet complete. If you're on a Windows machine,
+install [`WSL (Windows Subsystem for Linux)`](https://learn.microsoft.com/en-us/windows/wsl/install) to run Gmeng without having to change computers or boot into a different Operating System.
 
-### Requirements
-```cmake
-Systems:
-- gnu-make
-- g++ with stdc++20 or gnu++20
+### Getting Started
 
-Frameworks:
-- noble-lang (included)
-- liblmf (included)
-- pkg-config 0.29.2 or later
-
-```
-### Optional Utilities
-```cmake
-Systems:
-- Node.JS 19.8.1 or later
-- npm 9.2.0 or later
-- homebrew
-
-Frameworks:
-- ncurses/ncursesw 6.5 or later
-- libcurl 8.4.0 or later
-- ApplicationServices
-```
-
-To get started, clone the repository with
+To get started, clone the repository and set it up with
 ```sh
 git clone https://github.com/catriverr/gmeng-sdk
-git submodule update --init --recursive
+cd gmeng-sdk
+sudo make setup
 ```
-> [!INFO]
-> You will need to run `git submodule update --init --recursive`<br>
+> [!IMPORTANT]
+> You will need to run `sudo make setup`
 > to include the sources for libraries & dependencies which gmeng uses.<br>
-> Currently, gmeng uses the following libraries:
-> - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for interleafing and configuration file parsing
+>
+> **submodules**<br>
+> Currently, gmeng uses the following submodules:
+> - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for interleafing and configuration file parsing,
 > - [`catriverr/noble`](https://github.com/catriverr/noble) for scripting, script parsing and plugin support
+>
+> **libraries & utilities**<br>
+> - `homebrew` for installing & implementing libraries required by gmeng.
+> - `pkg-config & pkgconf` for implementing cflags for C++ compiler libraries.
+> - `libcurl4-openssl-dev` for easy telecommunications & networking functions,
+> - `libncurses-dev` for easy terminal-based UI creation on CLI commands,
+> - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architercture) audio engine.
+> - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities.
+
 ### Build Options
 ```make
 builds:
@@ -66,6 +57,8 @@ builds:
     make compile-file filename=<file.cpp> (builds the file defined in filename)
     make compile-file-windows filename=<file.cpp> (builds the file defined in filename, for windows target)
     make compile-script filename=<file.cc> (builds the file defined in filename, as a NOBLE shared library script)
+
+    make setup (sets up the environment and installs the libraries required for gmeng to function)
     make build (builds the target in Production mode, all scripts in the scripts/src directory and your target will be compiled)
 options:
     make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows/compile-file/compile-file-windows/compile-script/build]
@@ -91,7 +84,8 @@ refer to the [Unit Tests](tests/test.cpp) file to see different tests and what t
 ### External Application Debugging
 You may also compile with debugging parameters in `clang` too with the `make debug (compile,build,etc..make parameters)` parameter.
 ```sh
-make debug build; lldb ./game.out```
+make debug build; lldb ./game.out
+```
 This will allow you to compile with debugger parameters.
 
 ## Flags & Command-line Arguments

@@ -7,6 +7,14 @@ This document was created at `25/09/2024`.
 Latest entry is dated `06/04/2025`.
 
 
+**28/04/2025 (info)** Gmeng Now runs on `Linux` continously & `make setup` command
+> The engine now is able to run on all Linux distributions. To make the
+> installation & setup process easier, there is now a new command for setting
+> up the environment required by gmeng to function. Run `sudo make setup`
+> for the system to automatically detect your OS and install the required
+> dependencies accordingly, as well as initialize the git submodules.
+
+
 **06/04/2025 (release)** Gmeng 11.0.0: Entity handlers & Debug Rendering.
 > The engine now has fully-functional Entities. Save files have also
 > received the ability to save & load entities. Entities can be
