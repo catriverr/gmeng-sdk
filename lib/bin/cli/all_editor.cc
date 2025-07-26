@@ -4,7 +4,7 @@
 #include <ncursesw/ncurses.h>
 #include <string>
 #include <locale.h>
-#include "../gmeng.h"  // Replace with your actual header
+#include "../gmeng.h"
 #include "../utils/serialization.cpp"
 #include "../cli/index.h"
 #include "../utils/serialization.cpp"
