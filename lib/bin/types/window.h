@@ -18,21 +18,10 @@ namespace Gmeng {
     /// (Gmeng) SDL Image
     struct sImage {
         int width, height;
-        std::vector<color_t> content;
+        std::vector<uint32_t> content;
     };
 
-    /// RGB_UINT Colors
-    static int rgb_colors[9][3] = {
-        {255,255,255},
-        {131, 165, 152},
-        {184, 187, 38},
-        {134, 180, 117},
-        {244, 73, 52},
-        {211, 134, 155},
-        {249, 188, 47},
-        {40, 40, 40},
-        {249, 128, 25}
-    };
+
     /// SDL Colors
     static SDL_Color scolors[9] = {
         {255,255,255  ,255},
@@ -47,31 +36,92 @@ namespace Gmeng {
     };
 };
 
-/// (Gmeng) SDL-Color to uint32 color.
-static uint32_t color_to_uint32(const SDL_Color& color) {
-    return (color.r << 24) | (color.g << 16) | (color.b << 8) | color.a;
-}
+using Gmeng::sImage;
 
-/// (Gmeng) Function to create an SDL texture from a vector of SDL_Color / Gmeng::sImage layer
-static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
+/// Streches an sImage object to a target width*height.
+static sImage stretchImage(const sImage& src, int targetWidth, int targetHeight) {
+    sImage result;
+    result.width = targetWidth;
+    result.height = targetHeight;
+    result.content.resize(static_cast<size_t>(targetWidth) * targetHeight);
+
+    if (src.width <= 0 || src.height <= 0 || src.content.size() < src.width * src.height) {
+        // Invalid source image, return empty result
+        return result;
+    }
+
+    for (int y = 0; y < targetHeight; ++y) {
+        int srcY = y * src.height / targetHeight;
+        if (srcY >= src.height) srcY = src.height - 1;
+
+        for (int x = 0; x < targetWidth; ++x) {
+            int srcX = x * src.width / targetWidth;
+            if (srcX >= src.width) srcX = src.width - 1;
+
+            size_t dstIdx = static_cast<size_t>(y) * targetWidth + x;
+            size_t srcIdx = static_cast<size_t>(srcY) * src.width + srcX;
+
+            result.content[dstIdx] = src.content[srcIdx];
+        }
+    }
+
+    return result;
+};
+
+/// Returns a drawpoint of a source image given
+/// a drawpoint from a stretched version of that image,
+/// given the width & height values of both images.
+static Gmeng::Renderer::drawpoint unscale_drawpoint(
+    const Gmeng::Renderer::drawpoint& stretchedPoint,
+    int sourceWidth, int sourceHeight,
+    int targetWidth, int targetHeight)
+{
+    Gmeng::Renderer::drawpoint srcPoint;
+
+    srcPoint.x = stretchedPoint.x * sourceWidth / targetWidth;
+    if (srcPoint.x >= sourceWidth) srcPoint.x = sourceWidth - 1;
+
+    srcPoint.y = stretchedPoint.y * sourceHeight / targetHeight;
+    if (srcPoint.y >= sourceHeight) srcPoint.y = sourceHeight - 1;
+
+    return srcPoint;
+};
+
+static uint32_t color_to_uint32(const SDL_Color& color) {
+    // Pack as RGBA with R in highest byte, matching masks below
+    return (color.r << 24) | (color.g << 16) | (color.b << 8) | (color.a);
+};
+
+/// Create SDL_Texture from Gmeng::sImage using proper packed pixel buffer
+static SDL_Texture* make_texture(SDL_Renderer* renderer, const Gmeng::sImage& image) {
     uint32_t width = image.width;
     uint32_t height = image.height;
-    std::vector<SDL_Color> units;
-    for (auto color : image.content) units.push_back(scolors[color]);
 
-    if (units.size() != width * height) return nullptr;
+    std::vector<uint32_t> pixels;
+    pixels.reserve(width * height);
 
-    // Create an SDL surface
+    // Convert color indices to packed pixels
+    for (auto colorIndex : image.content) {
+        SDL_Color color = Gmeng::scolors[colorIndex];
+        pixels.push_back(color_to_uint32(color));
+    }
+
+    if (pixels.size() != width * height) {
+        std::cerr << "Pixel count mismatch!" << std::endl;
+        return nullptr;
+    }
+
+    // Create surface with masks matching the packing in color_to_uint32
     SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
-        units.data(), // Pixel data
-        width,        // Width of the surface
-        height,       // Height of the surface
-        32,           // Bits per pixel
-        width * sizeof(uint32_t), // Pitch (bytes per row)
-        0xFF000000,   // Red mask
-        0x00FF0000,   // Green mask
-        0x0000FF00,   // Blue mask
-        0x000000FF    // Alpha mask
+        pixels.data(),
+        width,
+        height,
+        32,                     // bits per pixel
+        width * sizeof(uint32_t), // pitch
+        0xFF000000,  // red mask (highest byte)
+        0x00FF0000,  // green mask
+        0x0000FF00,  // blue mask
+        0x000000FF   // alpha mask (lowest byte)
     );
 
     if (!surface) {
@@ -79,9 +129,9 @@ static SDL_Texture* make_texture(SDL_Renderer* renderer, Gmeng::sImage image) {
         return nullptr;
     }
 
-    // Create texture from surface
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_FreeSurface(surface); // Free the surface after creating the texture
+    SDL_FreeSurface(surface);
+
     if (!texture) {
         std::cerr << "Error creating texture: " << SDL_GetError() << std::endl;
         return nullptr;
@@ -111,6 +161,7 @@ static SDL_Texture* from_png(SDL_Renderer* renderer, const char* file_path) {
 
     return texture;
 }
+
 #endif
 
 #define GMENG_SDL_ENABLED true

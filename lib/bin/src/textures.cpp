@@ -26,11 +26,16 @@ namespace Gmeng {
     inline Gmeng::texture LoadTexture(std::string __fname) {
         __functree_call__(Gmeng::LoadTexture);
         std::ifstream file(__fname); Gmeng::texture texture;
-        if (!file.is_open()) { std::cerr << Gmeng::colors[4] << "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " << __fname << ": e_file_unavailable"; };
+        if (!file.is_open()) {
+            gm_log(Gmeng::colors[4] + "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " + __fname + ": e_file_unavailable");
+            return { 0, 0, false, {}, "NO_CONTENT_FILE_INVALID" };
+        };
+
+
         std::vector<std::string> lines; std::string line;
         while (std::getline(file, line)) { lines.push_back(line); };
         file.close(); int i = 0;
-        if (Gmeng::global.dont_hold_back) __gmeng_write_log__("gmeng.log", g_joinStr(lines, "\n"));
+        if (Gmeng::global.dont_hold_back) gm_log(g_joinStr(lines, "\n"));
         for ( const auto& ln : lines ) {
             // break if all units have been rendered
             // fixes broken textures and also allows copying
@@ -82,6 +87,7 @@ namespace Gmeng {
             };
             i++;
         };
+        gm_log("texture '" + texture.name + "' of size " + v_str(texture.width) + "x" + v_str(texture.height) + " compiled from source " + __fname);
         return texture;
     };
 };

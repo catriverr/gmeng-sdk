@@ -1,7 +1,7 @@
 #!/bin/bash
 
 directory="scripts/src"  # Change this to the actual directory name
-command="make compile-script"      # Replace with the actual command
+command="make use-external compile-script"      # Replace with the actual command
 
 # Check if the directory exists
 if [ ! -d "$directory" ]; then

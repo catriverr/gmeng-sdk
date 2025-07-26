@@ -4,3 +4,9 @@
 [submodule "include/noble"]
 	path = include/noble
 	url = https://github.com/catriverr/noble
+[submodule "include/imgui"]
+	path = include/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "include/mp-pico-cpp"]
+	path = include/mp-pico-cpp
+	url = https://github.com/catriverr/mp-pico-cpp

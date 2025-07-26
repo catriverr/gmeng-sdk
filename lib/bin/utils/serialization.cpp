@@ -21,6 +21,22 @@
 
 #include "./serialization_def.cpp"
 
+/// returns the name of a variable's type
+template<typename T>
+std::string getTypeName(const T& var) {
+    const char* mangled = typeid(var).name();
+    int status = 0;
+
+    std::unique_ptr<char, void(*)(void*)> demangled{
+        abi::__cxa_demangle(mangled, nullptr, nullptr, &status), std::free
+    };
+
+    if (status == 0 && demangled) {
+        return demangled.get();
+    } else {
+        return mangled;  // fallback to mangled name
+    }
+}
 
 
 /// serialization for drawpoints
@@ -151,14 +167,14 @@ void deserialize_chunk(Gmeng::chunk& ch, std::istream& in) {
 
 
 
-void serialize_entity(const std::unique_ptr<Gmeng::EntityBase>& entity, std::ostream& out) {
+void serialize_entity(const std::shared_ptr<Gmeng::EntityBase>& entity, std::ostream& out) {
     int id = entity->get_serialization_id();
     out.write(reinterpret_cast<const char*>(&id), sizeof(id));
 
     entity->serialize(out); /// every derived entity class will have its own serialization system.
 };
 
-std::unique_ptr<Gmeng::EntityBase> deserialize_entity(std::istream& in) {
+std::shared_ptr<Gmeng::EntityBase> deserialize_entity(std::istream& in) {
     int id;
     in.read(reinterpret_cast<char*>(&id), sizeof(id));
 

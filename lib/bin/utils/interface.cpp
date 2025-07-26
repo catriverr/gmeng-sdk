@@ -31,7 +31,7 @@
 #include <sys/ioctl.h>
 
     #define sleep std::this_thread::sleep_for
-    #define ms std::chrono::milliseconds
+    #define c_ms std::chrono::milliseconds
 
 #ifndef BUTTON5_PRESSED
     #define BUTTON5_PRESSED true
@@ -715,7 +715,7 @@ namespace Gmeng {
                 };
                 instance->__refresh();
                 auto future_thing = std::async(std::launch::async, [&]() -> void {
-                    sleep(ms(125));
+                    sleep(c_ms(125));
                     this->clicked = false;
                 });
             };
@@ -849,7 +849,7 @@ namespace Gmeng {
                             break;
                         default:
                         case CONTINUE:
-                            p.push_back({wc_unit,stoui_color[partial.unit.transparent ? BLACK : partial.unit.color]});
+                            p.push_back({wc_unit,stoui_color[partial.unit.transparent ? BLACK : (color_t)partial.unit.color]});
                             break;
                     };
                     c++;
@@ -1397,7 +1397,7 @@ namespace Gmeng {
                                 mvaddnwstr(this->position.y+(this->with_frame ? 1 : 0)+j,this->position.x+(this->with_frame ? 1 : 0)+k,wc_unit,1);
                                 attroff(COLOR_PAIR(color));
                             };
-                            sleep(ms(150));
+                            sleep(c_ms(150));
                         };
                     disallow_spin_refresh = false;
                     }).detach();
@@ -1428,7 +1428,7 @@ namespace Gmeng {
                 for (int y = 0; y < this->image.height; y++) {
                     for (int x = 0; x < this->image.width; x++) {
                         auto unit = units[y*this->image.width+x];
-                        short bcolor = (short)stoui_color[unit.transparent ? BLACK : unit.color];
+                        short bcolor = (short)stoui_color[unit.transparent ? BLACK : (color_t)unit.color];
                         attron(COLOR_PAIR(bcolor));
                         mvaddnwstr(y+this->position.y+marginy,x+this->position.x+marginx,wc_unit,1);
                         attroff(COLOR_PAIR(bcolor));

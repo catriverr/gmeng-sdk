@@ -273,7 +273,7 @@ int test_sdl_text() {
         frame_start = tm;
         window.clear();
         window.draw(img, { 0, 0 }, 10);
-        window.text("frame time: " + v_str(frame_time) + "ms | fps: " + v_str(1000 / frame_time), {0,600}, {255, 0, 0, 255});
+        window.text("frame time: " + v_str(frame_time) + "ms | fps: " + v_str(1000 / frame_time), 18, {0,600}, {255, 0, 0, 255});
         window.refresh();
         frame_time = SDL_GetTicks() - frame_start;
         if (last_displayed == 0 || tm - last_displayed >= 1000) {

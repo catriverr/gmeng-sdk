@@ -30,9 +30,26 @@ namespace Gmeng {
     /// All Renderer utilities, structs, objects
     /// controllers, handlers and more.
     namespace Renderer {
-
-        struct drawpoint { int x; int y; };
+        /// position in a viewpoint
+        struct drawpoint {
+            int x; int y;
+            /// drawpoint comparison
+            bool operator<(const drawpoint& other) const {
+                if (y != other.y) return y < other.y;
+                return x < other.x;
+            };
+            /// drawpoint equals
+            bool operator==(const drawpoint&) const = default;
+        };
+        /// viewpoint, 2 drawpoints with a start and end
         struct viewpoint { drawpoint start; drawpoint end; };
+
+        int dp_distance(const drawpoint& a, const drawpoint& b) {
+            int dx = b.x - a.x;
+            int dy = b.y - a.y;
+            return dx * dx + dy * dy;  // precise squared distance
+        }
+
 
         /// Generates an empty texture with a pink-black layer
         /// (the default null layer), can be placed into a Model
@@ -67,6 +84,8 @@ namespace Gmeng {
                   };
               };
             public:
+              /// used for editors
+              bool highlighted = false; bool active = true;
               std::size_t width; std::size_t height; std::size_t size; drawpoint position;
               std::string name; Gmeng::texture texture; int id;
               /// Resets the texture into the default null-layer with the same height
@@ -200,7 +219,7 @@ namespace Gmeng {
         /// returns drawpoint object as log string
         std::string conv_dp(drawpoint p) {
             //__functree_call__(Gmeng::Renderer::conv_dp);
-            return "x=" + v_str(p.x) + ",y=" + v_str(p.y);
+            return "{ x:" + v_str(p.x) + ", y:" + v_str(p.y) + " }";
         };
 
         // returns placement coordinates for each coordinate of object at __p with size of __s in mapsize of __ws
@@ -234,7 +253,6 @@ namespace Gmeng {
 
         /// returns placement coordinates for a viewpoint within a map sizeof drawpointxy
         vector<drawpoint> get_displacement(viewpoint& view, const drawpoint& map) {
-            __functree_call__(Gmeng::Renderer::get_displacement);
             std::vector<drawpoint> result;
 
             // Ensure the viewpoint is within the map boundaries
@@ -255,58 +273,52 @@ namespace Gmeng {
         class Display {
             private:
             public:
-                Camera<0, 0> camera; viewpoint viewpoint;
-                std::size_t width; std::size_t height; vector<Unit> rendered_units;
+                /// Main camera of the display. this utility  is how a level object is rendered or seen,
+                /// but the camera does not have positions since it is not an object. The camera renders units
+                /// and draws to the screen only. Rendering is handled  by get_renderscale(), get_lvl_view()
+                /// and emplace_lvl_camera() on the terminal and by get_renderscale() by itself on SDL mode.
+                Camera<0, 0> camera;
+                /// The viewpoint of the display. this decides the part of the level that will be visible
+                /// on the camera. This is not tied to the screen resolution, so it must be synced accordingly.
+                /// This option is not serialized, so it must be set at the beginning of every game instance.
+                viewpoint viewpoint;
+                /// The width of the display. Not synced with the viewpoint.
+                /// Setting this variable by itself is not recommended. Use
+                /// set_resolution() instead, as it will also update the camera.
+                std::size_t width;
+                /// The height of the display. Not synced with the viewpoint.
+                /// Setting this variable by itself is not recommended. Use
+                /// set_resolution() instead, as it will also update the camera.
+                std::size_t height;
+                /// Units rendered on the display. used for camera syncing internally.
+                /// This vector will usually be empty, it is not for usage in games.
+                /// use either Camera::display_map::unitmap or Level::renderscale.
+                vector<Unit> rendered_units;
 
+                /// enables / disables cursor visibility on the terminal.
                 inline void set_cursor_visibility(bool state) {
                     if (!state) std::cout << "\e[?25l"; // hide
                     else std::cout << "\e[?25h"; // show
                 };
 
+                /// Sets the resolution of the display.
+                /// This does not affect the viewpoint, only the width/height
+                /// of the display and camera. the size of the viewpoint may
+                /// cause problems if the resolution and it are not synced.
                 inline void set_resolution(std::size_t width, std::size_t height) {
                     __functree_call__(Gmeng::Renderer::Display::set_resolution);
                     this->width = width; this->height = height;
                     this->camera.SetResolution(this->width, this->height);
                 };
+
+                /// refreshes the display (not the camera), re-setting the
+                /// resolution for the camera.
                 inline void refresh() {
                     __functree_call__(Gmeng::Renderer::Display::refresh);
                     // refresh resolution
                     this->camera.SetResolution(this->width, this->height);
                 };
-                inline void plunit(Objects::G_Player pl, Objects::coord plcoords) {
-                    __functree_call__(Gmeng::Renderer::Display::plunit);
-                    auto v_playerunit = this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y];
-                    std::cout << this->camera.draw_unit(v_playerunit) << " " << Gmeng::colors[pl.colorId] << pl.colorId << endl;
-                    this->rendered_units[(plcoords.x*this->camera.w)+plcoords.y] = Gmeng::Unit {
-                        .color=v_playerunit.color,
-                        .collidable=v_playerunit.collidable,
-                        .is_player=true,
-                        .player = pl,
-                        .special=true,
-                        .special_clr=pl.colorId
-                    };
-                };
-                inline void nplunit(Objects::coord coords) {
-                    __functree_call__(Gmeng::Renderer::Display::nplunit);
-                    this->rendered_units[coords.y*this->camera.w + coords.x].is_player = false;
-                };
-                inline void draw(Objects::G_Player pl, Objects::coord plcoords) {
-                    __functree_call__(Gmeng::Renderer::Display::draw);
-                    this->refresh();
-                    if (!this->camera.player_init) this->camera.SetPlayer(0, pl, plcoords.y, plcoords.x, true);
-                    else this->camera.MovePlayer(0, plcoords.y, plcoords.x);
-                    gm_log("Gmeng::Renderer::Display job_render *draw -> total compiled units: " + v_str(this->rendered_units.size()));
-                    for (int i = 0; i < this->rendered_units.size(); i++) {
-                        if (this->camera.display_map.unitmap[i].is_player) {
-                            this->camera.playerunit.color = this->rendered_units[i].color; /// fix for __gtransparent_unit__ background
-                            continue;
-                        };
-                        this->camera.display_map.unitmap[i] = this->rendered_units[i];
-                    };
-                    this->camera.update();
-                    this->camera.clear_screen();
-                    std::cout << this->camera.draw() << endl;
-                };
+                /// Moves the display's viewpoint to the specified new viewpoint.
                 inline void move_to(Gmeng::Renderer::viewpoint __vp) {
                     __functree_call__(Gmeng::Renderer::Display::move_to);
                     this->viewpoint = __vp;
@@ -389,7 +401,7 @@ namespace Gmeng {
     inline void log_vpu(std::vector<Gmeng::Unit>& vp_units, int wsizeX) {
         __functree_call__(Gmeng::log_vpu);
         int jndx = 0;
-        for (const auto& _v_unit : vp_units) { Objects::coord gp = Gmeng::trace_1dp(jndx, wsizeX); gm_nlog("vp_gtx.units @ pos "+ v_str(jndx) + " ("+v_str(gp.y)+","+v_str(gp.x)+"):\n\tv_color -> " + v_str(_v_unit.color) + "\n\tv_collision -> " + (_v_unit.collidable ? "true" : "false") + "\n\tv_special -> " + (_v_unit.special ? "true" : "false") + "\n\tv_spcolor -> " + v_str(_v_unit.special_clr) + "\n"); jndx++; };
+        for (const auto& _v_unit : vp_units) { Objects::coord gp = Gmeng::trace_1dp(jndx, wsizeX); gm_nlog("vp_gtx.units @ pos "+ v_str(jndx) + " ("+v_str(gp.y)+","+v_str(gp.x)+"):\n\tv_color -> " + v_str((int)_v_unit.color) + "\n\tv_collision -> " + (_v_unit.collidable ? "true" : "false") + "\n\tv_special -> " + (_v_unit.special ? "true" : "false") + "\n\tv_spcolor -> " + v_str(_v_unit.special_clr) + "\n"); jndx++; };
         gm_nlog("\n");
     };
     /// logs information about a viewpoint chunk
@@ -442,7 +454,7 @@ namespace Gmeng {
             /// emplaces a value at the end of the dictionary
             inline void addb_l(v_type val) { this->values.push_back(vd_item<v_type> {.id=g_mkid(),.data=val}); };
             /// returns the vector of the dictionary
-            inline std::vector<Gmeng::vd_item<v_type>> v_getrelative() { return this->values; };
+            inline std::vector<Gmeng::vd_item<v_type>>& v_getrelative() { return this->values; };
     };
 
     inline Renderer::Model vd_find_model(v_dictl<Renderer::Model> dict, v_title name) {
@@ -466,21 +478,74 @@ namespace Gmeng {
         v_dictl<Renderer::Model> vg_rdmodels;
         v_dictl<texture>         vg_textures;
     };
-    /// reads a folder's .gmdl and .gtx files into Gmeng::vgm_defaults::vg_rdmodels & vg_textures;
+    /// reads a folder's VGM texture & model files into Gmeng::vgm_defaults::vg_rdmodels & vg_textures
+    /// for ease-of-access to textures without having to read them from the disc.
     inline void _uread_into_vgm(const v_title& folder) {
         __functree_call__(Gmeng::_uread_into_vgm);
         // we wait until all textures are in vgm_defaults before we load any models
         // afterwards we loop through the vector and load them into Gmeng::vgm_defaults::vg_rdmodels
         std::vector<std::string> q_modelindx;
-        if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : job_readfile *loop -> ffolder:name = " + folder);
+        gm_log("Gmeng VisualCache Graphics Manager: reading visual cache models from directory: " + folder);
         try {
             for (const auto& entry : fs::directory_iterator(folder)) {
-                if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : reading file " + entry.path().string() + " - size: " + v_str(entry.file_size()) + "B | " + v_str(entry.file_size() / 1024) + "KB | " + v_str(entry.file_size() / 1024 / 1000) + " MB");
+                /// write information about the file
+                /// to the log if developer mode is
+                /// enabled by the user/developer
+                if (Gmeng::global.dev_mode) gm_log("_uread_into_vgm() : reading file " + entry.path().string() + " - size: " + v_str(entry.file_size()) + "B | " + v_str(entry.file_size() / 1024) + "KB | " + v_str(entry.file_size() / 1024 / 1000) + " MB");
+                /// check if the entry is a regular file, not a directory/else
                 if (entry.is_regular_file()) {
+                    /// get the name of the file, with the
+                    /// path to it so it can be read without
+                    /// the process working directory.
                     v_title fname = (entry.path().string());
-                    if (Gmeng::global.dont_hold_back) gm_log("_uread_into_vgm() : status_update -> entryAt = " + folder = " | filename: " + entry.path().filename().string());
-                    if (endsWith(fname, ".gmdl")) { std::string fcontent = g_readFile(fname); q_modelindx.push_back(fcontent); continue; };
-                    vgm_defaults::vg_textures.addb_l(Gmeng::LoadTexture(fname));
+                    /// log information about the file being
+                    /// read if developer mode is enabled
+                    if (Gmeng::global.dev_mode) gm_log("_uread_into_vgm() : status_update -> entryAt = " + folder = " | filename: " + entry.path().filename().string());
+                    /// check if file is a model file,
+                    /// skip it if it is.
+                    if (endsWith(fname, ".gmdl")) {
+                        /// file is a model file, read it and store
+                        /// to parse after texture loading is complete.
+                        std::string fcontent = g_readFile(fname);
+                        /// add the entry to the model index.
+                        q_modelindx.push_back(fcontent);
+                        /// skip the file
+                        continue;
+                    };
+                    /// file is assumed to be a texture file, regardless
+                    /// of file extension / name unless it's a .gmdl file.
+                    /// attempt to load the texture
+                    auto m_item = LoadTexture( fname );
+
+                    /// iterate through the entire dictionary to check if a value already exists
+                    /// this is so we can replace it instead of using it
+                    auto it = std::find_if(
+                        vgm_defaults::vg_textures.v_getrelative().begin(),
+                        vgm_defaults::vg_textures.v_getrelative().end(),
+                        [&](const vd_item< texture >& item) {
+                        /// item entry holds the same name
+                        return item.data.name == m_item.name;
+                    });
+
+                    /// if the iterator has found a corresponding item,
+                    /// access it to reference the value and write to it
+                    /// instead of creating a new entry for the same
+                    /// texture object. \since gmeng 12.0.0
+                    if (it != vgm_defaults::vg_textures.v_getrelative().end()) {
+                        /// dereference it to acces value
+                        vd_item< texture >& item = *it;
+                        /// log information about the item to the gmeng log stream.
+                        gm_log(std::string("source texture (") + (fname) + ") '"
+                                    + m_item.name + "' is vgm-cached, updating data only");
+                        /// re-set the texture object. this is done
+                        /// because the texture might be different
+                        /// in the current source to the cached
+                        /// texture inside the vgm dictionary.
+                        item.data = m_item;
+                    } else {
+                        /// there was no such texture, add a new entry.
+                        vgm_defaults::vg_textures.addb_l( m_item );
+                    };
                 };
             }
             for (const auto& q_item : q_modelindx) {
@@ -488,9 +553,10 @@ namespace Gmeng {
                 vmdl.m.attach_texture(vd_find_texture(vgm_defaults::vg_textures, vmdl.txname));
                 Gmeng::vgm_defaults::vg_rdmodels.addb_l(vmdl.m);
             };
+            gm_log("Gmeng VisualCache Graphics Manager: compiled visual cache from " + folder);
         } catch (const fs::filesystem_error& ex) {
             gm_err(1, "g,gm,gmeng,Gmeng -> _uread_into_vgm(const v_title& folder) : status v_error -> vgm data in folder " + std::string(ex.what()) + " is corrupt/faulty.");
-        }
+        };
     };
 
     /// writes values in Gmeng::vgm_defaults::vg_rdmodels & vg_textures into vectors v_mdls and v_txtrs
@@ -609,6 +675,43 @@ namespace Gmeng {
         return info;
     };
 
+    /// returns delta of a viewpoint's X coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
+    };
+
+    /// returns delta of a viewpoint's Y coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
+    };
+
+    template <typename... Args>
+    auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
+    };
+
+    template <typename... Args>
+    auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
+    };
+
+    /// returns position of a 2d pointer in a vector as a 1d index to the vector
+    /// example:
+    /// { 0, 1, 2,
+    ///   3, 4, 5 }
+    /// width = 3,
+    /// pointer = (1, 1)
+    /// y (1) * width (3) + x (1) => pos(4)
+    /// vector[4] = 4
+    template <typename number_type = int>
+    inline number_type _vcreate_vu2d_delta_xy(int x, int y, int width) {
+        __functree_call__(_vcreate_vu2d_delta_xy);
+        return v_static_cast<number_type>( ( y * width ) + x );
+    };
+
+
     static const Objects::G_Player v_base_player = (Objects::G_Player {
         .entityId=0,
         .colorId = 0,
@@ -650,18 +753,35 @@ namespace Gmeng {
         // with the Entity class.
         static int id_counter;
 
-
+        // Registers a new entity derivatory.
+        // Required for serialization, otherwise
+        // all entities would be saved as a different type.
         template <typename Derived>
         static void register_derived_class(int id) {
             get_derived_factory()[id] = []() { return std::make_unique<Derived>(); };
         };
       public:
+        /// PLEASE DONT TOUCH, USE OR RUN THIS METHOD IF YOU
+        /// ARE NOT AWARE OF WHAT IT WILL DO. YOU WILL BREAK
+        /// YOUR ENTITY ID SYSTEM AND FUCK YOUR LEVEL UP.
+        static int incr_id(int value = -1) {
+            if (value == -1) return id_counter++;
+            else return id_counter = value+1;
+        };
+        /// decides whether an entity will be rendered / utilized or not.
+        bool active = true;
+
+        /// Returns the derivatory factory containing the map
+        /// for the function that constructs the current Entity type.
+        ///
+        /// Used for serialization.
         static std::unordered_map<int, std::function<std::unique_ptr<EntityBase>()>>& get_derived_factory() {
             static std::unordered_map<int, std::function<std::unique_ptr<EntityBase>()>> factory_map;
             return factory_map;
         }
 
         // well, brave calling this a "sprite".
+        // Texture of the entity.
         texture sprite;
         // position of the Entity.
         // The position is not CENTRAL.
@@ -679,6 +799,11 @@ namespace Gmeng {
         // So in this case it would be (x=2,y=1)
         Renderer::drawpoint position;
         // random id, to differenciate entities
+        // does not have to be user-set unless
+        // the entity is being duplicated.
+        //
+        // constructor() initializes with g_mkid().
+        // see gmeng.h:g_mkid() for info.
         unsigned int entity_id = g_mkid();
         // interaction proximity,
         // the amount of units a player should be
@@ -766,7 +891,7 @@ namespace Gmeng {
         ///
         /// Examples of this can be following the player,
         /// checking for proximity with other entities, etc.
-        virtual void periodic( EventLoop* ) { /* no default behaviour */ };
+        virtual void periodic( EventLoop* ev = NULL ) { /* no default behaviour */ };
 
         /// This method is called periodically every 250ms for all entities.
         /// It is to provide animation capabilities with a stable interval.
@@ -775,9 +900,9 @@ namespace Gmeng {
         /// the texture of an entity.
         ///
         /// NOT REQUIRED! Animated sprites are optional.
-        virtual void animate( EventLoop* ) { /* no default behaviour */ };
+        virtual void animate( EventLoop* ev = NULL ) { /* no default behaviour */ };
     };
-    /// sets off the derivatory id count
+    /// sets off the derivatory id count from -1.
     int EntityBase::id_counter = 0;
 
     /// Virtual class for Extendable Entity
@@ -794,7 +919,14 @@ namespace Gmeng {
     template <typename Derived>
     class Entity : public EntityBase {
       public:
-        /// DERIVED CLASS ID
+        /// Derived entity ID, used to distingish entity types.
+        /// Entity<Derived>::id will be uniquely incremented from
+        /// any other Entity<Derived2>. But, Entity<Derived>::id will
+        /// be equal to another Entity<Derived>::id.
+        ///
+        /// To distinguish Entities from each other (not entity types),
+        /// use Entity<Derived>.entity_id. Uniquely generated with g_mkid().
+        /// see gmeng.h:g_mkid() for information on ID generation.
         static const int id;
 
         Entity() {
@@ -815,18 +947,84 @@ namespace Gmeng {
     template<typename Derived>
     class DerivedEntityRegistrar {
       public:
-        DerivedEntityRegistrar() {
+        std::string __name;
+        DerivedEntityRegistrar( char* nm ) {
+            gm_log("initializing derived object type " + std::string(nm) + " with id ENTITY(" + v_str(Entity<Derived>::id) + ")");
+            this->__name = nm;
+            Entity<Derived> eclass_1;
             Derived eclass;
         };
     };
 /// Registers an entity type.
 /// Must be called for all new Derived Entity types.
+/// also see GMENG_ENTITY_SET_ID(0).
 ///
 /// If you do not register entity types, save files will seg-fault
 /// when loading due to no initial registry to the factory having been
 /// made. This ensures the factory has an overload for the Derived Class.
-#define REGISTER_ENTITY_TYPE( eclass ) static DerivedEntityRegistrar<eclass> derivatory__##eclass
+#define REGISTER_ENTITY_TYPE( eclass ) \
+    static DerivedEntityRegistrar<eclass> derivatory__##eclass( #eclass ); \
+    static std::string __derivatory__name__##eclass = derivatory__##eclass.__name; \
+    static int __entity_derivatory__id_incr_##eclass = EntityBase::incr_id()
 
+/// ABSOLUTELY DO NOT USE THIS FOR YOUR ENTITIES I DO NOT KNOW ENOUGH
+/// OF THE ENGLISH LANGUAGE TO PROPERLY EXPLAIN HOW DAMAGING THIS WILL BE
+///
+/// JUST USE REGISTER_ENTITY_TYPE. IT IS FOR USERS. IT IS FOR THE EXTERNAL
+/// USAGE. NOT THIS. THIS WILL FUCK YOU. AND GIVE YOU STDS.
+///
+/// GMENG_INTERNAL_ENTITY DOES NOT MAKE YOUR ENTITIES COOL. IT MAKES THEM
+/// UNUSABLE BECAUSE THE INTERNAL INCREMENTER HAS GONE OFF COURSE AND NOW
+/// YOUR ENTITIES HAVE WRONG ID's ASSIGNED TO THEM
+///
+/// GOOD LUCK CASTING TO VOID* AND REFACTORING FROM EntityBase
+///
+/// FOR INTERNAL USAGE:
+///    class_def_ending_token {}; GMENG_INTERNAL_ENTITY( EntityName ); REGISTER_ENTITY_TYPE( EntityName );
+#define GMENG_INTERNAL_ENTITY( eclass ) \
+    template<>      \
+    const int Entity<eclass>::id = EntityBase::id_counter; \
+    const int __internal_entity_derivatory_id_increment__##eclass = EntityBase::incr_id()
+
+/// PREVIOUSLY INTERNAL UTILITY THAT I REALISED WAS GOOD FOR NORMAL USERS
+/// ---------------------------------------------------------------------
+/// PURPOSE: sets internal derivatory_entity_id to a static number. this
+///          is good if you ever have to reorder your Entity types for
+///          the entire duration of your game's development phase.
+///
+/// REASON:  extends REGISTER_ENTITY_TYPE(). really good practice since
+///          entities are really hard to serialize by themselves because
+///          there are different Entity classes with different variables
+///          that needs to be saved to a level file. Gmeng does this by
+///          incrementing an internal derived_factory_id_counter but this
+///          will cause errors if Entity classes initialization order is
+///          misaligned / the order is changed. While this is savable by
+///          just reordering the Entity initialization to the previous
+///          state, it's better to use GMENG_ENTITY_SET_ID( unique_id )
+///          to differentiate entity derivatory types. It was a dumb
+///          decision in Gmeng 11.0.0 to decide based on id and not typename,
+///          but this is a good solution.
+///
+/// USAGE:   before calling REGISTER_ENTITY_TYPE( DerivedEntityClassName ),
+///          call GMENG_ENTITY_SET_ID( DerivedEntityClassName, unique_id ).
+///          the id passed into the GMENG_ENTITY_SET_ID must be unique and
+///          *NOT RANDOM*. If it's random, your engine build will not be able
+///          to load entities from save files and your save file will be
+///          rendered useless. set them by hand. don't automate the ids if
+///          you use this macro, as it's whole point is manually assigning ids.
+///          if you don't want to manually assign ids, REGISTER_ENTITY_TYPE will
+///          assign one, but you will have to keep your entity class definition
+///          order the same and never add in between and before your previous
+///          classes, only after.
+/// ---------------------------------------------------------------------
+/// FOR INTERNAL USAGE (ONLY GMENG DEVELOPERS *NOT* USERS):
+///          VALUES LOWER THAN 0 CAN BE SET TO RESERVE ENTITY IDs FOR INTERNAL
+///          ENTITIES. THIS WILL ALLOW FOR SERIALIZATION TO NOT GO CRAZY WHEN
+///          NEW GMENG SOURCE ENTITIES ARE ADDED OR THE ORDER OF ENTITIES CHANGE.
+/// ---------------------------------------------------------------------
+#define GMENG_ENTITY_SET_ID( eclass, ___id ) \
+    template<> \
+    const int Entity<eclass>::id = ___id;
 
     /// Player Entity object.
     /// Stable for every gmeng instance.
@@ -837,13 +1035,119 @@ namespace Gmeng {
         int interaction_proximity = 10;
         Renderer::drawpoint position = { 0, 0 };
 
-    }; REGISTER_ENTITY_TYPE( Player );
+    }; /* do not question why this is not set as an internal entity.
+          do even more not set it as an internal entity. just don't.*/
+       REGISTER_ENTITY_TYPE( Player );
+
+    /// Light Source Entity object. Used for
+    /// illumination in levels. add as an entity
+    /// to change brightness & color in your level.
+    ///
+    /// Requires your level camera to have modifier
+    /// 'lighting' to be set as '(int)1'.
+    ///
+    /// LightSource objects have a size of 1x1 units.
+    class LightSource : public Entity<LightSource> {
+      public:
+        /// LightSource interactions do not happen.
+        /// LightSources are not interactable entites,
+        /// do not use this variable. Will always be -1.
+        int interaction_proximity = -1;
+        /// Position of the LightSource. Will afect
+        /// the area within reach of { position+intensity }.
+        Renderer::drawpoint position = { 0, 0 };
+
+        /// color of the light source, changing it
+        /// will modulate the units within reach
+        /// of the source.
+        color32_t color = { 255, 255, 255 };
+        /// intensity of the light source, maxes
+        /// at 1. for global illumination disable
+        /// lighting completely. will turn camera to
+        /// full brightness, and disable shading.
+        ///
+        /// intensity is scaled unit wise and decrementally.
+        /// if intensity is 10 at position { 0, 0 },
+        /// intensity will be 9 at positions { 1, 0 },
+        /// { 0, 1 } and { 0, 1 }; etc.
+        int intensity = 15;
+        /// Max brightness of the LightSource.
+        /// while intensity can be scaled infinitely,
+        /// if a max brightness is set then a
+        /// Gmeng::Camera::calculate_illumination function call
+        /// will not scale higher than the max_brightness value.
+        ///
+        /// '10' (default) is the max value until colors are
+        /// brightened & intensified above their regular values.
+        int max_brightness = 10;
+        /// Whether the light source is cached.
+        /// This is for optimized rendering, as if a light source is cached,
+        /// unless the light source was changed the cached data is reusable.
+        bool cached = false;
+        /// cached minimum brightness value of the light source.
+        /// used for rendering in get_renderscale() for cache validation
+        int cached_min_brightness = -1;
+        /// cached position of the lightsource, for automatic
+        /// cache validation and updating if the lightsource
+        /// moves, the minimum brightness property changes, etc.
+        /// used for rendering in get_renderscale() for cache validation
+        Renderer::drawpoint cached_position = { -1, -1 };
+        /// validates the LightSource's cache by comparing the values to
+        /// the object's non-cached properties. Such as:
+        ///
+        /// this::cached_position COMPARE this::position,
+        /// this::cached_min_brightness COMPARE @param min_brightness
+        inline void validate_cache( int min_brightness ) {
+            /// can't be invalid if you're not cached!
+            if ( !this->cached ) return;
+            /// check minimum brightness
+            if ( min_brightness != cached_min_brightness ) this->cached = false;
+            /// check position
+            if ( this->cached_position != this->position ) this->cached = false;
+        };
+    }; /* LightSource is set to -1 to have a fixed entity id regardless of external entity types.
+        * Also, it is not set as a GMENG_INTERNAL_ENTITY since LightSources are not 'entities', but
+        * entity-type objects that should not be interactable but are dynamic in design.            */
+       GMENG_ENTITY_SET_ID( LightSource, -1 ); REGISTER_ENTITY_TYPE( LightSource );
 
 
+    /// ENDS ENTITY TYPES:
+    ///     GMENG_INTERNAL_ENTITY will place entities at the end of the entity derived factory list.
+    ///     So, GMENG_ENTITYTYPES_END::id is a way to check for Entity id overflow.
+    class GMENG_ENTITYTYPES_END : public Entity<GMENG_ENTITYTYPES_END> {
+    }; GMENG_INTERNAL_ENTITY( GMENG_ENTITYTYPES_END ); REGISTER_ENTITY_TYPE( GMENG_ENTITYTYPES_END );
 
 
+    /// Returns the displacement vector of a circle with a radius of 'r'.
+    /// center being the center position of the circle.
+    ///
+    /// This ignores negative values, values starting from 0,0 will be returned only.
+std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, const Gmeng::Renderer::drawpoint& center) {
+    std::vector<Gmeng::Renderer::drawpoint> points;
+    int r2 = radius * radius;
 
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx * dx + dy * dy > r2)
+                continue;
 
+            int x = center.x + dx;
+            int y = center.y + dy;
+
+            if (x >= 0 && y >= 0)
+                points.push_back({x, y});
+        }
+    }
+
+    return points;
+}
+    /// Level type of Gmeng.
+    /// This is more a 'level manager' than a level itself,
+    /// but nontheless it holds the display and camera that
+    /// initialize the cameraview and the level itself.
+    ///
+    /// @since 4.1_glvl
+    /// @continuous_build 8.0.0
     class Level {
         private:
             // compiles a chunk into a vector<Unit> unitmap for a Camera instance to render.
@@ -853,8 +1157,7 @@ namespace Gmeng {
             // currently used in get_renderscale, get_lvl_view & emplace_lvl_camera.
             //
             // Does not render entities!
-            inline vector<Unit> render_chunk(chunk chunk) {
-                __functree_call__(Gmeng::Level::__private__::render_chunk);
+            inline vector<Unit> render_chunk(chunk& chunk) {
                 // write base_template skybox image to chunk (level 0 of canvas)
                 // base_template's viewpoint relative to the chunks viewpoint will be drawn as a base 'skybox' like image
                 texture* base_map = &this->base.lvl_template; vector<Unit> units;
@@ -896,9 +1199,21 @@ namespace Gmeng {
                 // compile models into unitmaps and write them to x,y coordinates
                 // within the r_chunk by getting placement positions with get_placement
                 int debug_render_mode = this->display.camera.modifiers.get_value("debug_render");
-                for ( auto _model : chunk.models ) {
+                this->display.camera.model_count = 0;
+                this->modelmap = {};
+                for ( auto& _model : chunk.models ) {
+                    /// Update the model count of the camera
+                    this->display.camera.model_count++;
+                    /// Add to model registry if it doesn't exist yet
+                    this->modelmap.push_back( _model );
+                    /// Render model
                     auto model = _model;
-                    if (debug_render_mode > 0) {
+                    /// if the model is not active, skip rendering it.
+                    if (!_model.active) continue;
+                    /// if the model is highlighted or the modifier
+                    /// 'debug_render' is enabled at 2 or 1, highlight
+                    /// the model's borders (or its body).
+                    if (debug_render_mode > 0 || _model.highlighted) {
                         for (int i = 0; i < model.width*model.height; i++) {
                             int y = i / model.width, x = i % model.width;
                             if (y == 0 || x == 0 ||
@@ -907,7 +1222,24 @@ namespace Gmeng {
                             };
                         };
                     };
-                    Renderer::drawpoint dp = model.position;
+
+                    /// model position remapping. to prevent errors such as
+                    /// segmentation faults & other crashes if the displacement of
+                    /// a model is outside the bounds of the level->base.
+
+                    /// coordinate remapping ( > bounds: overbound )
+                    if ( model.position.x+model.width >= vp_width(chunk.vp) )
+                        model.position.x = model.position.x % (vp_width(chunk.vp) - model.width);
+                    if ( model.position.y+model.height >= vp_height(chunk.vp) )
+                        model.position.y = model.position.y % (vp_width(chunk.vp) - model.height);
+                    /// coordinate remapping ( < bounds: underbound )
+                    if (model.position.x < 0)
+                        model.position.x = vp_width(chunk.vp)-model.width;
+                    if (model.position.y < 0)
+                        model.position.y = vp_height(chunk.vp)-model.height;
+
+                    Renderer::drawpoint dp = { model.position.x % vp_width( chunk.vp ),
+                                               model.position.y % vp_height( chunk.vp ) };
 
                     /// 10.4.0 - this log isn't really needed
                     /// so it has been moved to full-log only
@@ -917,7 +1249,9 @@ namespace Gmeng {
                         gm_log("dp -> x: " + v_str(dp.x) + " - y: " + v_str(dp.y) ),
                         gm_log("p2 -> x: " + v_str(model.width) + " - y: " + v_str(model.height) );
 
-                    vector<Renderer::drawpoint> displacement = Renderer::get_placement(dp, {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)}, {.x=(chunk.vp.end.x - chunk.vp.start.x),.y=(chunk.vp.end.y - chunk.vp.start.y)});
+                    vector<Renderer::drawpoint> displacement = Renderer::get_placement(dp,
+                            {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)},
+                            {.x=(chunk.vp.end.x - chunk.vp.start.x),.y=(chunk.vp.end.y - chunk.vp.start.y)});
 
 
                     gm_log("total_drawpoints: " + v_str(displacement.size()) );
@@ -1017,6 +1351,41 @@ namespace Gmeng {
                 return { start, end };
             */};
         public:
+            /// Map of light sources for each LightSource entity,
+            /// mapped by LightSource->entity_id. cached & generated
+            /// by Gmeng::get_renderscale().
+            std::map< int, std::shared_ptr<LightSource> > light_sources;
+            /// Contains a map of illumination and lighting info
+            /// for each drawpoint in the level. The minimum light
+            /// intensity is set by the camera (level.display.camera)
+            /// or (Gmeng::Camera). The minimum light intensity is a
+            /// modifier and can be serialized and saved to level
+            /// files or any stdc++ outstream.
+            ///
+            /// Lighting cache is initialized by Gmeng::get_renderscale and
+            /// stored in Gmeng::Level::lighting_cache, but lighting states
+            /// for every drawpoint is calculated by Gmeng::Camera. via
+            /// Gmeng::Camera::calculate_illumination( color32_t color,
+            /// int light_intensity_max, int distance, int min_intensity).
+            ///
+            /// Lighting can be disabled by setting the modifier on
+            /// Gmeng::Camera::modifiers( "lighting", 0 ) with the method
+            /// Gmeng::Camera::set_modifier( "lighting", 0 ).
+            ///
+            /// The minimum lighting level (min_intensity) can also be set
+            /// with Gmeng::Camera::set_modifier( "lighting_floor", 0 ).
+            std::map< uint32_t, LightingState > lighting_cache;
+            /// Contains a copy of each model included in the level.
+            /// Does not contain a copy of each individual model's derivatories,
+            /// only models that weren't initialized before.
+            std::vector<Renderer::Model> modelmap;
+            /// Available renderscale for the level.
+            /// Not updated internally, is set by get_renderscale(),
+            /// _vconcatenate_lvl_chunks() or _vget_renderscale2dpartial_scalar().
+            ///
+            /// For ease-of-access in preview / debugging utilities without having to
+            /// recompile the renderscale from the start by using this shared object.
+            vector<Unit> renderscale;
             /// Base texture for the Level.
             /// This object is treated as a skybox.
             ///
@@ -1039,7 +1408,7 @@ namespace Gmeng {
             /// every entity registered t4o the level.
             ///
             /// Entities are not bound with chunks.
-            vector<std::unique_ptr<EntityBase>> entities;
+            vector<std::shared_ptr<EntityBase>> entities;
             /// Description of the level.
             ///
             /// can be set with 4.1 text-based GLVL files
@@ -1175,11 +1544,10 @@ namespace Gmeng {
             };
 
             /// Renders a given chunk with the internal chunk
-            /// renderer.
+            /// renderer for the level. does not add to chunk map.
             ///
             /// @since 7.0.0-d
-            inline vector<Unit> v_render_chunk(chunk chunk) {
-                __functree_call__(Gmeng::Level::v_render_chunk);
+            inline vector<Unit> v_render_chunk(chunk& chunk) {
                 return this->render_chunk(chunk);
             };
 
@@ -1199,8 +1567,9 @@ namespace Gmeng {
             */};
 
             /// @deprecated, gmeng does not use G_Player unit objects
-            /// as players & entities are being reworked for 11.0.0.
-            ///
+            /// as players & entities are reworked for 11.0.0.
+            /// see renderer.cpp:EntityBase or renderer.cpp:Entity<Player>.
+            /// for players.
             /// @since 4.1-glvl
             inline void set_player(Objects::G_Player p, int x, int y) {/*
                 __functree_call__(Gmeng::Level::set_player);
@@ -1211,8 +1580,9 @@ namespace Gmeng {
             */};
 
             /// @deprecated, gmeng does not use G_Player unit objects
-            /// as players & entities are being reworked for 11.0.0.
-            ///
+            /// as players & entities are reworked for 11.0.0.
+            /// see renderer.cpp:EntityBase or renderer.cpp:Entity<Player>.
+            /// for players.
             /// @since 4.1-glvl
             inline void move_player(int x, int y) {/*
                 __functree_call__(Gmeng::Level::move_player);
@@ -1405,7 +1775,7 @@ namespace Gmeng {
     inline vector<Unit> splice_render_buffers(vector<chunk> chunks, Level &level_t) {
         __functree_call__(Gmeng::__deprecated_do_not_use__::splice_render_buffers);
         vector<Unit> units;
-        for (const auto& chunk : chunks) {
+        for (auto& chunk : chunks) {
             vector<Renderer::drawpoint> shared_delegates = viewpoint_includes(level_t.display.viewpoint, chunk.vp);
             if (shared_delegates.size() < 1) continue;
             vector<Unit> v_units = level_t.v_render_chunk(chunk);
@@ -1438,6 +1808,14 @@ namespace Gmeng {
             .x = vp_pos[dp.y * (vp.end.x - vp.start.x) + dp.x].x,
             .y = vp_pos[dp.y * (vp.end.x - vp.start.x) + dp.x].y
         };
+    };
+
+    /// calculates the distance between 2 viewpoints
+    inline int calc_distance( Renderer::drawpoint p1, Renderer::drawpoint p2 ) {
+        return std::min(
+                std::abs(p1.x - p2.x),
+                std::abs(p1.y - p2.y)
+        );
     };
 
     /// @deprecated not used internally | NOT IMPLEMENTED
@@ -1487,41 +1865,6 @@ namespace Gmeng {
         return v_units_final;
     };
 
-    /// returns delta of a viewpoint's X coordinate
-    template <typename number_type = int>
-    inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
-        return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
-    };
-
-    /// returns delta of a viewpoint's Y coordinate
-    template <typename number_type = int>
-    inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
-        return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
-    };
-
-    template <typename... Args>
-    auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
-        return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
-    };
-
-    template <typename... Args>
-    auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
-        return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
-    };
-
-    /// returns position of a 2d pointer in a vector as a 1d index to the vector
-    /// example:
-    /// { 0, 1, 2,
-    ///   3, 4, 5 }
-    /// width = 3,
-    /// pointer = (1, 1)
-    /// y (1) * width (3) + x (1) => pos(4)
-    /// vector[4] = 4
-    template <typename number_type = int>
-    inline number_type _vcreate_vu2d_delta_xy(int x, int y, int width) {
-        __functree_call__(_vcreate_vu2d_delta_xy);
-        return v_static_cast<number_type>( ( y * width ) + x );
-    };
 
     /// @deprecated USE get_lvl_view(&level) INSTEAD
     /// returns a frame generated by a level_t object
@@ -1609,44 +1952,75 @@ namespace Gmeng {
     /// { "xxxxxxx",
     ///   "xxxxxxx",
     ///   "xxxoxxx", } -> VECTOR(VECTOR<Unit>, 3);
-    inline vector<Unit> _vconcatenate_lvl_chunks(Level& lvl, bool cubic_render = true) {
-        __functree_call__(Gmeng::_vconcatenate_lvl_chunks);
-        gm_log("Gmeng::_vconcatenate_lvl_chunks *debugger, *0.0, p0,gm:0 :: breakpoint 1");
+    inline vector<Unit> _vconcatenate_lvl_chunks(Level& lvl, bool _cubic_render = true, TRACEFUNC) {
+        /// log to gmeng.log about the renderscale request (initially)
+        gm_log("Gmeng::_vconcatenate_lvl_chunks renderscale requested by " + TRACEFUNC_STR);
+        /// chunk controllers, in vector.
         std::vector<__CHROMATIZED_CHUNK_CONTROLLER_VIEWPOINT__> v_chunks;
+        /// the base width of the level, for easy access.
         const int __level_base_width__ = v_static_cast<int>(lvl.base.lvl_template.width);
+        /// indexes for loops
         unsigned int p = 0; unsigned int rowc = 0;
+        /// partial chunk, used in parsing a chunk
         std::string t_chunk_partial = "";
+        /// rows
         vector<vector<Unit>> v_rows;
-        std::string unit_seperator = v_str((char)0x1F); // hex code of 'UNIT SEPERATOR' (1-byte long)
+        /// hex code of 'UNIT SEPERATOR' (1-byte long)
+        std::string unit_seperator = v_str((char)0x1F);
 
-        for (int __rc = 0; __rc < lvl.base.lvl_template.height; __rc++) {
+        /// the real height of the base lvl template
+        int height_size = lvl.base.lvl_template.height;
+
+        /// real cubic render value
+        bool cubic_render = _cubic_render && lvl.display.camera.modifiers.get_value("cubic_render") == 1;
+
+        /// fill the template's width with boilerplate units
+        for (int __rc = 0; __rc < height_size; __rc++) {
             std::vector<Gmeng::Unit> current_row;
-            for (int __lc = 0; __lc < lvl.base.lvl_template.width; __lc++) current_row.push_back(Gmeng::Unit{.color=PINK,.special=true,.special_clr=WHITE,.special_c_unit="?"});
+            for (int __lc = 0; __lc < lvl.base.lvl_template.width; __lc++)
+                current_row.push_back(Gmeng::Unit{.color=PINK,.special=true,.special_clr=WHITE,.special_c_unit="?"});
             v_rows.push_back(current_row);
         }; // v8.2.0 / swapped to Units instead of rendered_units
-        for (const chunk chunk : lvl.chunks) {
-            /// Y location from the start of the deltaY position of the viewpoint
+        for (chunk& chunk : lvl.chunks) {
+            /// Y location since the start of the deltaY position of the viewpoint
             int vY = chunk.vp.start.y;
-            /// X location from the start of the deltaX position of the viewpoint
+            /// X location since the start of the deltaX position of the viewpoint
             int __intlc = 0;
+            /// for debug render of the renderscale
             bool vb_start = true;
             /// v8.2.0 / cubic_render parameter is unused in this function: moved to get_lvl_view
-            for (const auto unit : lvl.v_render_chunk(chunk)) {
+            for (auto& unit : lvl.v_render_chunk(chunk)) {
                 if (__intlc-1 == _vcreate_vp2d_deltax(chunk.vp)) { vY++; __intlc = 0; vb_start = false; };
                 /// inserts to the ROW of units (y = vY calculation) to the:
                 ///     beggining + chunk coverage boundary start X location + current drawpoint X location
                 /// \x0F is formatter to split units to prepare for trimming at get_lvl_view
-                v_rows[vY].insert(v_rows[vY].begin() + chunk.vp.start.x + __intlc, unit);
-                if (global.debugger) {
+                ///
+                /// FIX 12.0.0:
+                ///     this was previously v_rows[vY].insert( ... ) which caused
+                ///     the vector to ADD the new unit, not emplace it, causing the
+                ///     renderscale to be double the size. This wasn't a visible
+                ///     issue since get_lvl_view uses the viewpoint which can not
+                ///     be bigger than the actual viewpoint size, causing the
+                ///     overflow to be hidden.
+                ///
+                ///     This is now x2 as efficient, with emplacing,
+                ///     and also will not cause problems with SDL windows, or
+                ///     any excess function that relies on the get_renderscale
+                ///     function.
+                v_rows[vY].at(chunk.vp.start.x + __intlc) = (unit);
+                /// debug render
+                /// draws the current unit to the std::cout terminal screen
+                if (global.dev_mode) {
                     if (!vb_start && __intlc == 0) std::cout << std::endl;
                     std::cout << (lvl.display.camera.draw_unit(unit)) + colors[RED];
                 };
                 __intlc++;
             };
-            if (global.debugger) std::cout << std::endl;
+            /// debug render
+            if (global.dev_mode) std::cout << std::endl;
         };
 
-
+        /// initialize row-based data as renderscale chunks
         unsigned int rc = 0;
         for (vector<Unit>& row : v_rows) {
             v_chunks.push_back({
@@ -1655,27 +2029,272 @@ namespace Gmeng {
             });
         };
 
+        /// reinterpret the data to match the renderscale
         unsigned int p2 = 0;
         std::vector<Unit> reinterpereted_data;
         for (const auto partial : v_chunks) {
+            /// width-splitter object, appends as an 'entity_unit'
             if (p2 != 0 && p2 % __level_base_width__ == 0) reinterpereted_data.push_back(Unit{.is_entity=true});
-            if (_vcreate_vp2d_deltax(partial.vp) == lvl.base.lvl_template.width)
+            /// debug info
+            DEBUGGER gm_log("p2: "$(p2)"partial_vp: "$(_vcreate_vp2d_deltax(partial.vp))
+                            ". lvl_base_width: "$(lvl.base.lvl_template.width)".");
+            /// if the delta width of the partial's viewpoint matches the base template's width
+            /// (it should)
+            if (_vcreate_vp2d_deltax(partial.vp) == lvl.base.lvl_template.width) {
                 for (int ik = 0; ik < partial.data.size(); ik++)
                     lvl.display.camera.display_map.unitmap[p2] = partial.data[ik],
                     reinterpereted_data.push_back(partial.data[ik]);
-            else { reinterpereted_data.push_back(repeatThing<Unit>((Unit{
+            } else {
+                /// chunk mismatch
+                reinterpereted_data.push_back(repeatThing<Unit>((Unit{
                     .color = color_t::PINK, .collidable = false, .special = true,
                     .special_clr = color_t::RED, .special_c_unit = "X"
-                 }), _vcreate_vp2d_deltax(lvl.display.viewpoint))[0]); gm_slog(YELLOW, "DEBUGGER", colors[RED] + "p2 CHUNK WRITE ERROR ( UNMATCH p2 [" + v_str(_vcreate_vp2d_deltax(partial.vp)) + "] WITH lvl_base_with [" + v_str(lvl.base.lvl_template.width) + "] )" + colors[WHITE] + " at p2_of ~(" + v_str(p2) + ") [ partial_of: chunk_" + _uconv_1ihx(_uget_addr(partial)) + "_00" + v_str(p2 / _vcreate_vp2d_deltax(lvl.display.viewpoint)) + " ]"); };
+                 }), _vcreate_vp2d_deltax(lvl.display.viewpoint))[0]);
+
+                gm_slog(RED, "ERROR", colors[WHITE] +
+                        "p2 CHUNK WRITE ERROR ( UNMATCH p2 [" + v_str(_vcreate_vp2d_deltax(partial.vp)) +
+                        "] WITH lvl_base_with [" + v_str(lvl.base.lvl_template.width) + "] )" + colors[WHITE] +
+                        " at p2_of ~(" + v_str(p2) + ") [ partial_of: chunk_" + _uconv_1ihx(_uget_addr(partial)) +
+                        "_00" + v_str(p2 / _vcreate_vp2d_deltax(lvl.display.viewpoint)) + " ]");
+            };
             p2 += _vcreate_vp2d_deltax(partial.vp);
         };
 
-        if (global.debugger) {
-            gm_slog(YELLOW, "DEBUGGER", "^^ above is reinterpereted_data from _vconcatenate_lvl_chunks");
+#if __GMENG_LOG_TO_COUT__ == true
+        DEVMODE gm_slog(YELLOW, "DEBUGGER_RENDERSCALE", "above is reinterpreted_data");
+#endif
+        ASSERT("pref.log", p_no);
+
+        vector<Unit> _reinterpereted_data = reinterpereted_data;
+
+
+        /// re-split the units for entities.
+        vector<vector<Unit>> trimmed_units = splitThing<Unit>(reinterpereted_data, [&](Unit u) -> bool {
+            return u.is_entity == 1;
+        });
+
+        /// check if the light_cache is empty, sets initial render to true.
+        /// can be set to true to refresh the render of lighting cache.
+        bool redo_lightsource_cache = lvl.lighting_cache.empty();
+
+        for ( int entity_id = 0; entity_id < lvl.entities.size(); entity_id++) {
+            auto _entity = lvl.entities.at(entity_id);
+            auto entity = _entity.get();
+            DEBUGGER gm_log("entity id "$(entity->get_serialization_id()) " vs "$(Entity<LightSource>::id)".");
+            /// detect LightSource entities and add to lightsource render cache
+            if ( entity->get_serialization_id() == Entity<LightSource>::id ) {
+                /// recreate LightSource* object from EntityBase
+                std::shared_ptr<LightSource> light_source_ptr = std::dynamic_pointer_cast<LightSource>( _entity );
+                /// check if cache contains the LightSource already, add if not.
+                if ( !lvl.light_sources.contains( entity->entity_id ) ) {
+                    gm_log("caching new LightSource at " +
+                        Renderer::conv_dp(entity->position)
+                        + " with id " + v_str(entity->entity_id)
+                        + "."
+                    );
+                };
+                /// add/assign the light source to the light source cache.
+                /// We assign the pointer to the light source here as we want
+                /// to be able to modify the object within the entity map.
+                lvl.light_sources[ entity->entity_id ] = light_source_ptr;
+                /// skip rendering of the light source as it's a non-rendering entity.
+                continue;
+            };
+
+            /// entity rendering. also calls animate() for each entity.
+
+            /// skip incative entities
+            if ( !entity->active ) continue;
+            /// call animate() for the entity to animate itself if it has
+            /// an animated sprite or texture. no internal limit here,
+            /// so if a bad entity is created it will crash the app.
+            /// Oh well!
+            entity->animate();
+
+            /// Draw the sprite and emplace it to the displacement for the entity.
+            auto drawn_sprite = entity->draw(
+#ifdef GMENG_SDL
+                Renderer_Type::EXTERNAL
+#else
+                Renderer_Type::CONSOLE
+#endif
+
+            );
+            for ( int loops = 0; loops < drawn_sprite.width*drawn_sprite.height; loops++ ) {
+                /// for debug render
+                bool debug = lvl.display.camera.modifiers.get_value("debug_render") >= 1;
+                /// if the unit is transpert and debug mode is off, skip the unit.
+                if ( entity->sprite.units.at(loops).transparent && !debug ) continue;
+
+                /// positioning
+                int _y = loops  / drawn_sprite.width;  int y = entity->position.y + _y;
+                int _x = (loops % drawn_sprite.width); int x = entity->position.x + _x;
+
+                /// get the unit at the position specified in the loop.
+                /// we use .at() here because it will assert with a
+                /// minor crash if we go out-of-bounds.
+                /// units[pos] will seg fault.
+                Unit unit = drawn_sprite.units.at(loops);
+
+                /// debug mode rendering.
+                if ( debug ) {
+                    if ( _y == 0 || _y == drawn_sprite.height-1 ||
+                         _x == 0 || _x == drawn_sprite.width -1    ) unit = { YELLOW };
+                    if ( drawn_sprite.units.at(loops).transparent && unit.color != YELLOW ) continue;
+                };
+                /// place the unit.
+                trimmed_units.at(y).at(x) = unit;
+            };
+
+            /// entity proximity renderer, for debugger showing tracers to
+            /// entities the current entity is in proximity to.
+            if ( lvl.display.camera.modifiers.get_value("debug_render") == 3 ) {
+                for ( int entity_id2 = 0; entity_id2 < lvl.entities.size(); entity_id2++ ) {
+                    if (entity_id == entity_id2) continue; // skip checking between the same entity twice
+                    auto entity2 = lvl.entities.at(entity_id2).get();
+                    /// calculate the proximity between two entities using their sprite width/height.
+                    /// right now, this does not respect entity->draw(). So entity->draw() output size
+                    /// must match entity->sprite.width * entity->sprite.height.
+                        auto prox = calculate_proximity(
+                            entity->position,  { (int)entity->sprite.width,   (int)entity->sprite.height },
+                            entity2->position, { (int)entity2->sprite.width,  (int)entity2->sprite.height });
+                    /// if the proximity data is good, add a tracer between the entities.
+                    if ( prox.proximity < entity->interaction_proximity && prox.proximity < entity2->interaction_proximity ) {
+                        auto path = shortest_path( prox.path );
+                        for ( auto dp : path ) {
+                            trimmed_units.at(dp.y).at(dp.x) = { .color = PINK };
+                        };
+                    };
+                };
+            };
         };
 
-        ASSERT("pref.log", p_no);
-        return reinterpereted_data;
+        /// lighting and illumination, cached as this is intensive
+        /// calculate the closest light source to each drawpoint
+        /// and re-evaluates the color based on the data.
+
+        /// minimum light intensity of the camera
+        auto cam_light_floor = lvl.display.camera.modifiers.get_value( "lighting_floor" );
+        auto lighting_enabled = lvl.display.camera.modifiers.get_value( "lighting" ) == 1;
+
+        /// loop over light sources in the level
+        for ( auto light_source : lvl.light_sources ) {
+            /// stop loop if lighting isn't enabled
+            if ( !lighting_enabled ) break;
+            /// for easy access to the variables, 'light_source.second.xx' is too long
+            /// and i am the laziest human being on the planet.
+
+            /// light source entity object id
+            auto obj_id = light_source.first;
+            /// light source object
+            auto object = light_source.second;
+            /// skip inactive light sources
+            /// TODO: FIXME: currently this does not invalidate
+            /// level.lighting_cache! even if the light source is inactive
+            /// the lighting data from it will be still drawn to the screen.
+            if ( !object->active ) continue;
+            /// validate the light source's cache. handled internally by
+            /// the LightSource entity type. will set object->cached to
+            /// false if the cache is invalid, so it can be recalculated.
+            object->validate_cache( cam_light_floor );
+            /// only apply lighting data if the light source was not cached,
+            /// for performance. this allows us to apply lighting data to
+            /// moving entities, models and other screen contents with lighting
+            /// without having to re-do the lighting every fucking scene
+            if ( object->cached ) continue;
+            /// get the affected drawpoints of the light source
+            auto light_displacement = get_radius_displacement( object->intensity, object->position );
+            /// loop over the drawpoints and cache the effect for each point
+            for ( auto dp_val : light_displacement ) {
+                /// skip areas that are over the level's max size.
+                /// we don't have to account for positions that are < 0
+                /// because get_radius_displacement() already normalizes it.
+                if ( dp_val.x >= lvl.base.width || dp_val.y >= lvl.base.height ) continue;
+                /// get the unit at the specified position
+                auto& unit_at_pos = trimmed_units.at( dp_val.y ).at( dp_val.x );
+                /// get lighting effect output and modulation factor
+                auto color = color32_t( unit_at_pos.color );
+                /// calculate the effect
+                auto effect = lvl.display.camera.calculate_illumination(
+                        color, object->color,
+                        object->intensity,
+                        std::sqrt(Renderer::dp_distance( dp_val, object->position )),
+                        object->max_brightness,
+                        cam_light_floor
+                );
+                /// store the result
+                lvl.lighting_cache[ dp_val.y*__level_base_width__ + dp_val.x ] = effect;
+            };
+            /// cache the light source so we don't have to re-render it
+            /// every frame, if the light is modified the user should set
+            /// lightsource->cached = false, otherwise it won't be updated
+            object->cached = true;
+            /// additional cache properties for validation and automation
+
+            /// cached minimum brightness, so if the lighting floor
+            /// changes the light's previously > light_floor units
+            /// don't stay shaded below the lighting floor.
+            object->cached_min_brightness = cam_light_floor;
+            /// cached position, so if the position of the source
+            /// changes the lighting information follows.
+            object->cached_position = object->position;
+        };
+
+        /// save the data and return the renderscale output
+
+        _reinterpereted_data.clear();
+
+        int y = 0,x = 0;
+        gm_log(" lighting cache size: "$( lvl.lighting_cache.size() )".");
+
+        std::vector< uint32_t > lightcache_posmap;
+
+            for ( auto val : lvl.lighting_cache ) {
+                lightcache_posmap.push_back( val.first );
+            };
+
+        for ( auto& vec : trimmed_units ) {
+            for ( auto& un : vec ) {
+                Renderer::drawpoint _dp = { x, y };
+                Unit new_unit = un;
+
+                /// dont touch shit if lighting isn't enabled
+                if ( lighting_enabled ) {
+                    auto rgb_col = color32_t( new_unit.color );
+                    if ( std::find( lightcache_posmap.begin(), lightcache_posmap.end(),
+                        _dp.y*__level_base_width__ + _dp.x ) != lightcache_posmap.end() ) {
+                        auto _cached_lighting = lvl.lighting_cache.find( _dp.y*__level_base_width__ + _dp.x );
+                        LightingState cached_lighting;
+                        if (_cached_lighting != lvl.lighting_cache.end()) cached_lighting = _cached_lighting->second;
+                        cached_lighting.surface_color = color32_t( new_unit.color );
+                        new_unit.color = uint32_from_color32(
+                            apply_lighting( cached_lighting )
+                        );
+                    } else {
+                        /// no previously saved lighting data, create it
+                        /// right now we do this every frame because it's hard to
+                        /// replace cached light data, i'll change it when i have
+                        /// a good robust system in place
+                        auto effect = lvl.display.camera.calculate_illumination(
+                            rgb_col, { 0, 0, 0 },
+                            0, 0, 0, cam_light_floor
+                        );
+                        new_unit.color = uint32_from_color32(
+                            apply_lighting( effect )
+                        );
+                    };
+                };
+
+                _reinterpereted_data.push_back( new_unit );
+                x++;
+            };
+            _reinterpereted_data.push_back( { .is_entity = 1 } );
+            y++;
+        };
+
+        lvl.renderscale = _reinterpereted_data;
+
+        return _reinterpereted_data;
     };
 
     /// returns all drawpoints that are included in a viewpoint as a vector<Gmeng::Renderer::drawpoint>.
@@ -1708,7 +2327,6 @@ namespace Gmeng {
     ///     and it is safe to use inside event loops. to draw the screen.
     /// }
     inline vector<Unit> _vget_renderscale2dpartial_scalar(Level& level_t, bool cubic_render = true) {
-        __functree_call__(Gmeng::_vget_renderscale2dpartial_scalar);
         vector<Unit> v_concat_chunks = _vconcatenate_lvl_chunks(level_t, cubic_render);
         return v_concat_chunks;
     };
@@ -1769,47 +2387,6 @@ namespace Gmeng {
             return u.is_entity == true; // (x == true) operator is required because u.is_entity can be NULL
         }); /// TRIMMED_UNITS == line of units. trimmed_units[0] = vector<Unit>(LINE_0)
 
-        for ( int entity_id = 0; entity_id < level_t.entities.size(); entity_id++) {
-            auto entity = level_t.entities.at(entity_id).get();
-
-            for ( int loops = 0; loops < entity->sprite.width*entity->sprite.height; loops++ ) {
-                bool debug = level_t.display.camera.modifiers.get_value("debug_render") >= 1;
-                if ( entity->sprite.units.at(loops).transparent && !debug ) continue;
-                int _y = loops / entity->sprite.width;
-                int y = entity->position.y + _y;
-                int _x = (loops % entity->sprite.width);
-                int x = entity->position.x + _x;
-
-                Unit unit = entity->sprite.units.at(loops);
-
-                if ( debug ) {
-                    if ( _y == 0 || _y == entity->sprite.height-1 ||
-                         _x == 0 || _x == entity->sprite.width-1     ) unit = { YELLOW };
-                    if ( entity->sprite.units.at(loops).transparent && unit.color != YELLOW ) continue;
-                };
-
-                trimmed_units.at(y).at(x) = unit;
-            };
-
-            /// entity proximity renderer, for debugger showing tracers to
-            /// entities the current entity is in proximity to.
-            if ( level_t.display.camera.modifiers.get_value("debug_render") == 3 ) {
-                for ( int entity_id2 = 0; entity_id2 < level_t.entities.size(); entity_id2++ ) {
-                    if (entity_id == entity_id2) continue; // skip checking between the same entity twice
-                    auto entity2 = level_t.entities.at(entity_id2).get();
-
-                        auto prox = calculate_proximity(
-                            entity->position,  { (int)entity->sprite.width,   (int)entity->sprite.height },
-                            entity2->position, { (int)entity2->sprite.width,  (int)entity2->sprite.height });
-                    if ( prox.proximity < entity->interaction_proximity && prox.proximity < entity2->interaction_proximity ) {
-                        auto path = shortest_path( prox.path );
-                        for ( auto dp : path ) {
-                            trimmed_units.at(dp.y).at(dp.x) = { .color = PINK };
-                        };
-                    };
-                };
-            };
-        };
 
         /// debugger-special logs
         /// trimmed_unit inspection

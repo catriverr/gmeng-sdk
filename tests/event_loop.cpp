@@ -7,86 +7,34 @@ using namespace Gmeng;
 using namespace Gmeng::Util;
 
 static Level level;
-static gmeng_properties_t cfg;
 static EventLoop ev;
 
 /// Example Entity Type
 class Mogus : public Entity<Mogus> {
   public:
     int interaction_proximity = 10;
-}; REGISTER_ENTITY_TYPE( Mogus ); /// Registers the Entity Type.
+}; GMENG_ENTITY_SET_ID( Mogus, 1 ); REGISTER_ENTITY_TYPE( Mogus ); /// Registers the Entity Type.
 
+    int defx = 75, defy = 50;
+    int* DEF_DELTAX = &defx;
+    int* DEF_DELTAY = &defy;
 
 
 void reset() {
     _uread_into_vgm("envs/models");
-    if (!filesystem::exists("gamestate.cfg")) writeout_properties("gamestate.cfg", default_properties);
-    cfg = read_properties("gamestate.cfg");
-
-    texture empty_texture = Renderer::generate_empty_texture(cfg.SKY_WIDTH, cfg.SKY_HEIGHT);
-    texture_fill(empty_texture, cfg.SKY_COLOR);
-    level_set_skybox(&level, empty_texture);
-
-    texture cake_texture = default_texture_search("smol_player");
-    texture_replace_color(cake_texture, RED, GREEN);
-
-    texture island_texture = default_texture_search("01_island");
-    texture gift_texture = default_texture_search("02_gift");
-    texture real_cake_texture = default_texture_search("01_cake_txtr");
-    texture table_texture = default_texture_search("03_table");
-
-    texture balloon_texture = default_texture_search("05_balloon");
-    texture balloon_texture_2 = default_texture_search("05_balloon");
-    texture_replace_color(balloon_texture_2, RED, GREEN);
-
-    level.chunks.at(0) = { { {0, 0}, {99, 99} },
-        {
-            model_from_txtr( cake_texture, cfg.model_positions["player"] ), // this is actually the player
-
-            model_from_txtr(table_texture, cfg.model_positions["table1"]),
-            model_from_txtr(table_texture, cfg.model_positions["table2"]),
-
-            model_from_txtr(real_cake_texture, cfg.model_positions["cake"]),
-
-            model_from_txtr(gift_texture, cfg.model_positions["gift1"]),
-            model_from_txtr(gift_texture, cfg.model_positions["gift2"]),
-
-            model_from_txtr(balloon_texture, cfg.model_positions["balloon1"]),
-            model_from_txtr(balloon_texture_2, cfg.model_positions["balloon2"]),
-        }
-    };
-
-    level.display.viewpoint = { {0,0}, { cfg.DEF_DELTAX, cfg.DEF_DELTAY } };
-    level.display.set_resolution(cfg.DEF_DELTAX, cfg.DEF_DELTAY);
 
     if (filesystem::exists("envs/proto_level.glvl")) read_level_data("envs/proto_level.glvl", level);
+    level.display.viewpoint =  Gmeng::Renderer::viewpoint { { 0, 0 }, { *DEF_DELTAX, *DEF_DELTAY } };
+
 
     ev.level = &level;
-
 };
 
 int main(int argc, char** argv) {
     _uread_into_vgm("envs/models");
     patch_argv_global(argc, argv); /// gmeng initialization
 
-    if (!filesystem::exists("gamestate.cfg")) writeout_properties("gamestate.cfg", default_properties);
-    cfg = read_properties("gamestate.cfg");
 
-    int* DEF_DELTAY = &cfg.DEF_DELTAY;
-    int* DEF_DELTAX = &cfg.DEF_DELTAX;
-
-    texture empty_texture = Renderer::generate_empty_texture(cfg.SKY_WIDTH, cfg.SKY_HEIGHT);
-    texture_fill(empty_texture, cfg.SKY_COLOR);
-    level_set_skybox(&level, empty_texture);
-
-    texture cake_texture = default_texture_search("smol_player");
-    texture_replace_color(cake_texture, RED, GREEN);
-
-    texture island_texture = default_texture_search("01_island");
-    texture gift_texture = default_texture_search("02_gift");
-    texture real_cake_texture = default_texture_search("01_cake_txtr");
-    texture table_texture = default_texture_search("03_table");
-    level.load_chunk({ { {0, 0}, {99, 99} }, {} });
 
     /// initially load state
     reset();
@@ -151,6 +99,14 @@ int main(int argc, char** argv) {
         bool nomove = info->prevent_default;
 
         switch (info->KEYPRESS_CODE) {
+            case 'f': case 'F': {
+                    Gmeng::LightSource lightsource;
+                    lightsource.position = { *DEF_DELTAX/2, 40 };
+                    lightsource.color = color32_t( (uint32_t)WHITE );
+                    lightsource.intensity = 30;
+                    level->entities.push_back( std::make_shared<LightSource>(lightsource) );
+                }
+                break;
             case 'a': case 'A':
                 if (cake_model->position.x-((int)nomove) > 0) {
                     cake_model->position.x--;
@@ -209,13 +165,12 @@ int main(int argc, char** argv) {
             case 'e': case 'E':
                 if (calculate_proximity(cake_model->position, real_cake_model.position) <= 3) {
                     color_t prev_color = BLUE;
-                    for (int e = 0; e < cfg.A00_CAKE_INTERACT_LOOPC; e++) {
+                    for (int e = 0; e < 100; e++) {
                         color_t color = (color_t)(e%8);
                         auto tim = GET_TIME();
                         texture_replace_color(level->base.lvl_template, prev_color, color);
                         prev_color = color;
                         ev.call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
-                        std::this_thread::sleep_for(std::chrono::milliseconds( std::max(cfg.model_positions["CAKE_INTERACT_TIMES"].x, cfg.model_positions["CAKE_INTERACT_TIMES"].y - (int)(GET_TIME()-tim)) ));
                     };
                     texture_replace_color(level->base.lvl_template, prev_color, BLUE);
                 };

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <tuple>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 #include <algorithm>
 
@@ -34,12 +35,13 @@
 #include <unistd.h>
 #endif
 
-#if GMENG_SDL_ENABLED == true
-/// SDL Imports
-#include "../types/window.h" // typedef
-#include "../utils/window.cpp" // util
+/// sets the current terminal foreground color to the RGB value
+#define TERM_RGB_FG(buf, r, g, b) std::snprintf(buf, 32, "\x1b[38;2;%d;%d;%dm", (r), (g), (b))
+/// sets the current terminal background color to the RGB value
+#define TERM_RGB_BG(buf, r, g, b) std::snprintf(buf, 32, "\x1b[48;2;%d;%d;%dm", (r), (g), (b))
+/// resets the terminal color with ansi escape code
+#define TERM_RGB_RESET "\x1b[0m"
 
-#endif
 
 void setRawMode(bool enable) {
 #ifndef _WIN32
@@ -149,6 +151,27 @@ namespace Gmeng {
         std::vector<Positioned_Unit> units;
     };
 
+    /// todo: documentation
+    struct LightingState {
+        color32_t surface_color;
+        color32_t light_color;
+        float r_factor;
+        float g_factor;
+        float b_factor;
+        float modulation_factor;
+    };
+
+    color32_t apply_lighting(const LightingState& state) {
+        auto clamp = [](int v) { return std::clamp(v, 0, 255); };
+        DEBUGGER gm_log("random_ass_color("$( uint32_from_color32(state.surface_color) )"): "$(state.r_factor)", "$(state.g_factor)","$(state.b_factor)" modf: "$(state.modulation_factor)".");
+        return {
+            static_cast<uint8_t>(clamp(static_cast<int>(state.surface_color.r * state.r_factor * state.modulation_factor))),
+            static_cast<uint8_t>(clamp(static_cast<int>(state.surface_color.g * state.g_factor * state.modulation_factor))),
+            static_cast<uint8_t>(clamp(static_cast<int>(state.surface_color.b * state.b_factor * state.modulation_factor)))
+        };
+    };
+
+
     /// Camera Instance of any viewport in the game engine.
     /// All displays are rendered through this class.
 	template<std::size_t _w, std::size_t _h>
@@ -198,8 +221,48 @@ namespace Gmeng {
                 /// wireframe render mode, draws wireframes on units with collision
                 /// info. X for no collision, x for collision.
                 modifier { .name="wireframe_render",        .value=0 },
+                /// enable/disable lighting and illumination
+                modifier { .name="lighting",                .value=0 },
+                /// minimum light intensity for the camera, default 5
+                modifier { .name="lighting_floor",          .value=5 },
             }
 		};
+        /// calculates light illumination for a given RGB color
+        /// and returns the modified color to be used instead
+    LightingState calculate_illumination(
+        const color32_t& color,
+        const color32_t& light_color,
+        int light_intensity_max,
+        int light_distance,
+        int max_brightness,
+        int min_intensity
+    ) {
+        LightingState result;
+        result.surface_color = color;
+        result.light_color = light_color;
+
+        // Calculate current light intensity (1-10 scale)
+        int intensity = std::min(max_brightness, light_intensity_max - light_distance);
+
+        if (intensity < min_intensity) {
+            intensity = min_intensity;
+
+            // Don't tint, just use neutral white light
+            result.r_factor = 1.0f;
+            result.g_factor = 1.0f;
+            result.b_factor = 1.0f;
+        } else {
+            // Tint the color by the light source color
+            result.r_factor = light_color.r / 255.0f;
+            result.g_factor = light_color.g / 255.0f;
+            result.b_factor = light_color.b / 255.0f;
+        }
+
+        // Normalize intensity to 0.0–1.0 scale based on max of 10
+        result.modulation_factor = static_cast<float>(intensity) / 10.0f;
+
+        return result;
+    }
 
         // Display map, contains the current
         // screen data in units
@@ -208,51 +271,12 @@ namespace Gmeng {
         // to be written to the console output
 		std::string raw_unit_map[GMENG_MAX_MAP_SIZE];
 
-
-        /// #region DEPRECATED
-
-        // @deprecated - kept for backwards compatibility
-        // contains the total entity count
-        uint32_t entitytotal = 0;
-
-        // @deprecated entities will be handled as individual models
-        // instead of individual units in the future.
-        // This change is expected to be shipped in version 12.0.0.
-        // Kept for backwards compatibility.
-		Objects::G_Entity entitymap[GMENG_MAX_MAP_SIZE] = {};
-
-        // @deprecated Event handlers are now internal, So they are not passed to
-        // an input pipe for a parent program, but it's kept for backwards compatibility
-        // with older versions of gmeng (the 1.1 framework) which use this functionality.
-		EventHandler event_handler;
-
-        // @deprecated Player objects ( 1.1 entity definitions ) are deprecated
-        // since we now use models instead of specific units for players.
-		Objects::G_Player player = {};
-
-        // @deprecated kept only for backwards compatibility
-		Unit playerunit = {};
-        // @deprecated kept only for backwards compatibility
-		bool player_init = false;
-
-        /// #endregion DEPRECATED
-
-
         /// Sets the resolution of the camera.
 		inline void SetResolution(std::size_t w, std::size_t h) {
             __functree_call__(Gmeng::Camera::SetResolution);
 			display_map.__h = h; display_map.__w = w;
 			this->w = w; this->h = h;
 		};
-
-        /// initializes the display's unitmap
-		inline void constructor(Gmeng::Unit unitmap[_w*_h]) {
-            __functree_call__(Gmeng::Camera::constructor);
-			for (int i = 0; i < (w*h); i++) {
-				this->display_map.unitmap[i] = unitmap[i];
-			};
-		};
-
         /// Updates the raw_unit_map to match the display_map's
         /// units. This means rendering the camera's viewport
         /// fully. This method is not deprecated, but it is
@@ -348,37 +372,6 @@ namespace Gmeng {
     			else this->modifiers.values.emplace_back(Gmeng::modifier { .name=name, .value=value });
 		};
 
-        /// @deprecated players will not be handled this way in coming versions.
-        /// sets the unit at x,y point to a player object with an entityId
-		inline void SetPlayer(int entityId, Objects::G_Player player, int x= 0, int y = -1, bool force = false) {
-			__functree_call__(Gmeng::Camera::SetPlayer);
-
-            for (int i = 0; i < this->entitytotal; i++) {
-				Objects::G_Entity entity = this->entitymap[i];
-				if (entity.entityId == entityId) throw std::invalid_argument("entity already exists: cannot create player");
-			};
-
-			int goto_loc = (y != -1) ? ((y*this->w)+x) : (x);
-			if (goto_loc > this->w*this->h) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates @ pos(" +v_str(x)+ "," +v_str(y)+ ") [" + v_str(goto_loc) + "/" + v_str(this->w*this->h) +" - " + (y == -1 ? "1d local" : "2d local") +"]");
-			if (!this->display_map.unitmap[goto_loc].collidable && !force) throw std::invalid_argument("entity cannot be placed in the provided x-y coordinates: the unit at location " + v_str(x) + "," + v_str(y) + " is not collidable");
-
-            this->entitymap[entityId] = player;
-			int pos = goto_loc;
-
-			this->playerunit = this->display_map.unitmap[pos];
-
-            this->display_map.unitmap[goto_loc] = Gmeng::Unit{
-				.color=player.colorId,.collidable=false,.is_player=true,.is_entity=false,
-				.player=player
-			};
-
-			this->player = player;
-			this->player.coords.x = x; //FIX
-			this->player.coords.y = y; //FIX
-			this->entitytotal++;
-			this->player_init = true;
-		};
-
         /// sets the cursor's position (accounted for the frame)
 		inline void set_curXY(int x, int y) {
             //__functree_call__(Gmeng::Camera::set_curXY);
@@ -418,16 +411,12 @@ namespace Gmeng {
             this->set_curXY(y,x);
             std::cout << Gmeng::resetcolor;
 			WRITE_PARSED("[ ~r~gmeng ~y~$!__VERSION~n~ - build ~b~$!__BUILD~n~ ]   ");
-            this->set_curXY(y+1,x);
-            WRITE_PARSED("[ frame_time: ~g~"$(this->frame_time)"ms~n~, draw_time: ~y~"$(this->draw_time)"ms~n~ ]   ");
-			this->set_curXY(y+2,x);
-            WRITE_PARSED("[ viewport_size: ~p~"$(this->w)"x"$(this->h)"~n~ ]   ");
-            this->set_curXY(y+3, x);
-            WRITE_PARSED("[ entities: ~b~"$(this->entity_count)"~n~, models: ~c~"$(this->model_count)"~n~ ]   ");
-            this->set_curXY( y+4, x );
-            WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
-            this->set_curXY( y+5, x );
-            WRITE_PARSED("modifiers:");
+
+            this->set_curXY(y+1,x);            WRITE_PARSED("[ frame_time: ~g~"$(this->frame_time)"ms~n~, draw_time: ~y~"$(this->draw_time)"ms~n~ ]   ");
+			this->set_curXY(y+2,x);            WRITE_PARSED("[ viewport_size: ~p~"$(this->w)"x"$(this->h)"~n~ ]   ");
+            this->set_curXY(y+3, x);           WRITE_PARSED("[ entities: ~b~"$(this->entity_count)"~n~, models: ~c~"$(this->model_count)"~n~ ]   ");
+            this->set_curXY( y+4, x );         WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
+            this->set_curXY( y+5, x );         WRITE_PARSED("modifiers:");
             this->set_curXY( y+6, x );
 
 #define nmb2(x) (x == 1 ? "~g~" + v_str(x) + "~n~" : "~y~" + v_str(x) + "~n~")
@@ -445,8 +434,8 @@ namespace Gmeng {
             ) + " | wireframe_render: " + nmb(
                 this->modifiers.get_value("wireframe_render")
             ) + "   ");
-            this->set_curXY( y+8, x );
-            WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
+
+            this->set_curXY( y+8, x );         WRITE_PARSED("~_~" + repeatString("-", 40) + "~n~");
         };
 
         /// draws a 'Unit' object and returns it as a printable string
@@ -454,40 +443,54 @@ namespace Gmeng {
 			Gmeng::Unit current_unit = __u;
             // check if cubic render is preferred, and a next unit is provided
             bool nu = this->has_modifier("cubic_render") && !__nu.is_entity;
+            bool use_resetcolor = this->modifiers.get_value("use_resetcolor") != 0;
             Gmeng::Unit next_unit = __nu;
             // by default, colors are transparent (void/black)
-            std::string funit_color = Gmeng::colors[current_unit.color];
-            std::string bunit_color = nu ? Gmeng::bgcolors[next_unit.color] : Gmeng::bgcolors[BLACK];
+            /// 12.0.0: add RGB support
+            color32_t u1_color_rgb = color32_t( current_unit.color );
+            color32_t u2_color_rgb = color32_t( nu ? next_unit.color : BLACK );
+
+            char u1_colorcode[32], u2_colorcode[32];
+
+            TERM_RGB_FG( u1_colorcode, u1_color_rgb.r, u1_color_rgb.g, u1_color_rgb.b ),
+            TERM_RGB_BG( u2_colorcode, u2_color_rgb.r, u2_color_rgb.g, u2_color_rgb.b );
+
             /*if (current_unit.color == next_unit.color) {
                 if (current_unit.color == WHITE) return colors[WHITE] + Gmeng::c_unit + Gmeng::resetcolor;
                 return bgcolors_bright[current_unit.color] + " " + Gmeng::resetcolor;
             };*/ // v8.2.2-d: this expects the units to be in Y-index ordered
             if (current_unit.color == next_unit.color) {
                 if (this->has_modifier("wireframe_render")) {
-                    if (prefer_second) return bgcolors[next_unit.color] + colors[BLACK] + ((current_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + Gmeng::resetcolor;
-                    else return bgcolors[current_unit.color] + colors[BLACK] + ((next_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + Gmeng::resetcolor;
+                    if (prefer_second) return u2_colorcode + colors[BLACK] +
+                        ((current_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + ( use_resetcolor ? Gmeng::resetcolor : "" );
+                    else return u1_colorcode + colors[BLACK] +
+                        ((next_unit.collidable || this->has_modifier("noclip") ? "x" : "X")) + ( use_resetcolor ? Gmeng::resetcolor : "" );
                 };
-                return bgcolors_bright[current_unit.color] + colors[current_unit.color] + (current_unit.color != BLACK ? boldcolor : "") + Gmeng::c_outer_unit + Gmeng::resetcolor;
+                return u1_colorcode + std::string( c_unit );
             };
 
+            /// Draws the 'special' Text-type Units,
+            /// unless the second unit (__nu) is preferred as the
+            /// main entity on the function call.
             if (current_unit.special && !prefer_second) {
-                return bgcolors_bright[current_unit.color] + boldcolor + colors[current_unit.special_clr] + current_unit.special_c_unit + resetcolor;
+                return u1_colorcode + colors[current_unit.special_clr] + current_unit.special_c_unit +  (use_resetcolor ? Gmeng::resetcolor : "");
             } else if (nu && next_unit.special && ( !current_unit.special || prefer_second )) {
-                return bgcolors_bright[next_unit.color] + boldcolor + colors[next_unit.special_clr] + next_unit.special_c_unit + resetcolor;
+                return u2_colorcode + colors[next_unit.special_clr] + next_unit.special_c_unit +  (use_resetcolor ? Gmeng::resetcolor : "");
             };
 
-			if (current_unit.transparent) {
-				funit_color = Gmeng::colors[7];
-            }; if (nu && next_unit.transparent) {
-                bunit_color = Gmeng::bgcolors[7];
-            };
 
             if (this->has_modifier("wireframe_render")) {
-                std::string final = "\x1B[4"+std::string(Gmeng::colorids[current_unit.color])+"m" + (nu ? Gmeng::colors[next_unit.color] : "") + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + Gmeng::resetcolor;
+                char u2_fg[32], u1_bg[32];
+                TERM_RGB_FG(u2_fg, u2_color_rgb.r, u2_color_rgb.g, u2_color_rgb.b);
+                TERM_RGB_BG(u1_bg, u1_color_rgb.r, u1_color_rgb.g, u1_color_rgb.b);
+                std::string final = std::string(u1_bg) +
+                    (nu ? u2_fg + std::string(u1_bg) : u1_bg) + (current_unit.collidable || this->has_modifier("noclip") ? "x" : "X") + (use_resetcolor ? Gmeng::resetcolor : "");
                 return final;
             };
 
-			std::string final = ( nu ? ( (next_unit.color == WHITE ? bgcolors_bright[WHITE] : bgcolors_bright[next_unit.color]) + (current_unit.color != BLACK ? boldcolor : "") + colors[current_unit.color] + Gmeng::c_outer_unit_floor ) : ( funit_color + Gmeng::c_unit ) ) + Gmeng::resetcolor;
+			std::string final = ( nu ?
+                    ( std::string(u2_colorcode) + u1_colorcode + Gmeng::c_outer_unit_floor ) :
+                                                     ( std::string(u1_colorcode) + Gmeng::c_unit ) ) + (use_resetcolor ? Gmeng::resetcolor : "");
 			return final;
 		};
 
@@ -506,10 +509,9 @@ namespace Gmeng {
 				this->set_curXY(cpos.x, cpos.y);
 				std::cout << this->raw_unit_map[curid];
 			};
-            if (this->has_modifier("debug_info")) this->draw_info();
-			this->reset_cur();
 		};
 
+        /// clears the terminal screen buffer
 		inline void clear_screen() {
             __functree_call__(Gmeng::Camera::clear_screen);
 			std::cout << "\033[2J\033[1;1H";
@@ -524,44 +526,6 @@ namespace Gmeng {
 			std::cout << this->draw() << std::endl;
 		};
 
-        /// @deprecated - kept for 1.1 compatibility.
-		inline void MovePlayer(int entityId, int width, int height) {
-            __functree_call__(Gmeng::Camera::MovePlayer);
-			int move_to_in_map = (height*this->w)+width;
-			bool exists = false;
-			Objects::G_Player entity;
-			for (int i = 0; i < this->entitytotal; i++) {
-				Objects::G_Entity ent = this->entitymap[i];
-				if (ent.entityId == entityId) { exists = true; break; };
-				continue;
-			};
-			entity = this->player;
-			Objects::coord current_coords = this->player.coords;
-			int current_pos_in_map = (current_coords.y*this->w)+current_coords.x;
-			Gmeng::Unit current_unit = this->display_map.unitmap[(current_coords.y*this->w)+current_coords.x];
-			if (!exists) throw std::invalid_argument("recieved invalid entityId: no such entity");
-			if (move_to_in_map > this->w*this->h) return;
-			Gmeng::Unit location_in_map = this->display_map.unitmap[move_to_in_map];
-			if (!location_in_map.collidable && !this->has_modifier("noclip")) return;
-			this->raw_unit_map[(current_coords.y*this->w)+current_coords.x] = this->draw_unit(this->playerunit);
-			this->display_map.unitmap[(current_coords.y*this->w)+current_coords.x] = this->playerunit;
-			Gmeng::Unit oldPlayerUnit = this->playerunit;
-			this->playerunit = this->display_map.unitmap[(height*this->w)+width];
-			this->display_map.unitmap[move_to_in_map] = Gmeng::Unit{.color=player.colorId,.collidable=false,.is_player=true,.player=entity,.special=true,.special_clr=oldPlayerUnit.color};
-			this->player.coords.x = width; this->player.coords.y = height;
-			this->event_handler.cast_ev(Gmeng::CONSTANTS::C_PlugEvent, this->event_handler.gen_estr(
-			Gmeng::event {
-			.name="player_move",
-			.id=Gmeng::CONSTANTS::PE_Type0,
-			.params={
-				"dX=" + std::to_string(current_coords.x) + ",dY=" + std::to_string(current_coords.y), // old player
-				"dX=" + std::to_string(this->player.coords.x) + ",dY=" + std::to_string(this->player.coords.y) // new player
-			}
-			}));
-			if (this->has_modifier("force_update")) { this->rewrite_full(); return; };
-			this->raw_unit_map[move_to_in_map] = this->draw_unit(this->display_map.unitmap[move_to_in_map]);
-			this->rewrite_mapping({move_to_in_map, current_pos_in_map});
-		};
 	};
 
 	template<std::size_t _w, std::size_t _h>
@@ -673,7 +637,7 @@ namespace Gmeng::TerminalUtil {
 // Game log
 static std::vector<std::string>  PROP_LOGSTREAM = { "gmeng debug & development console.", "> 'help' for commands." };
 static std::vector<std::string>* GAME_LOGSTREAM = &PROP_LOGSTREAM;
-
+static std::stringstream GAME_LOGSTREAM_STR;
 
 /// Event Hook System
 namespace Gmeng {
@@ -693,6 +657,13 @@ namespace Gmeng {
         MOUSE_CLICK_LEFT_START,
         MOUSE_CLICK_RIGHT_START,
         MOUSE_CLICK_MIDDLE_START,
+        /// SDL-Only
+        MOUSE_CLICK_LEFT_END,
+        /// SDL-Only
+        MOUSE_CLICK_RIGHT_END,
+        /// SDL-Only
+        MOUSE_CLICK_MIDDLE_END,
+        /// All platforms
         MOUSE_CLICK_END_ANY,
 
         MOUSE_SCROLL_UP,
@@ -715,6 +686,9 @@ namespace Gmeng {
         "MOUSE_CLICK_LEFT_START",
         "MOUSE_CLICK_RIGHT_START",
         "MOUSE_CLICK_MIDDLE_START",
+        "MOUSE_CLICK_LEFT_END",
+        "MOUSE_CLICK_RIGHT_END",
+        "MOUSE_CLICK_MIDDLE_END",
         "MOUSE_CLICK_END_ANY",
         "MOUSE_SCROLL_UP",
         "MOUSE_SCROLL_DOWN",
@@ -723,6 +697,7 @@ namespace Gmeng {
         "UNKNOWN"
     };
 
+    /// returns the name of a Gmeng::Event as a string
     const std::string& get_event_name(Event event) {
 
         if (event < 0 || event >= EVENT_COUNT) {
@@ -733,6 +708,7 @@ namespace Gmeng {
         return event_names[event];
     };
 
+    /// returns a list of every event in a vector as a string
     string list_events(vector<Event> events) {
         string final;
         for (const auto ev : events) {
@@ -742,15 +718,24 @@ namespace Gmeng {
         return final;
     };
 
+    /// Gmeng Event Info, contains
+    /// variables regarding an event_loop event.
     typedef struct EventInfo {
         /// The name of the Event
         Event EVENT;
         /// If it is a KEYPRESS event, this determines the keycode.
+        /// TERMINAL-ONLY: Will not work with SDL.
         char KEYPRESS_CODE;
+        /// For SDL-based events, so the symbol can be used instead of the charcode
+        int KEYPRESS_SYM = -1;
         /// If it is a mouse event, the X position of the mouse.
         int MOUSE_X_POS;
         /// If it is a mouse event, the Y position of the mouse.
         int MOUSE_Y_POS;
+        /// SDL-Only, mouse drag relative position X
+        int MOUSE_REL_X_POS;
+        /// SDL-Only, mouse drag relative position Y
+        int MOUSE_REL_Y_POS;
 
         /// Prevents default behaviour
         /// from executing
@@ -759,31 +744,25 @@ namespace Gmeng {
         /// usually triggered by holding shift.
         /// one example is using shift + scroll for left-right movement instead of usual down-up movement.
         bool alternative = false;
+        /// Keypress WITH ctrl keydown
+        /// SDL-Only
+        bool ctrl = false;
+        /// Keypress WITH alt keydown
+        /// SDL-Only
+        bool alt = false;
     } EventInfo;
 
     EventInfo NO_EVENT_INFO = EventInfo { Gmeng::UNKNOWN, 0, -1, -1, false };
-    EventInfo INIT_INFO = EventInfo { Gmeng::INIT, 0, -1, -1, false };
+    EventInfo INIT_INFO     = EventInfo { Gmeng::INIT, 0, -1, -1, false };
 
+    /// EventHook handler function type
     using handler_function_type = std::function<void(Gmeng::Level*, EventInfo*)>;
+    /// EventHook handler type for event_loop
     typedef struct {
         int id; vector<Event> events;
         handler_function_type handler;
         bool locked;
     } EventHook;
-
-#if GMENG_SDL
-    /// (Gmeng) WindowState for SDL-Based External screen
-    /// state type. Contains important information for SDL-Based
-    /// typings.
-    typedef struct SDL_EventLoop_State {
-        /// SDL Game Window container.
-        GameWindow* window = NULL;
-        /// SDL Image container. type `Gmeng::sImage` is required
-        /// for GameWindow::draw( image ), so the container for the camera
-        /// output is stored in the window state, see `types/window.h`.
-        sImage image;
-    } WindowState;
-#endif
 
     /// Gmeng EventLoop Object.
     /// EventLoop allows for a continuous running with very in-depth
@@ -795,7 +774,7 @@ namespace Gmeng {
     /// so no two games can be run at the same time with the same executable.
     typedef struct EventLoop {
         int id; Gmeng::Level* level; std::vector<std::string>* logstream = GAME_LOGSTREAM;
-
+                                     std::stringstream* logstream_str = &GAME_LOGSTREAM_STR;
         /// EventLoop Modifiers.
         ModifierList modifiers = { {
             modifier { "allow_console", 1 },
@@ -831,37 +810,18 @@ namespace Gmeng {
             gm_log("" $(id) ": created main game eventloop with id " $(this->id) ".");
 
 #ifndef _WIN32
+#ifndef GMENG_SDL
             TerminalUtil::enable_mouse_tracking();
             gm_log("" $(id) ": enabled mouse tracking (1006-rawmode)");
             TerminalUtil::set_raw_mode(true);
             gm_log("" $(id) ": set terminal input state to 1006-rawmode.");
 #endif
-        };
-
-#if GMENG_SDL_ENABLED == true
-        /// SDL Game window of the GameLoop. Can be NULLPTR
-        /// if it is not used, see EventLoop::uses_sdl.
-        Gmeng::GameWindow* window = nullptr;
-        /// EventLoop constructor, this will set the SDL mode to TRUE, so if you're not
-        /// going to enable it use the EventLoop constructor for the terminal instead.
-        EventLoop( vector<EventHook> _hooks = {}, Gmeng::GameWindow* _window = nullptr ) : hooks( _hooks ), window( _window ), uses_sdl( _window != nullptr ) {
-            this->id = g_mkid();
-            gm_log(""$(id)": created main game eventloop with id "$(this->id)".");
-            gm_log(""$(id)": ENABLED EXTERNAL_SDL_WINDOW: This EventLoop will use an SDL-Based external window to draw game state.");
-            gm_log("-----");
-#ifndef _WIN32
-            gm_log(""$(id)": Enabling Terminal-Util functions as well as the SDL instance for dev-console system.");
-            TerminalUtil::enable_mouse_tracking();
-            gm_log(""$(id)": enabled mouse tracking (1006-rawmode)");
-            TerminalUtil::set_raw_mode(true);
-            gm_log(""$(id)": set terminal input state to 1006-rawmode.");
 #endif
         };
-#endif // sdl_enabled?
-
 
         ~EventLoop() {
 #ifndef _WIN32
+#ifndef GMENG_SDL
             gm_log("" $(id) ": destroyed eventloop " $(this->id) ".");
             gm_log("" $(id) ": disabled mouse tracking");
             TerminalUtil::set_non_blocking(false);
@@ -869,6 +829,7 @@ namespace Gmeng {
             TerminalUtil::disable_mouse_tracking();
 
             server.stop();
+#endif
 #endif
         };
 
@@ -893,6 +854,7 @@ namespace Gmeng {
             /// clear next tick processes.
         };
 
+        /// Adds an EventHook handler for handling the specified handlers at @param events
         void add_hook(vector<Event> events, handler_function_type handler) {
             int id = g_mkid();
             this->hooks.push_back({ id, events, handler });
@@ -900,42 +862,44 @@ namespace Gmeng {
             gm_log(list_events(events) + ".");
         };
 
+        /// Emits an Event of type 'ev' with the specified EventInfo
         void call_event( Event ev, EventInfo& info ) {
+            /// Search for event handlers, call each hook that uses it
             for (auto& hook : this->hooks) {
-                if (hook.locked) continue;
-                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
-                    if ((global.dev_mode || global.debugger)) {
+                if (hook.locked) continue; /// check if the event handler is busy
+                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) { /// if the event handler
+                                                                                                                        /// handles the specified event
+                    if ((global.dev_mode || global.debugger)) { /// log info about the event if the debugger or devmode is enabled
                         if ((ev == UPDATE || ev == FIXED_UPDATE) && !Gmeng::global.dont_hold_back); /// dont log update calls unless dont_hold_back is enabled
                         else gm_log("call to external event hook(id="$(hook.id)") for event " + get_event_name(ev));
                     };
+                    /// lock the event, prevent being recalled
+                    /// while the handler is busy.
                     hook.locked = true;
-                    /// Runs the handler for the hook
-                    /// Keep in mind that hooks may have more than one handler,
-                    /// so it may need to check for the EVENT value (in EventInfo)
-                    /// since v10.0.0
+                    /// Run the handler for the hook.
                     hook.handler( this->level, &info );
+                    /// unlock the handler
                     hook.locked = false;
                 } else continue;
             };
 
-            /// If the event is cancelled via &EventInfo.prevent_default = true,
+            /// If the event has prevent_default enabled via &EventInfo.prevent_default = true,
             /// do not run the default hook for it (if one exists)
             if (info.prevent_default) return;
 
+            /// Search for default event handlers
             for (auto& hook : this->defaults) {
-                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
+                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) { /// if the handler has the event
                 if (global.dev_mode || global.debugger) gm_log("call to default event hook(id="$(hook.id)") for event " + get_event_name(ev));
                     hook.locked = true;
                     /// Runs the handler for the hook
-                    /// Keep in mind that hooks may have more than one handler,
-                    /// so it may need to check for the EVENT value (in EventInfo)
-                    /// since v10.0.0
                     hook.handler( this->level, &info );
                     hook.locked = false;
                 } else continue;
             };
         };
 
+        /// will fuck the application up
         void init_server(Networking::rcon_server_def_t server) {
             this->rcon_opt = server;
             this->server.port = server.port;
@@ -973,7 +937,28 @@ namespace Gmeng {
         Networking::rcon_server_def_t rcon_opt;
         gmserver_t server;
 
+        /// Ends the EventLoop, setting this->cancelled to true
+        void cancel() { this->cancelled = true; };
+
+        /// Total count of remote connections.
+        /// This is used by default-provided script:
+        /// 'server.dylib'.
         int RCON_REMOTE_COUNT = 0;
+
+        /// type declaration for utility states
+        struct UtilStateHolder {
+            /// gmeng-provided developer console state
+            bool* dev_console_open;
+            /// gmeng-provided vgm editor state
+            bool* vgm_open;
+            /// gmeng-provided level inspector state
+            bool* level_inspector_open;
+        };
+
+        /// holds states for the developer console,
+        /// vgm editor and the level inspector.
+        UtilStateHolder states;
+
         private:
           bool tick_handler = false;
     } EventLoop;
@@ -1027,17 +1012,19 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
         auto splitEntries = g_splitStr(str, "\n");                 \
         for (const auto& entry : splitEntries) {                   \
             GAME_LOGSTREAM->push_back(entry);                      \
+            GAME_LOGSTREAM_STR << entry << '\n';                   \
         }                                                          \
     } while (0)
 
 #else
 
-#define GAME_LOG(str)                                                                                                             \
-    do {                                                                                                                          \
-        auto splitEntries = g_splitStr(str, "\n");                                                                                \
-        for (const auto& entry : splitEntries) {                                                                                  \
-            ev->logstream->push_back("[" + get_filename(std::string(__FILE__)) + ":" + std::to_string(__LINE__) + "] " + entry); \
-        }                                                                                                                         \
+#define GAME_LOG(str)                                                                                                                   \
+    do {                                                                                                                                \
+        auto splitEntries = g_splitStr(str, "\n");                                                                                      \
+        for (const auto& entry : splitEntries) {                                                                                        \
+            ev->logstream->push_back("[" + get_filename(std::string(__FILE__)) + ":" + std::to_string(__LINE__) + "] " + entry);        \
+            *ev->logstream_str << "[" + get_filename(std::string(__FILE__)) + ":" + std::to_string(__LINE__) + "] " << entry << '\n';    \
+        }                                                                                                                               \
     } while (0)
 
 #endif
@@ -1169,11 +1156,13 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         } },
         { "exit", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             GAME_LOG("quiting...");
+#ifndef GMENG_SDL
             ev->level->display.set_cursor_visibility(true);
 #ifndef _WIN32
             Gmeng::TerminalUtil::set_raw_mode(false);
             Gmeng::TerminalUtil::set_non_blocking(false);
             Gmeng::TerminalUtil::disable_mouse_tracking();
+#endif
 #endif
             exit(0);
             return 0;
@@ -1256,8 +1245,9 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 return -1;
                 #endif
             } },
-        { "save", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+        { "savelvl", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 GAME_LOG("saving current gamestate & level data.");
+                GAME_LOG("FOR DEVELOPERS: add a save function in an event hook for EXIT to make this work");
                 // Exit should always save. It'd be the developer's fault if this didn't work, not ours.
                 // Even though it's extremely annoying to the user for the engine to do this.
                 ev->call_event(Gmeng::Event::EXIT, Gmeng::NO_EVENT_INFO);
@@ -1268,12 +1258,14 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
 /// executes a developer command to the target of an EventLoop pointer '* ev'
 /// 'noecho' means no INTERNAL output will be generated by the command to the console.
 /// the command can still echo text. It just will not generate logs like 'unknown command', or splitter lines
-int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho = false) {
+int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho = false, TRACEFUNC) {
     __functree_call__(gmeng_run_dev_command);
 #define _GAME_LOG(x) if (!noecho) do { GAME_LOG(x); } while(0)
     using namespace Gmeng;
     using namespace Gmeng::Renderer;
     using std::string, std::vector, std::deque, std::cout;
+
+    if (!noecho) gm_log("command '" + command + "' called from origin " + TRACEFUNC_STR);
 
     vector<string> params = g_splitStr(command, " ");
 
@@ -1310,7 +1302,7 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho
 };
 
 
-void dev_console_animation(Gmeng::EventLoop* ev) {
+[[deprecated]] void dev_console_animation(Gmeng::EventLoop* ev) {
     Gmeng::Camera<0, 0>* camera = &ev->level->display.camera;
     Gmeng::Renderer::Display* display = &ev->level->display;
     Gmeng::Renderer::drawpoint delta_xy = { Gmeng::_vcreate_vp2d_deltax(display->viewpoint), Gmeng::_vcreate_vp2d_deltay(display->viewpoint) };
@@ -1323,6 +1315,9 @@ void dev_console_animation(Gmeng::EventLoop* ev) {
 
 static bool gmeng_console_state_change_modifier = false;
 
+/// Runs the developer console for Gmeng.
+/// This utility is for Terminal-mode only.
+/// It should not be used with Gmeng SDL.
 void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     if (!dev_console_open) return;
 
@@ -1432,6 +1427,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
         cout << colors[CONSOLE_OUTLINE_COLOR] << "|" << resetcolor << repeatString(" ", CONSOLE_WIDTH-2) << colors[CONSOLE_OUTLINE_COLOR] << "|" << resetcolor;
         i++;
     };
+
     camera->set_curXY(i+d, delta_xy.x+2);
     cout << colors[CONSOLE_OUTLINE_COLOR] << OUTLINE << resetcolor;
     camera->set_curXY(1+i+d, delta_xy.x+2);
@@ -1448,6 +1444,7 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 };
 
 #ifndef _WIN32
+#ifndef GMENG_SDL
 /// runs an event loop instance
 /// (this means handling the level as the main event loop / the instance of the game)
 ///
@@ -1462,9 +1459,13 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
     char* term_prog = getenv("TERM_PROGRAM");
 
-    if ( term_prog != nullptr && std::string(term_prog) == "tmux" ) {
-        gmeng_show_warning("tmux");
+    if ( term_prog != nullptr && ( std::string(term_prog) == "tmux"
+                                || std::string(term_prog) == "iTerm.app" ) ) {
+        gmeng_show_warning("bad_terminal");
     };
+
+    if ( ev->level->display.camera.modifiers.get_value("lighting") == 1 &&
+         term_prog != nullptr && ( std::string(term_prog) == "tmux" )) gmeng_show_warning("lighting_with_tmux");
 
     if (Gmeng::main_event_loop != nullptr) return 1;
     Gmeng::main_event_loop = ev;
@@ -1577,6 +1578,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                         dev_console_open = state.console_open;
                         gmeng_dev_console(ev, &info);
                     };
+
                     Gmeng::EventInfo d = {
                         .EVENT = Gmeng::MOUSE_CLICK_END_ANY,
                         .KEYPRESS_CODE = 0,
@@ -1584,6 +1586,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                         .MOUSE_Y_POS = 0,
                         .prevent_default = false
                     };
+
                     ev->call_event(Gmeng::MOUSE_CLICK_END_ANY, d);
                 };
 
@@ -1611,56 +1614,303 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     Gmeng::clear_threads();
     return 0;
 };
-#endif
 
-/// @deprecated use level write functions instead
-/// see 'util/serialization.cpp'
-typedef struct {
-    int DEF_DELTAX;
-    int DEF_DELTAY;
+#endif // NO WIN32
+#endif // GMENG_SDL
 
-    int SKY_WIDTH;
-    int SKY_HEIGHT;
+#ifdef GMENG_SDL
 
-    Gmeng::color_t SKY_COLOR;
+/// ignore coc-vim errors, this code compiles
+#include "../utils/window.cpp"
 
-    std::unordered_map<std::string, Gmeng::Renderer::drawpoint> model_positions;
-
-    int A00_CAKE_INTERACT_LOOPC;
-} gmeng_properties_t;
-
-
-/// @deprecated use level write functions instead
-/// see 'util/serialization.cpp'
-///
-/// (this object was originally for a specific scope in the tests/event_loop.cpp prototype anywaws)
-static gmeng_properties_t default_properties = {
-    50, 25,
-
-    100, 100,
-
-    Gmeng::BLUE,
-
-    {
-        { "player", { 0,0 } },
-
-        { "table1", { 13, 21 } },
-        { "table2", { 24, 21 } },
-
-        { "cake", { 16, 17 } },
-
-        { "gift1", { 0, 22 } },
-        { "gift2", { 44, 22 } },
-
-        { "balloon1", { 4, 4 } },
-        { "balloon2", { 37, 7 } },
-
-
-        { "CAKE_INTERACT_TIMES", { 1, 20 } },
-    },
-
-    100
+namespace Gmeng {
+    GmengImGuiVGM* imgui_vgm_handler;
+    GmengImGuiConsole* imgui_console_handler;
+    GmengImGuiInfoWindow* imgui_info_handler;
+    GmengImGuiLevel* level_inspector_handler;
 };
+
+
+/// SDL-Based Gmeng Event Loop.
+int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
+    __functree_call__(do_event_loop::external_window_mode : SDL);
+    gm_log("[GMENG::SDL_BINDING] External Window do_event_loop, requested from " + TRACEFUNC_STR);
+
+    if (Gmeng::main_event_loop != nullptr) {
+        gm_log("Call to create an eventloop handler from " + TRACEFUNC_STR + " REJECTED: Gmeng::main_event_loop is not nullptr, cannot initialize multiple event loops in once instance.");
+        return -1;
+    };
+
+    Gmeng::main_event_loop = ev;
+
+    if (win == nullptr || ev == nullptr) return -2;
+    if (ev->cancelled) return 1;
+
+    /// ImGui Context Creation
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; /// Keyboard navigation, useful at all times
+
+    ImGui_ImplSDL2_InitForSDLRenderer(win->window, win->renderer);
+    ImGui_ImplSDLRenderer2_Init(win->renderer);
+
+    gm_log("ImGui init complete");
+
+    ev->call_event(Gmeng::Event::INIT, Gmeng::INIT_INFO);
+
+    /// Developer console
+    GmengImGuiConsole console(GAME_LOGSTREAM_STR);
+    Gmeng::imgui_console_handler = &console;
+
+    GmengImGuiInfoWindow info_window(ev);
+    Gmeng::imgui_info_handler = &info_window;
+
+    GmengImGuiVGM vgm_manager( ev, win->renderer );
+    Gmeng::imgui_vgm_handler = &vgm_manager;
+    bool vgm_open = false;
+
+    GmengImGuiLevel level_inspector( win->renderer, ev );
+    Gmeng::level_inspector_handler = &level_inspector;
+    bool level_inspector_open = false;
+
+    ev->states = Gmeng::EventLoop::UtilStateHolder {
+        &dev_console_open,
+        &vgm_open,
+        &level_inspector_open
+    };
+
+    GAME_LOG("gmeng " + Gmeng::version + " build " + std::string(GMENG_BUILD_NO) + " developer console");
+    GAME_LOG("'help' to be humiliated or 'helpcmd' for help.");
+    GAME_LOG("contribute: https://gmeng.org/git");
+    GAME_LOG("gmeng is built & maintained by catriverr");
+
+    SDL_Event e;
+    /// Main Event Loop
+    while (!ev->cancelled) {
+        /// SDL Event Processing
+        while (SDL_PollEvent(&e) != 0) {
+            /// For ImGui
+            ImGui_ImplSDL2_ProcessEvent(&e);
+            /// For Gmeng User (optional)
+            if (win->external_sdl_event_handler != NULL)
+                win->external_sdl_event_handler(&e);
+
+            /// For Gmeng Engine (internal)
+            if (e.type == SDL_QUIT) {
+                gm_log("SDL_Quit called for EventLoop with id " + v_str(ev->id) + ", EventLoop origin is from " + TRACEFUNC_STR + ".");
+                ev->call_event(Gmeng::Event::EXIT, Gmeng::NO_EVENT_INFO);
+                ev->cancel();
+            } else if (e.type == SDL_WINDOWEVENT) {
+                /// If/When the window is resized, update the window size properties
+                /// within the window object as well.
+                if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    /// Getting the window size is a reference passed function in SDL,
+                    /// just passing it directly to the window's width & height variables
+                    /// will result in them being updated to the correct value.
+                    SDL_GetWindowSize(win->window, &win->width, &win->height);
+                    gm_log("Window resized to "$(win->width)"x"$(win->height)".");
+                };
+            } else if (e.type == SDL_KEYDOWN) {
+                /// A key on the keyboard has been pressed,
+                /// Since SDL uses key repeat (and we want it)
+                /// we will not ignore repeat events.
+                auto key_sym = e.key.keysym.sym;
+
+                bool shift = (e.key.keysym.mod & KMOD_SHIFT);
+                bool ctrl = (e.key.keysym.mod & KMOD_CTRL);
+                bool alt = (e.key.keysym.mod & KMOD_ALT);
+
+                /// Default keystroke for Gmeng Dev Console Open
+                if ( key_sym == SDLK_BACKQUOTE && shift ) {
+                    if ( Gmeng::global.dev_console ) dev_console_open = !dev_console_open;
+                    if (dev_console_open) gm_log("developer console opened (instance " + _uconv_1ihx(GET_TIME()) + ")");
+                };
+
+                /// Default keystroke for Gmeng VGM Open
+                if ( key_sym == SDLK_TAB && alt ) {
+                    vgm_open = !vgm_open;
+                    if (vgm_open) gm_log("Gmeng VisualCache Graphics Manager opened (instance " + _uconv_1ihx(GET_TIME()) + ")");
+                };
+
+                if ( key_sym == SDLK_l && alt ) {
+                    level_inspector_open = !level_inspector_open;
+                    if (level_inspector_open) gm_log("Gmeng Level Inspector opened (instance " + _uconv_1ihx(GET_TIME()) + ")");
+                };
+
+                /// Event Information
+                Gmeng::EventInfo info = {
+                    Gmeng::KEYPRESS, 0, key_sym,
+                    -1, -1, 0, 0,
+                    false, shift, ctrl, alt
+                };
+                /// Call the event if none of the editors/controllers are open
+                if (!dev_console_open && !vgm_open && !level_inspector_open)
+                    ev->call_event( Gmeng::Event::KEYPRESS, info );
+            } else if (e.type == SDL_MOUSEBUTTONDOWN) {
+                /// Mouse clicks, we want all 3 mouse buttons
+                auto button = e.button.button;
+                Gmeng::Event mb_event = Gmeng::UNKNOWN;
+                switch (button) {
+                    case SDL_BUTTON_LEFT:  {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_LEFT_START;
+                                           }; break;
+                    case SDL_BUTTON_RIGHT: {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_RIGHT_START;
+                                           }; break;
+                    case SDL_BUTTON_MIDDLE:
+                                           {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_MIDDLE_START;
+                                           };
+                    default:
+                        gm_log("unknown mouse button click, ignoring");
+                        break;
+                };
+                /// Check the mouse event
+                if (mb_event != Gmeng::Event::UNKNOWN) {
+                    /// The Mouse button event is valid, continue and initialize the event
+
+                    /// CTRL+Click
+                    bool ctrl  = (SDL_GetModState() & KMOD_CTRL );
+                    /// Shift+Click
+                    bool shift = (SDL_GetModState() & KMOD_SHIFT);
+                    /// Event Information
+                    Gmeng::EventInfo info = {
+                        mb_event, 0, 0,
+                        e.button.x, e.button.y, 0, 0,
+                        false, shift, ctrl, false
+                    };
+                    /// Call the event
+                    ev->call_event( mb_event, info );
+                };
+            } else if (e.type == SDL_MOUSEBUTTONUP) {
+                /// Mouse click end, we want all 3 mouse buttons
+                auto button = e.button.button;
+                Gmeng::Event mb_event = Gmeng::UNKNOWN;
+                switch (button) {
+                    case SDL_BUTTON_LEFT:  {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_LEFT_END;
+                                           }; break;
+                    case SDL_BUTTON_RIGHT: {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_RIGHT_END;
+                                           }; break;
+                    case SDL_BUTTON_MIDDLE:
+                                           {
+                                             mb_event = Gmeng::Event::MOUSE_CLICK_MIDDLE_END;
+                                           };
+                    default:
+                        gm_log("unknown mouse button up, ignoring");
+                        break;
+                };
+                /// Check the mouse event
+                if (mb_event != Gmeng::Event::UNKNOWN) {
+                    /// The Mouse button event is valid, continue and initialize the event
+
+                    /// Event Information
+                    /// shift/ctrl does not matter here (hopefully)
+                    Gmeng::EventInfo info = {
+                        mb_event, 0, 0,
+                        e.button.x, e.button.y, 0, 0,
+                        false, false, false, false
+                    };
+                    /// Call the event
+                    ev->call_event( mb_event, info );
+                    /// Also call mouse_event_end_any, compatibility with terminal mode
+                    ev->call_event( Gmeng::Event::MOUSE_CLICK_END_ANY, info);
+                };
+            } else if (e.type == SDL_MOUSEMOTION) {
+                /// Mouse Move Events
+                int x = e.motion.x, y = e.motion.y;
+                int rx = e.motion.xrel, ry = e.motion.yrel;
+                /// Event Information
+                Gmeng::EventInfo info = {
+                    Gmeng::Event::MOUSE_MOVE, 0, 0,
+                    x, y, rx, ry,
+                    false, false, false, false
+                };
+                /// Call the event
+                ev->call_event( Gmeng::Event::MOUSE_MOVE, info );
+            } else if (e.type == SDL_MOUSEWHEEL) {
+                /// Mouse Scroll Events
+                bool shiftHeld = (SDL_GetModState() & KMOD_SHIFT) != 0;
+
+                int mouseX, mouseY;
+                SDL_GetMouseState(&mouseX, &mouseY);
+                Gmeng::Event mw_event = e.wheel.y > 0 ? Gmeng::Event::MOUSE_SCROLL_UP : Gmeng::MOUSE_SCROLL_DOWN;
+                bool alternative = shiftHeld || e.wheel.x != 0;
+                /// Event Information
+                Gmeng::EventInfo info = {
+                    mw_event, 0, 0, mouseX, mouseY, mouseX, mouseY,
+                    false, alternative, false, false
+                };
+                /// Call the event
+                ev->call_event( mw_event, info );
+            };
+        };
+
+        ev->level->display.camera.entity_count = ev->level->entities.size();
+
+        auto m_time_begin = GET_TIME();
+        /// Outragiously long and idiotic Frame Begin Definition for ImGui
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        /// All external ImGui utils will be called from Update.
+        /// They don't have to be defined here, but a simple Draw() function
+        /// to an extendable class for ImGui children is well.
+        ev->call_event(Gmeng::Event::UPDATE, Gmeng::NO_EVENT_INFO);
+
+        /// After external hooks have been called, we can draw the default
+        /// Gmeng ImGui definitions, however they might not be enabled,
+        /// or an external hook might have disabled it. So we check.
+        int i = 0;
+        vector<std::string> names = { "gmeng log", "gmeng functree" };
+        for ( GmengImGuiLog& Hook : win->default_windows ) {
+            if (dev_console_open) Hook.Draw(names.at(i).c_str());
+            i++;
+        };
+
+        /// Info Menu draw, handled by GmengImGuiInfoWindow
+        if (ev->level->display.camera.modifiers.get_value("draw_info") == 1)
+            info_window.Draw( win->renderer );
+
+        /// Developer Console draw, handled by GmengImGuiConsole
+        if (dev_console_open) console.Draw(
+                std::string("gmeng " + Gmeng::version + " build " + GMENG_BUILD_NO + " developer console").c_str(),
+                ev);
+
+        /// VGM VisualCache Graphics Manager draw, handled by GmengImGuiVGM
+        if (vgm_open) vgm_manager.Draw();
+
+        /// Gmeng Level Inspector draw, handled by GmengImGuiLevel
+        if (level_inspector_open) level_inspector.Draw();
+
+        /// End ImGui Frame and Render it
+        ImGui::Render();
+        /// Access ImGui's Renderscale for SDL, don't use SDL's Renderscale.
+        SDL_RenderSetScale(win->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+        /// Clear the screen
+        win->clear();
+        auto m_time_frame_begin = GET_TIME();
+        /// Actual Game Event Update, can draw the source image now.
+        ev->call_event(Gmeng::Event::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+        /// Update frame time
+        ev->level->display.camera.frame_time = GET_TIME() - m_time_frame_begin;
+        /// End Render Phase, draw the screen
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), win->renderer);
+        /// Update draw time
+        ev->level->display.camera.draw_time = GET_TIME() - m_time_begin;
+        /// Refresh the screen & Present the renderer
+        win->refresh();
+    };
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+
+    return 0;
+};
+#endif
 
 #if _WIN32
 
@@ -1680,79 +1930,3 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 #endif
 
 
-/// @deprecated use level write functions instead
-/// see 'utils/serialization.cpp'
-void writeout_properties(const std::string& filename, const gmeng_properties_t& properties) {
-    std::ofstream outFile(filename, std::ios::binary);
-    if (!outFile) {
-        throw std::ios_base::failure("Failed to open file for writing");
-    }
-
-    // Write the int fields
-    outFile.write(reinterpret_cast<const char*>(&properties.DEF_DELTAX), sizeof(properties.DEF_DELTAX));
-    outFile.write(reinterpret_cast<const char*>(&properties.DEF_DELTAY), sizeof(properties.DEF_DELTAY));
-    outFile.write(reinterpret_cast<const char*>(&properties.SKY_WIDTH), sizeof(properties.SKY_WIDTH));
-    outFile.write(reinterpret_cast<const char*>(&properties.SKY_HEIGHT), sizeof(properties.SKY_HEIGHT));
-    outFile.write(reinterpret_cast<const char*>(&properties.SKY_COLOR), sizeof(properties.SKY_COLOR));
-    outFile.write(reinterpret_cast<const char*>(&properties.A00_CAKE_INTERACT_LOOPC), sizeof(properties.A00_CAKE_INTERACT_LOOPC));
-
-    size_t map_size = properties.model_positions.size();
-    outFile.write(reinterpret_cast<const char*>(&map_size), sizeof(map_size));
-
-    for (const auto& [key, drawpoint] : properties.model_positions) {
-        size_t key_size = key.size();
-        outFile.write(reinterpret_cast<const char*>(&key_size), sizeof(key_size));
-        outFile.write(key.c_str(), key_size);
-
-        // Write the drawpoint struct (x and y)
-        outFile.write(reinterpret_cast<const char*>(&drawpoint.x), sizeof(drawpoint.x));
-        outFile.write(reinterpret_cast<const char*>(&drawpoint.y), sizeof(drawpoint.y));
-    }
-
-    outFile.close();
-};
-
-/// @deprecated use level write functions instead
-/// see 'util/serialization.cpp'
-gmeng_properties_t read_properties(const std::string& filename) {
-    std::ifstream inFile(filename, std::ios::binary);
-    if (!inFile) {
-        throw std::ios_base::failure("Failed to open file for reading");
-    }
-
-    gmeng_properties_t properties;
-
-    // Read the int fields
-    inFile.read(reinterpret_cast<char*>(&properties.DEF_DELTAX), sizeof(properties.DEF_DELTAX));
-    inFile.read(reinterpret_cast<char*>(&properties.DEF_DELTAY), sizeof(properties.DEF_DELTAY));
-    inFile.read(reinterpret_cast<char*>(&properties.SKY_WIDTH), sizeof(properties.SKY_WIDTH));
-    inFile.read(reinterpret_cast<char*>(&properties.SKY_HEIGHT), sizeof(properties.SKY_HEIGHT));
-    inFile.read(reinterpret_cast<char*>(&properties.SKY_COLOR), sizeof(properties.SKY_COLOR));
-    inFile.read(reinterpret_cast<char*>(&properties.A00_CAKE_INTERACT_LOOPC), sizeof(properties.A00_CAKE_INTERACT_LOOPC));
-
-    // Read the map (model_positions) size
-    size_t map_size;
-    inFile.read(reinterpret_cast<char*>(&map_size), sizeof(map_size));
-
-    // Read each key-value pair in the map
-    for (size_t i = 0; i < map_size; ++i) {
-        // Read the string length, then the string (key)
-        size_t key_size;
-        inFile.read(reinterpret_cast<char*>(&key_size), sizeof(key_size));
-        std::string key(key_size, '\0');
-        inFile.read(&key[0], key_size);
-
-        // Read the drawpoint struct (x and y)
-        Gmeng::Renderer::drawpoint drawpoint;
-        inFile.read(reinterpret_cast<char*>(&drawpoint.x), sizeof(drawpoint.x));
-        inFile.read(reinterpret_cast<char*>(&drawpoint.y), sizeof(drawpoint.y));
-
-        // Insert into the map
-        properties.model_positions[key] = drawpoint;
-    }
-
-    inFile.close();
-
-
-    return properties;
-};

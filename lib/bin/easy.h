@@ -46,8 +46,8 @@
 #define DELTA_X Gmeng::_vcreate_vp2d_deltax
 #define DELTA_Y Gmeng::_vcreate_vp2d_deltay
 
-#define dp Gmeng::Renderer::drawpoint
-#define vp Gmeng::Renderer::viewpoint
+#define drawpoint_t Gmeng::Renderer::drawpoint
+#define viewpoint_t Gmeng::Renderer::viewpoint
 
 #define create_texture Gmeng::Renderer::generate_empty_texture
 #define create_model Gmeng::Renderer::generate_empty_model

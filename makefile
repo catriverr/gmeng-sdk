@@ -98,6 +98,8 @@ endif
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
     CXXFLAGS += -fsanitize=address
 	CXXFLAGS += -g -pg
+else
+	CXXFLAGS += -Ofast
 endif
 
 
@@ -111,9 +113,17 @@ ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
     CXXFLAGS += -DGMENG_NO_CURSES
 endif
 
+IMGUI_SRC := 
 ifeq ($(filter use-external,$(MAKECMDGOALS)), use-external)
 	CXXFLAGS += `pkg-config --libs --cflags sdl2 sdl2_ttf`
     CXXFLAGS += -DGMENG_SDL
+	CXXFLAGS += -Iinclude/imgui -Iinclude/imgui/backends
+	IMGUI_SRC += include/imgui/imgui.cpp \
+    include/imgui/imgui_draw.cpp \
+    include/imgui/imgui_tables.cpp \
+    include/imgui/imgui_widgets.cpp \
+    include/imgui/backends/imgui_impl_sdl2.cpp \
+    include/imgui/backends/imgui_impl_sdlrenderer2.cpp
 endif
 
 
@@ -122,25 +132,25 @@ all: lib/bin/out/gmeng
 
 # Rule to build lib/bin/src/index.cpp
 lib/bin/out/gmeng: lib/bin/src/index.cpp
-	$(CXX) $(VERSIONFLAGS) $(OUTFILE) lib/bin/src/index.cpp $(CXXFLAGS)
+	$(CXX) lib/bin/src/index.cpp $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(OUTFILE)
 
 # Target for test, builds test.cpp
 test: tests/editor_test.cpp
-	$(CXX) $(VERSIONFLAGS) -o test tests/editor_test.cpp $(CXXFLAGS)
+	$(CXX) tests/editor_test.cpp $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o test
 
 # Target for test2, builds tests/test.cpp
 test2: tests/test.cpp
-	$(CXX) $(VERSIONFLAGS) -o tests/out/test.o tests/test.cpp $(CXXFLAGS)
+	$(CXX) tests/test.cpp $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o tests/out/test.o
 
 # Target for building with the debug flag
 debug:
-	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out debug,$(MAKECMDGOALS))
+	@echo COMPILING FOR DEBUG MODE
 
 no-ncurses:
 	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out no-ncurses,$(MAKECMDGOALS))
 
 use-external:
-	@$(MAKE) CXXFLAGS="$(CXXFLAGS)" $(filter-out use-external,$(MAKECMDGOALS))
+	@echo COMPILING FOR SDL
 
 a = $(shell echo ALL WARNINGS ARE ENABLED, YOUR SHELL WILL BE FILLED WITH WARNINGS.)
 warnings:
@@ -199,7 +209,7 @@ compile:
 	@echo TO CONFIGURE, USE make configure
 	@echo PROGRAM\: $(TARGET_NAME)
 	@echo TARGET WILL BE NAMED\: ./game.out
-	$(CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
+	$(CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
 
 compile-windows:
 	@echo CROSS COMPILING TO WINDOWS
@@ -210,20 +220,20 @@ compile-windows:
 	@echo COMPILING YOUR BUILDOPTIONS.MK
 	@echo TO CONFIGURE, EDIT THE FILE buildoptions.mk TO CHANGE YOUR TARGET
 	@echo EXECUTABLE WILL BE NAMED\: ./game.exe
-	$(WINDOWS_CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o game.exe
+	$(WINDOWS_CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o game.exe
 
 
 compile-file:
 	@echo "Compiling file: $(filename)"
-	$(CXX) $(filename) $(VERSIONFLAGS) $(CXXFLAGS) -o $(basename $(filename))
+	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o $(basename $(filename))
 
 compile-file-windows:
 	@echo "Cross compiling file: $(filename)"
-	$(WINDOWS_CXX) $(filename) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o $(basename $(filename))$(suffix .exe)
+	$(WINDOWS_CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o $(basename $(filename))$(suffix .exe)
 
 compile-script:
 	@echo "Compiling NOBLE prebuilt shared library: $(filename)"
-	$(CXX) $(filename) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib)
+	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib)
 	@echo "Written out to: $(basename $(filename))$(suffix .dylib)"
 
 build:
@@ -236,7 +246,7 @@ build:
 	@echo "..."
 	@echo "COMPILING ENGINE & SOURCE TARGET"
 	@echo "the game executable will be written to: ./game.out"
-	$(CXX) $(TARGET_NAME) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
+	$(CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
 	@echo "..."
 	@echo "COMPILATION COMPLETE"
 
