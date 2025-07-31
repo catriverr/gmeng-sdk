@@ -101,8 +101,8 @@ int main(int argc, char** argv) {
         switch (info->KEYPRESS_CODE) {
             case 'f': case 'F': {
                     Gmeng::LightSource lightsource;
-                    lightsource.position = { *DEF_DELTAX/2, 40 };
-                    lightsource.color = color32_t( (uint32_t)WHITE );
+                    lightsource.position = { (*DEF_DELTAX)/2, 40 };
+                    lightsource.color = color32_t( (uint32_t)uint32_from_color32( (uint32_t)WHITE ) );
                     lightsource.intensity = 30;
                     level->entities.push_back( std::make_shared<LightSource>(lightsource) );
                 }

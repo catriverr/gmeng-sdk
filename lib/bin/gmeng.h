@@ -1328,12 +1328,11 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
         std::cout << "\nPress CTRL+C to exit or any key to continue.\n";
         cin.get();
     } },
-    { "lighting_with_tmux", []() {
+    { "no_truecolor", []() {
         std::cout << Gmeng::colors[Gmeng::YELLOW] + "WARNING! " << Gmeng::resetcolor;
-        std::cout << "Gmeng (the engine this game runs on) has identified that you have Camera::Lighting enabled while using a TMUX shell.\n";
-        std::cout << "\nTMUX only supports 256-colors, and will break lighting functionality as lighting depends on RGB (true color) support.\n";
-        std::cout << "\nMacOS' default terminal supports true color, switch to it.\n";
-        std::cout << "\nFor linux and windows, the default tty will suffice.\n";
+        std::cout << "Gmeng (the engine this game runs on) has identified that you have a non-truecolor shell.\n";
+        std::cout << "\nUsual culprit is TMUX. Apple Terminal, iTerm and other ttys usually support truecolor by default, but TMUX overrides it.\n";
+        std::cout << "\nIf you wish to use tmux with truecolor (RGB support) see " << Gmeng::colors[Gmeng::BLUE] << "gmeng.org/?doc=truecolor" << Gmeng::resetcolor << ".\n";
 
         std::cout << "\nPress CTRL+C to exit or any key to continue.\n";
         cin.get();
@@ -1341,8 +1340,10 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
 };
 
 struct TerminalSize {
-    int width;
-    int height;
+    int width; int height;
+
+    bool operator==( const TerminalSize& other ) const = default;
+
 };
 
 /// LMAO cross-platform as if this engine will run on windows any time soon
@@ -1415,6 +1416,15 @@ static void print_windows_error_message() {
     exit(1);
 };
 
+/// sends \033[2J\003[H (ansi clear screen)
+/// to the terminal clearing the stdout.
+static void ansi_clear_screen() {
+    std::cout << "\033[2J\033[H"; // ANSI clear screen
+    std::cout.flush();
+}
+
+
+
 /// Patches gmeng's 'global' variables required by the engine,
 /// used for stuff like parsing command-line arguments.
 /// Generally, this method should be run for almost
@@ -1434,6 +1444,12 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
 
         if ( std::string( func_caller ) != "main" ) {
             gmeng_show_warning( "init_from_main" );
+        };
+
+        auto* colorterm = std::getenv("COLORTERM") ? std::getenv("COLORTERM") : "";
+
+        if ( std::string(colorterm) != "truecolor" ) {
+            gmeng_show_warning("no_truecolor");
         };
 
     Gmeng::global.pwd = get_cwd();
@@ -1528,27 +1544,33 @@ static int restart_program() {
     };
 
     // add `restarted-instance` flag to argv if it does not exist
-    char *restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
+    std::string restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
     bool flag_exists = false;
 
     for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
-        if (std::strcmp(Gmeng::global.prog_argv[i], restart_flag) == 0) {
+        if (std::strcmp(Gmeng::global.prog_argv[i], restart_flag.c_str()) == 0) {
             flag_exists = true;
             break;
         }
     };
 
-    std::vector<char *> new_argv;
+
+    std::vector<std::string> new_argv;
+
+    if (!flag_exists) new_argv.push_back(restart_flag);
 
     for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
         new_argv.push_back(Gmeng::global.prog_argv[i]);
     };
 
-    if (!flag_exists) new_argv.push_back(restart_flag);
+    std::vector<char*> prog_argv;
+    for ( auto v : new_argv )
+        prog_argv.push_back( const_cast<char*>( v.c_str() ) );
+
 
     gm_log("restarting program...");
 
-    if (execvp(arg0.c_str(), new_argv.data()) == -1) {
+    if (execvp(arg0.c_str(), prog_argv.data()) == -1) {
         gm_log("cannot restart program: `execvp()` returned non-zero value (-1): " + std::to_string(errno));
         return 2;
     };

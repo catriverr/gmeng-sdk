@@ -174,7 +174,7 @@ namespace Gmeng {
 
     /// Camera Instance of any viewport in the game engine.
     /// All displays are rendered through this class.
-	template<std::size_t _w, std::size_t _h>
+	template<std::size_t _w = 1, std::size_t _h = 1>
 	class Camera { /// v8.2.1: Camera, v4.1.0: CameraView, v1.0.0: WorldMap
       public:
         /// width of the Camera.
@@ -1465,7 +1465,8 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     };
 
     if ( ev->level->display.camera.modifiers.get_value("lighting") == 1 &&
-         term_prog != nullptr && ( std::string(term_prog) == "tmux" )) gmeng_show_warning("lighting_with_tmux");
+         term_prog != nullptr && ( std::string(term_prog) == "tmux" ))
+            gmeng_show_warning("lighting_with_tmux");
 
     if (Gmeng::main_event_loop != nullptr) return 1;
     Gmeng::main_event_loop = ev;
@@ -1478,6 +1479,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
     state.console_open = false;
     bool curstate = state.console_open;
+
 
     /// handler thread for raw UPDATE and developer console.
     /// this also handles the EventLoop::next_tick processes.

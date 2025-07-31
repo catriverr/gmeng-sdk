@@ -180,10 +180,9 @@ std::shared_ptr<Gmeng::EntityBase> deserialize_entity(std::istream& in) {
 
     auto factory_ = Gmeng::EntityBase::get_derived_factory();
     auto derived_type = factory_.find(id);
+    if ( derived_type == factory_.end() )
+        return nullptr;
 
-    //std::cout << factory_.size() << " FACTORY SIZE AMINA KOYIM\n";
-
-    //std::cout << "AMINA KODUMUN IDSI VAR TAMAM MI SADECE FACTORY YE KOYACAZ AMINAGOYIM " << id << '\n';
 
     auto entity_ = derived_type->second();
     entity_->deserialize(in); /// every derived entity class will have its own serialization system.
@@ -267,7 +266,8 @@ void deserialize_level(Gmeng::Level& level, std::istream& in) {
 
     level.entities.resize(entity_count);
     for (int i = 0; i < level.entities.size(); i++) {
-        level.entities[i] = std::move(deserialize_entity(in));
+        auto entity = deserialize_entity(in);
+        level.entities[i] = entity;
     };
 
     size_t desc_length;

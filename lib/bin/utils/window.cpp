@@ -1471,10 +1471,44 @@ struct GmengImGuiLevel {
                     redo_cache = true;
                 };
             } else {
+                auto entity_name = Gmeng::get_entity_name(selected_item->entity->get_serialization_id());
+
                 ImGui_CenteredText(
-                        ( "entity::" + v_str(selected_item->entity->entity_id) ).c_str()
+                        ( "Entity<" + entity_name + ">(" + v_str( selected_item->entity->get_serialization_id() ) + ")::" + v_str(selected_item->entity->entity_id) ).c_str()
                 );
                 ImGui::Separator();
+
+
+                if ( selected_item->entity->get_serialization_id() == Gmeng::LightSource::id ) {
+                    // lightsource
+                    std::shared_ptr<Gmeng::LightSource> derived_entity = std::dynamic_pointer_cast<Gmeng::LightSource>( selected_item->entity );
+
+                    if (!derived_entity)
+                        ImGui::TextColored(ImVec4(0.7, 0, 0, 255 ), "entity_error: dynamic_pointer_cast to LightSource from EntityBase failed");
+                    else {
+                        /// lightsource-only properties here
+                        ImGui::Separator();
+                        ImGui_CenteredText(
+                        ("lightsource cached pos: " + Gmeng::Renderer::conv_dp( derived_entity->cached_position )).c_str());
+
+                        ImGui::SetNextItemWidth(150);
+                        ImGui::InputInt("pos.x", &derived_entity->position.x);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(150);
+                        ImGui::InputInt("pos.y", &derived_entity->position.y);
+
+
+                        if (ImGui::Button("invalidate cache")) {
+                            derived_entity->cached = false;
+                        };
+                    };
+                } else {
+                    ImGui::SetNextItemWidth(150);
+                    ImGui::InputInt("pos.x", &selected_item->entity->position.x);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(150);
+                    ImGui::InputInt("pos.y", &selected_item->entity->position.y);
+                };
             };
 
             ImGui::EndChild();

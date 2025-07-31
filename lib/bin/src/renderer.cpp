@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <array>
@@ -836,9 +837,8 @@ namespace Gmeng {
         /// Returns the serialization id of the
         /// derived Entity class.
         virtual int get_serialization_id() const = 0;
-        /// Default serialization function.
-        /// Classes can override this function too.
-        virtual void serialize(std::ostream& out) const {
+        /// default serialization code for base entity objects.
+        inline void default_serialize( std::ostream& out ) const {
             out.write(reinterpret_cast<const char*>(&entity_id), sizeof(entity_id));
             out.write(reinterpret_cast<const char*>(&interaction_proximity), sizeof(interaction_proximity) );
 
@@ -848,9 +848,8 @@ namespace Gmeng {
 
             serialize_texture(sprite, out);
         };
-        /// Default deserialization function.
-        /// Classes can override this function too.
-        virtual void deserialize(std::istream& in) {
+        /// default deserialization code for base entity objects.
+        inline void default_deserialize( std::istream& in ) {
             in.read(reinterpret_cast<char*>(&entity_id), sizeof(entity_id));
             in.read(reinterpret_cast<char*>(&interaction_proximity), sizeof(interaction_proximity) );
 
@@ -859,6 +858,16 @@ namespace Gmeng {
             in.read(reinterpret_cast<char*>(&position.y), sizeof(position.y));
 
             deserialize_texture(sprite, in);
+        };
+        /// serialization function.
+        /// Classes can override this function to add different serialization code.
+        virtual void serialize(std::ostream& out) const {
+            this->default_serialize( out );
+        };
+        /// deserialization function.
+        /// Classes can override this function to add diferent deserialization code.
+        virtual void deserialize(std::istream& in) {
+            this->default_deserialize( in );
         };
 
         /// Method to be called when requesting a texture
@@ -873,7 +882,7 @@ namespace Gmeng {
         ///
         /// e.g. zombies eyes turn red when the player is
         /// within 5 units of proximity
-        virtual texture draw( Renderer_Type type = EXTERNAL ) {
+        virtual texture draw( Renderer_Type type = CONSOLE ) {
             // default behaviour for drawing the entity.
             // can be extended with subclasses
             return this->sprite;
@@ -902,7 +911,7 @@ namespace Gmeng {
         /// NOT REQUIRED! Animated sprites are optional.
         virtual void animate( EventLoop* ev = NULL ) { /* no default behaviour */ };
     };
-    /// sets off the derivatory id count from -1.
+    /// sets off the derivatory id count from 0.
     int EntityBase::id_counter = 0;
 
     /// Virtual class for Extendable Entity
@@ -944,6 +953,17 @@ namespace Gmeng {
     template <typename Derived>
     const int Entity<Derived>::id = EntityBase::id_counter++;
 
+    /// Dictionary of all registered entities visible to the engine.
+    /// Returns the name of the entity type from the entity serialization id.
+    std::map<int, std::string> entity_dictionary;
+
+    /// returns the name of an entity type from its serialization id.
+    static const std::string get_entity_name( const int serialization_id ) {
+        if ( entity_dictionary.contains( serialization_id ) )
+            return entity_dictionary.at( serialization_id );
+        else return "UNKNOWN_ENTITY" + v_str(serialization_id);
+    };
+
     template<typename Derived>
     class DerivedEntityRegistrar {
       public:
@@ -953,6 +973,8 @@ namespace Gmeng {
             this->__name = nm;
             Entity<Derived> eclass_1;
             Derived eclass;
+
+            entity_dictionary[ eclass_1.get_serialization_id() ] = std::string(nm);
         };
     };
 /// Registers an entity type.
@@ -1053,10 +1075,8 @@ namespace Gmeng {
         /// LightSources are not interactable entites,
         /// do not use this variable. Will always be -1.
         int interaction_proximity = -1;
-        /// Position of the LightSource. Will afect
-        /// the area within reach of { position+intensity }.
-        Renderer::drawpoint position = { 0, 0 };
-
+        /// unused : lightsource does not have a texture.
+        texture sprite = texture{ 0, 0, true, {}, "GMENG_LIGHTSOURCE_NOTXTR" };
         /// color of the light source, changing it
         /// will modulate the units within reach
         /// of the source.
@@ -1105,11 +1125,77 @@ namespace Gmeng {
             /// check position
             if ( this->cached_position != this->position ) this->cached = false;
         };
+        /// custom serialization function for
+        /// LightSource objects since they contain
+        /// variables and parameters the base Entity
+        /// type doesn't contain.
+        inline void serialize( std::ostream& out ) const override {
+            this->default_serialize( out ); /// serialize the default info of the Entity
+
+            out.write(reinterpret_cast<const char*>(&this->intensity), sizeof(intensity));
+            out.write(reinterpret_cast<const char*>(&this->max_brightness), sizeof(max_brightness));
+            out.write(reinterpret_cast<const char*>(&this->color), sizeof(this->color));
+
+            out.write(reinterpret_cast<const char*>(&position.x), sizeof(position.x));
+            out.write(reinterpret_cast<const char*>(&position.y), sizeof(position.y));
+        };
+
+        /// custom deserialization function for
+        /// LightSource objects since they contain
+        /// variables and parameters the base Entity
+        /// type doesn't contain.
+        inline void deserialize( std::istream& in ) override {
+            this->default_deserialize( in ); /// serialize the default info of the Entity
+
+            in.read(reinterpret_cast<char*>(&this->intensity), sizeof(intensity));
+            in.read(reinterpret_cast<char*>(&this->max_brightness), sizeof(max_brightness));
+            in.read(reinterpret_cast<char*>(&this->color), sizeof(this->color));
+
+            in.read(reinterpret_cast<char*>(&position.x), sizeof(position.x));
+            in.read(reinterpret_cast<char*>(&position.y), sizeof(position.y));
+        };
     }; /* LightSource is set to -1 to have a fixed entity id regardless of external entity types.
         * Also, it is not set as a GMENG_INTERNAL_ENTITY since LightSources are not 'entities', but
         * entity-type objects that should not be interactable but are dynamic in design.            */
        GMENG_ENTITY_SET_ID( LightSource, -1 ); REGISTER_ENTITY_TYPE( LightSource );
 
+    /// For versions 12.0.0 and later : SERIALIZED_ENGINE_INFO is an entity
+    /// that contains engine info about version specifics and other data
+    /// that may vary how the serialization/deserialization is handled
+    class SERIALIZED_ENGINE_INFO : public Entity<SERIALIZED_ENGINE_INFO> {
+        std::string build = GMENG_BUILD_NO; std::string version = Gmeng::version;
+
+        inline void serialize( std::ostream& out ) const override {
+            this->default_serialize( out );
+
+            //if (this->build != GMENG_BUILD_NO || this->version != Gmeng::version) {
+            //    this->version = Gmeng::version; this->build = std::string(GMENG_BUILD_NO);
+            //};
+
+            uint32_t build_len = static_cast<uint32_t>(build.size());
+            uint32_t version_len = static_cast<uint32_t>(version.size());
+
+            out.write(reinterpret_cast<const char*>(&build_len), sizeof(build_len));
+            out.write( build.data(), build_len );
+
+            out.write(reinterpret_cast<const char*>(&version_len), sizeof(version_len));
+            out.write( this->version.data(), version_len );
+        };
+
+        inline void deserialize( std::istream& in ) override {
+            this->default_deserialize( in );
+
+            uint32_t build_len, version_len;
+            in.read(reinterpret_cast<char*>(&build_len), sizeof(build_len));
+            build.clear(); build.resize(build_len);
+            in.read( &build[0], build_len );
+
+            in.read(reinterpret_cast<char*>(&version_len), sizeof(version_len));
+            this->version.clear(); this->version.resize(version_len);
+            in.read( &this->version[0], version_len );
+        };
+
+    }; GMENG_ENTITY_SET_ID( SERIALIZED_ENGINE_INFO, -2 ); REGISTER_ENTITY_TYPE( SERIALIZED_ENGINE_INFO );
 
     /// ENDS ENTITY TYPES:
     ///     GMENG_INTERNAL_ENTITY will place entities at the end of the entity derived factory list.
@@ -1253,7 +1339,6 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                             {.x=static_cast<int>(model.width),.y=static_cast<int>(model.height)},
                             {.x=(chunk.vp.end.x - chunk.vp.start.x),.y=(chunk.vp.end.y - chunk.vp.start.y)});
 
-
                     gm_log("total_drawpoints: " + v_str(displacement.size()) );
                     gm_log("get_placement OK" );
 
@@ -1350,7 +1435,15 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 while (end.y   > this->base.lvl_template.height &&  end.y != 0)    end.x--;
                 return { start, end };
             */};
+            /// for displacement_cache
+            struct displacement_cache_entry {
+                Renderer::Model* model; std::vector<Renderer::drawpoint> displacements;
+            };
         public:
+            /// stores every displacement of the level's models
+            /// mapped by the models' ids. Used for shadows &
+            /// ray tracing in Gmeng::get_renderscale()
+            std::map< int, displacement_cache_entry > displacement_cache;
             /// Map of light sources for each LightSource entity,
             /// mapped by LightSource->entity_id. cached & generated
             /// by Gmeng::get_renderscale().
@@ -2087,7 +2180,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 std::shared_ptr<LightSource> light_source_ptr = std::dynamic_pointer_cast<LightSource>( _entity );
                 /// check if cache contains the LightSource already, add if not.
                 if ( !lvl.light_sources.contains( entity->entity_id ) ) {
-                    gm_log("caching new LightSource at " +
+                    std::cout << ("caching new LightSource at " +
                         Renderer::conv_dp(entity->position)
                         + " with id " + v_str(entity->entity_id)
                         + "."
@@ -2188,6 +2281,12 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             auto obj_id = light_source.first;
             /// light source object
             auto object = light_source.second;
+
+            DEBUGGER gm_log("LightSource id " + v_str(object->entity_id)
+                + " position: " + Renderer::conv_dp(object->position)
+                + " cached_position: " + Renderer::conv_dp(object->cached_position)
+                + " cached: " + v_str(object->cached));
+
             /// skip inactive light sources
             /// TODO: FIXME: currently this does not invalidate
             /// level.lighting_cache! even if the light source is inactive
@@ -2200,7 +2299,8 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// only apply lighting data if the light source was not cached,
             /// for performance. this allows us to apply lighting data to
             /// moving entities, models and other screen contents with lighting
-            /// without having to re-do the lighting every fucking scene
+            /// without having to re-do the lighting every fucking scene.
+            /// (unless debug mode is enabled, then do it.)
             if ( object->cached ) continue;
             /// get the affected drawpoints of the light source
             auto light_displacement = get_radius_displacement( object->intensity, object->position );
