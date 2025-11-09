@@ -1044,6 +1044,18 @@ static std::string get_curdate() {
     return date_stream.str();
 };
 
+static std::string get_last_line(std::stringstream& ss) {
+    std::string s = ss.str();
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+        s.pop_back();
+
+    auto pos = s.find_last_of('\n');
+    std::string line = (pos == std::string::npos) ? s : s.substr(pos + 1);
+
+    auto p = line.find(')');
+    return (p == std::string::npos) ? line : line.substr(p + 1);
+}
+
 // Gmeng's logging method.
 // Many internal systems, however this function shouldn't be called directly.
 // Use the gm_log() macro for automatic filename, code line and other useful
@@ -1066,7 +1078,11 @@ static void _gm_log(const char* file_, int line, const char* func, std::string _
         #endif
 
         std::string _uthread = _uget_thread();
-        std::string __vl_log_message__ = "(" + get_curtime() + ") " + std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
+        std::string time_text = "(" + get_curtime() + ")";
+        std::string __vl_log_message__ = time_text + " " + std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
+
+
+
 
         Gmeng::logstream << __vl_log_message__;
         __gmeng_write_log__("gmeng.log", __vl_log_message__);

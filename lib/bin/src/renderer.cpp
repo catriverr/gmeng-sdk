@@ -1071,12 +1071,14 @@ namespace Gmeng {
     /// LightSource objects have a size of 1x1 units.
     class LightSource : public Entity<LightSource> {
       public:
+#define LIGHTSOURCE_TEXTURE_OBJECT texture{ 0, 0, true, {}, \
+        "LIGHT_SOURCE" };
         /// LightSource interactions do not happen.
         /// LightSources are not interactable entites,
         /// do not use this variable. Will always be -1.
         int interaction_proximity = -1;
         /// unused : lightsource does not have a texture.
-        texture sprite = texture{ 0, 0, true, {}, "GMENG_LIGHTSOURCE_NOTXTR" };
+        texture sprite = LIGHTSOURCE_TEXTURE_OBJECT;
         /// color of the light source, changing it
         /// will modulate the units within reach
         /// of the source.
@@ -1112,6 +1114,10 @@ namespace Gmeng {
         /// moves, the minimum brightness property changes, etc.
         /// used for rendering in get_renderscale() for cache validation
         Renderer::drawpoint cached_position = { -1, -1 };
+        /// cached intensity of the lightsource, for automatic
+        /// cache validation and updating if the lightsource's
+        /// intensity changes from the inspector/commandline.
+        int cached_intensity = -1;
         /// validates the LightSource's cache by comparing the values to
         /// the object's non-cached properties. Such as:
         ///
@@ -1124,6 +1130,8 @@ namespace Gmeng {
             if ( min_brightness != cached_min_brightness ) this->cached = false;
             /// check position
             if ( this->cached_position != this->position ) this->cached = false;
+            /// check intensity
+            if ( this->cached_intensity != this->intensity ) this->cached = false;
         };
         /// custom serialization function for
         /// LightSource objects since they contain
@@ -1147,6 +1155,9 @@ namespace Gmeng {
         inline void deserialize( std::istream& in ) override {
             this->default_deserialize( in ); /// serialize the default info of the Entity
 
+            /// ensure type name
+            if ( this->sprite.name != "LIGHT_SOURCE" ) this->sprite.name = "LIGHT_SOURCE";
+
             in.read(reinterpret_cast<char*>(&this->intensity), sizeof(intensity));
             in.read(reinterpret_cast<char*>(&this->max_brightness), sizeof(max_brightness));
             in.read(reinterpret_cast<char*>(&this->color), sizeof(this->color));
@@ -1163,7 +1174,12 @@ namespace Gmeng {
     /// that contains engine info about version specifics and other data
     /// that may vary how the serialization/deserialization is handled
     class SERIALIZED_ENGINE_INFO : public Entity<SERIALIZED_ENGINE_INFO> {
+      public:
         std::string build = GMENG_BUILD_NO; std::string version = Gmeng::version;
+
+        texture sprite = { .name = "ENGINE_INFO" };
+
+        bool active = false;
 
         inline void serialize( std::ostream& out ) const override {
             this->default_serialize( out );
@@ -2046,8 +2062,8 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
     ///   "xxxxxxx",
     ///   "xxxoxxx", } -> VECTOR(VECTOR<Unit>, 3);
     inline vector<Unit> _vconcatenate_lvl_chunks(Level& lvl, bool _cubic_render = true, TRACEFUNC) {
-        /// log to gmeng.log about the renderscale request (initially)
-        gm_log("Gmeng::_vconcatenate_lvl_chunks renderscale requested by " + TRACEFUNC_STR);
+        /// log to gmeng.log about the renderscale request
+        DEBUGGER gm_log("Gmeng::_vconcatenate_lvl_chunks renderscale requested by " + TRACEFUNC_STR);
         /// chunk controllers, in vector.
         std::vector<__CHROMATIZED_CHUNK_CONTROLLER_VIEWPOINT__> v_chunks;
         /// the base width of the level, for easy access.
@@ -2156,7 +2172,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
 #if __GMENG_LOG_TO_COUT__ == true
         DEVMODE gm_slog(YELLOW, "DEBUGGER_RENDERSCALE", "above is reinterpreted_data");
 #endif
-        ASSERT("pref.log", p_no);
+        ASSERT("pref.log", p_yes);
 
         vector<Unit> _reinterpereted_data = reinterpereted_data;
 
@@ -2169,10 +2185,12 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
         /// check if the light_cache is empty, sets initial render to true.
         /// can be set to true to refresh the render of lighting cache.
         bool redo_lightsource_cache = lvl.lighting_cache.empty();
+        if ( redo_lightsource_cache ) gm_log("recalculating lighting cache as one or more environments have changed");
 
         for ( int entity_id = 0; entity_id < lvl.entities.size(); entity_id++) {
             auto _entity = lvl.entities.at(entity_id);
             auto entity = _entity.get();
+            /// debugger mode only message for comparing entity ids to LightSource::id
             DEBUGGER gm_log("entity id "$(entity->get_serialization_id()) " vs "$(Entity<LightSource>::id)".");
             /// detect LightSource entities and add to lightsource render cache
             if ( entity->get_serialization_id() == Entity<LightSource>::id ) {
@@ -2180,7 +2198,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 std::shared_ptr<LightSource> light_source_ptr = std::dynamic_pointer_cast<LightSource>( _entity );
                 /// check if cache contains the LightSource already, add if not.
                 if ( !lvl.light_sources.contains( entity->entity_id ) ) {
-                    std::cout << ("caching new LightSource at " +
+                    gm_log("caching new LightSource at " +
                         Renderer::conv_dp(entity->position)
                         + " with id " + v_str(entity->entity_id)
                         + "."
@@ -2302,16 +2320,22 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// without having to re-do the lighting every fucking scene.
             /// (unless debug mode is enabled, then do it.)
             if ( object->cached ) continue;
+            gm_log("redoing lighting for obj"$(object->entity_id)": cache invalidated");
             /// get the affected drawpoints of the light source
-            auto light_displacement = get_radius_displacement( object->intensity, object->position );
+            auto light_displacement = get_radius_displacement(
+                    object->intensity,
+                    object->position
+                );
             /// loop over the drawpoints and cache the effect for each point
             for ( auto dp_val : light_displacement ) {
                 /// skip areas that are over the level's max size.
                 /// we don't have to account for positions that are < 0
                 /// because get_radius_displacement() already normalizes it.
-                if ( dp_val.x >= lvl.base.width || dp_val.y >= lvl.base.height ) continue;
+                if ( dp_val.x >= lvl.base.width || dp_val.y/2 >= lvl.base.height ) continue;
                 /// get the unit at the specified position
-                auto& unit_at_pos = trimmed_units.at( dp_val.y ).at( dp_val.x );
+                DEBUGGER gm_log ("\tdp_val: x="$(dp_val.x)",y="$(dp_val.y)".\n");
+                /// ??: fix: divide Y value by 2 for true_position
+                auto& unit_at_pos = trimmed_units.at( dp_val.y/2 ).at( dp_val.x );
                 /// get lighting effect output and modulation factor
                 auto color = color32_t( unit_at_pos.color );
                 /// calculate the effect
@@ -2322,8 +2346,12 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                         object->max_brightness,
                         cam_light_floor
                 );
-                /// store the result
-                lvl.lighting_cache[ dp_val.y*__level_base_width__ + dp_val.x ] = effect;
+                /// store the result unless the brightness value is smaller/equal to
+                /// the camera's lighting floor.
+                if (effect.brightness > cam_light_floor)
+                    lvl.lighting_cache[ dp_val.y*__level_base_width__ + dp_val.x ] = effect;
+                // delete the cached value if it is equal or smaller than the lighting_floor
+                else lvl.lighting_cache.erase( dp_val.y*__level_base_width__ + dp_val.x );
             };
             /// cache the light source so we don't have to re-render it
             /// every frame, if the light is modified the user should set
@@ -2338,6 +2366,10 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// cached position, so if the position of the source
             /// changes the lighting information follows.
             object->cached_position = object->position;
+            /// cached intensity, so if the data of the lightsource
+            /// changes it reflects immediately without manual cache
+            /// invalidation from the level inspector/commandline.
+            object->cached_intensity = object->intensity;
         };
 
         /// save the data and return the renderscale output
@@ -2345,7 +2377,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
         _reinterpereted_data.clear();
 
         int y = 0,x = 0;
-        gm_log(" lighting cache size: "$( lvl.lighting_cache.size() )".");
+        DEBUGGER gm_log(" lighting cache size: "$( lvl.lighting_cache.size() )".");
 
         std::vector< uint32_t > lightcache_posmap;
 
@@ -2360,13 +2392,21 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
 
                 /// dont touch shit if lighting isn't enabled
                 if ( lighting_enabled ) {
+                    /// get the RGB value of the unit, so we can blend with the brightness value of the lightsource
                     auto rgb_col = color32_t( new_unit.color );
+                    // check if the position of the unit is already in the lightcache_posmap.
+                    // if it is, the value is changed instead of being created again
                     if ( std::find( lightcache_posmap.begin(), lightcache_posmap.end(),
                         _dp.y*__level_base_width__ + _dp.x ) != lightcache_posmap.end() ) {
+                        // get the cached lighting data, for its brightness value.
                         auto _cached_lighting = lvl.lighting_cache.find( _dp.y*__level_base_width__ + _dp.x );
+                        // create new cache for the lighting state
                         LightingState cached_lighting;
+                        // if the cached data exists ( != lvl.lighting_cache.end() ) of the lighting cache, apply the value
                         if (_cached_lighting != lvl.lighting_cache.end()) cached_lighting = _cached_lighting->second;
+                        // change the surface color to the default color of the unit
                         cached_lighting.surface_color = color32_t( new_unit.color );
+                        // apply the lighting data
                         new_unit.color = uint32_from_color32(
                             apply_lighting( cached_lighting )
                         );

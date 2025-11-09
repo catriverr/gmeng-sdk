@@ -159,6 +159,8 @@ namespace Gmeng {
         float g_factor;
         float b_factor;
         float modulation_factor;
+
+        int brightness;
     };
 
     color32_t apply_lighting(const LightingState& state) {
@@ -247,6 +249,8 @@ namespace Gmeng {
         if (intensity < min_intensity) {
             intensity = min_intensity;
 
+            result.brightness = intensity;
+
             // Don't tint, just use neutral white light
             result.r_factor = 1.0f;
             result.g_factor = 1.0f;
@@ -256,6 +260,8 @@ namespace Gmeng {
             result.r_factor = light_color.r / 255.0f;
             result.g_factor = light_color.g / 255.0f;
             result.b_factor = light_color.b / 255.0f;
+
+            result.brightness = intensity;
         }
 
         // Normalize intensity to 0.0–1.0 scale based on max of 10
@@ -1094,7 +1100,7 @@ extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
 /// more commands can be added later on with Noble dylib scripts.
 /// see 'github.com/catriverr/noble' and 'include/noble' on how they work.
 ///
-/// for a list of commands, run the 'help' or 'helpcmd' command in a game instance.
+/// for a list of commands, run the 'help' command in a game instance.
 /// the developer console is handled internally, so no set-up functions need to be called.
 ///
 /// a do_event_loop() instance handles the internal workings of the engine automatically.
@@ -1182,20 +1188,15 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 return -13; // -13 means no vertical line to divide the console after the command is ran
             } },
         { "help", [](vector<string>, Gmeng::EventLoop* ev) -> int {
-                GAME_LOG("figure it out lol");
-                GAME_LOG("just kidding just run `helpcmd`");
-                return 0;
-            } },
-        { "helpcmd", [](vector<string>, Gmeng::EventLoop* ev) -> int {
                 for (auto& cmd : commands) {
                     string name; std::function<int(vector<string>, Gmeng::EventLoop*)> handler;
                     std::tie(name, handler) = cmd;
                     GAME_LOG("cmd: `" + name + "`");
                 };
-                GAME_LOG("");
-                GAME_LOG("p.s.");
-                GAME_LOG("gmeng internally doesn't have descriptions for any of these functions");
-                GAME_LOG("try running the command or guess from the name");
+                GAME_LOG("\nSDL keybinds:");
+                GAME_LOG("\t|shift + `| : toggle developer console");
+                GAME_LOG("\t|alt + TAB| : toggle vgm model editor");
+                GAME_LOG("\t|alt + L  | : toggle level inspector");
                 return 0;
             } },
         { "info", [](vector<string>, Gmeng::EventLoop* ev) -> int {
@@ -1251,6 +1252,59 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                 // Exit should always save. It'd be the developer's fault if this didn't work, not ours.
                 // Even though it's extremely annoying to the user for the engine to do this.
                 ev->call_event(Gmeng::Event::EXIT, Gmeng::NO_EVENT_INFO);
+                return 0;
+            } },
+        { "newton", [](vector<string> args, Gmeng::EventLoop* ev) -> int {
+                Gmeng::LightSource new_light_source;
+                int val = 15;
+                if (args.size() == 1) {
+                        GAME_LOG("\tusage: newton [brightness]");
+                        return 1;
+                };
+                if (args.size() >= 2) {
+                    try {
+                        val = std::stoi( args.at(1) );
+                    } catch (std::exception& ex) {
+                        GAME_LOG("invalid argument, using default brightness of 15.");
+                        GAME_LOG("anton chigurh:");
+                        GAME_LOG("\tusage: newton [brightness]");
+                    };
+                }
+                new_light_source.position = { val, val };
+                new_light_source.intensity = val;
+                GAME_LOG("God Said 'Let Newton be!' and there was light. (" + args.at(1) + ")");
+                ev->level->entities.push_back(std::make_shared<Gmeng::LightSource>(new_light_source));
+                return 0;
+            } },
+        { "embed_engine", [](auto, Gmeng::EventLoop* ev) -> int {
+                Gmeng::SERIALIZED_ENGINE_INFO engine_info;
+
+                engine_info.sprite.name = "ENGINE_INFO";
+
+                bool done = false;
+                for ( auto& entity : ev->level->entities ) {
+                        if ( entity->get_serialization_id() == Gmeng::SERIALIZED_ENGINE_INFO::id ) {
+                        GAME_LOG("found previous data, updating.");
+                        auto av = std::make_shared<Gmeng::SERIALIZED_ENGINE_INFO>( engine_info );
+                        std::dynamic_pointer_cast<Gmeng::SERIALIZED_ENGINE_INFO>( entity ).swap( av );
+                        done = true;
+                    };
+                };
+
+                if (!done) {
+                    GAME_LOG("no previous data, applying new.");
+                    ev->level->entities.push_back(std::make_shared<Gmeng::SERIALIZED_ENGINE_INFO>( engine_info ));
+                };
+
+                GAME_LOG("done");
+                return 0;
+            } },
+        { "lighting_redoall", [](auto, Gmeng::EventLoop* ev) -> int {
+                GAME_LOG("deleting & invalidating all lighting cache");
+                ev->level->lighting_cache.clear();
+                for (auto lightsource : ev->level->light_sources) {
+                    lightsource.second->cached = false;
+                }
                 return 0;
             } }
 };
@@ -1683,7 +1737,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
     };
 
     GAME_LOG("gmeng " + Gmeng::version + " build " + std::string(GMENG_BUILD_NO) + " developer console");
-    GAME_LOG("'help' to be humiliated or 'helpcmd' for help.");
+    GAME_LOG("run 'help' for help.");
     GAME_LOG("contribute: https://gmeng.org/git");
     GAME_LOG("gmeng is built & maintained by catriverr");
 

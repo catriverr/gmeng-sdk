@@ -1329,7 +1329,7 @@ struct GmengImGuiLevel {
 
         ImGui::Dummy({ -2.5, 0 });
         ImGui::SameLine();
-        ImGui::SetNextItemWidth( ImGui::CalcTextSize("[M]").x+2 );
+        ImGui::SetNextItemWidth( ImGui::CalcTextSize("[M]").x+3 );
         if (ImGui::Button("+")) {
             *ev->states.vgm_open = true;
         };
@@ -1341,11 +1341,11 @@ struct GmengImGuiLevel {
         for ( auto& item : items ) {
             /// item label
             std::string text =
-                        item.is_entity ?
+                        (item.is_entity ?
                         ( "[E] " + item.entity->sprite.name + " (" + v_str(item.entity->entity_id) + ")" + " (" + _uconv_1ihx( item.entity->entity_id ) + ")" )
                         : ( std::string("[M] ") + ( &item.model.name[0] ) + std::string(":") + item.g_txtr.name + " (" + v_str( item.model.id ) +
                         ") (" + (item.model.texture.collidable ? "C" : "A") +
-                        ") (" + _uconv_1ihx( item.model.id ) + ")" );
+                        ") (" + _uconv_1ihx( item.model.id ) + ")" ));
             /// filter item if it doesn't include the search string
             if ( !searchstr_.empty() && text.find( searchstr_ ) == text.npos ) continue;
 
@@ -1478,6 +1478,25 @@ struct GmengImGuiLevel {
                 );
                 ImGui::Separator();
 
+                if ( selected_item->entity->get_serialization_id() == Gmeng::SERIALIZED_ENGINE_INFO::id ) {
+                    // engine info
+                    std::shared_ptr<Gmeng::SERIALIZED_ENGINE_INFO> derived_entity = std::dynamic_pointer_cast<Gmeng::SERIALIZED_ENGINE_INFO>( selected_item->entity );                    // 
+
+                    if (!derived_entity)
+                        ImGui::TextColored(ImVec4(0.7, 0, 0, 255 ), "entity_error: dynamic_pointer_cast to SERIALIZED_ENGINE_INFO from EntityBase failed");
+                    else {
+                        ImGui_CenteredText("Serialized Engine Information of This Level File");
+                        ImGui_CenteredText("  Gmeng engine information is only updated/embedded\nwhen the command 'embed_engine' is ran in the console.");
+                        ImGui::Separator();
+                        ImGui_CenteredText(("Build No: " + derived_entity->build + " | Engine Version: " + derived_entity->version).c_str());
+
+                        if ( ImGui::Button("update data") ) {
+                            gmeng_run_dev_command(ev, "embed_engine");
+                        };
+
+                        ImGui::Separator();
+                    };
+                };
 
                 if ( selected_item->entity->get_serialization_id() == Gmeng::LightSource::id ) {
                     // lightsource
@@ -1487,7 +1506,6 @@ struct GmengImGuiLevel {
                         ImGui::TextColored(ImVec4(0.7, 0, 0, 255 ), "entity_error: dynamic_pointer_cast to LightSource from EntityBase failed");
                     else {
                         /// lightsource-only properties here
-                        ImGui::Separator();
                         ImGui_CenteredText(
                         ("lightsource cached pos: " + Gmeng::Renderer::conv_dp( derived_entity->cached_position )).c_str());
 
@@ -1497,10 +1515,35 @@ struct GmengImGuiLevel {
                         ImGui::SetNextItemWidth(150);
                         ImGui::InputInt("pos.y", &derived_entity->position.y);
 
+                        ImGui::SetNextItemWidth(150);
+                        ImGui::InputInt("intensity", &derived_entity->intensity);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(150);
+                        ImGui::InputInt("max brightness", &derived_entity->max_brightness);
 
                         if (ImGui::Button("invalidate cache")) {
                             derived_entity->cached = false;
                         };
+
+                        ImGui::SameLine();
+                        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32( 204, 36, 29, 255 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 244, 73, 52, 255 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32( 197, 79, 69, 255 ));
+                        if (ImGui::Button("remove entity")) {
+                            selected_item->selected = false;
+                            redo_cache = true;
+
+                            vector<std::shared_ptr<Gmeng::EntityBase>> new_entity_vector;
+                            for (auto entity : ev->level->entities) {
+                                if (entity->entity_id != selected_item->entity->entity_id)
+                                    new_entity_vector.push_back(entity);
+                            };
+
+                            ev->level->entities.swap( new_entity_vector );
+                            ev->level->light_sources.erase( derived_entity->entity_id );
+                            gmeng_run_dev_command(ev, "lighting_redoall", true);
+                        };
+                        ImGui::PopStyleColor(3);
                     };
                 } else {
                     ImGui::SetNextItemWidth(150);
