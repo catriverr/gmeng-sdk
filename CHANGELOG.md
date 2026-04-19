@@ -1,10 +1,29 @@
 <div align="center">
-    <img src="https://allahcorp.com/static/assets/gmeng-more-hd.png##" style="max-width: 900px;">
+    <img src="assets/gmeng-hd.png" style="max-width: 900px;">
     <h2>Gmeng Changelog</h2>
 </div>
 
 This document was created at `25/09/2024`.
-Latest entry is dated `28/04/2025`.
+Latest entry is dated `18/04/2026`.
+
+**19/04/2026 (release)** Gmeng 12.0.0: General upgrades, level system changed
+> The engine now has a capable level editor utility that can be compiled
+> with `make use-external level-editor`. The makefile will compile the
+> editor utility and place it in the current working directory with the
+> executable name 'editor'. It takes a command-line argument for the
+> level file name to edit with './editor -file=filename.glvl'.
+> `Animated_Entity` is now a built-in Entity type that can hold
+> infinite animation sprites. It can be extended to modify the
+> animation behaviour.
+> **The SDL-Based Developer Commands Update** has arrived. Programs that are
+> built to utilitize the SDL-based GUI managers automaticaly are bundled
+> with the first SDL-based command being the `edit_texture` command which
+> provides a graphical interface to edit textures with ease.
+> More comments in the engine's source code and better code has replaced
+> most of the outdated and unused code which was a hassle to deal with.
+> Framerates have been improved from an already great ms/frame rate at a
+> ratio of 50%. The recommended terminals can now draw 250x250 viewpoints
+> at higher than 120 FPS.
 
 
 **28/04/2025 (info)** Gmeng Now runs on `Linux` continously & `make setup` command

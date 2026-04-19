@@ -10,7 +10,7 @@
 </p>
 
 ## Changelog
-[`See what's new`](CHANGELOG.md) **(28-Apr-2025) info**: Linux compilation, `make setup` command | [`gmeng.org/changelog`](https://gmeng.org/changelog)
+[`See what's new`](CHANGELOG.md) **(19-Apr-2026) release**: Gmeng 12.0.0 | [`gmeng.org/changelog`](https://gmeng.org/changelog)
 
 ## Documentation
 Gmeng's documentation can be found in [`gmeng.org`](https://gmeng.org). Please refer to the website for enquiries about functionality and usage.
@@ -61,15 +61,16 @@ builds:
     make setup (sets up the environment and installs the libraries required for gmeng to function)
     make build (builds the target in Production mode, all scripts in the scripts/src directory and your target will be compiled)
 options:
-    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows/compile-file/compile-file-windows/compile-script/build]
+    make [debug] [no-ncurses] [use-external] [warnings] [all/test/test2/compile/compile-windows/compile-file/compile-file-windows/compile-script/build] [filename=file_name]
     make configure
+    make use-external level-editor
 ```
 - The `debug` option adds the `-g -O0 -fsanitize=address` flags to the compiler.
 - The `no-ncurses` option disables the auto-imports to `utils/interface.cpp` and `types/interface.h` from the `gmeng.h` header.
 - The `use-external` option enables the auto-imports to `SDL2/SDL.h` headers for SDL-based windows.
 - The `warnings` option enables `-Wall` so all warnings are displayed by the compiler.
 - The `configure` option runs the configuration utility to set up the buildconfig for a program.
-
+- The `level-editor` option (also requires `use-external`) compiles the SDL2-based level editor utility.
 ## Debugging
 Gmeng is designed and configured to be debugged with the `llvm/lldb` debugger. To debug different functionalities of the library, run llvm with the unit tests binary.
 
