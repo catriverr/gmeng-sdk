@@ -9,7 +9,7 @@
 
 #include "../gmeng.h"
 
-#define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
+#define stob(str) (str == std::string("1") || str.substr(1) == std::string("1") || str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
 
 

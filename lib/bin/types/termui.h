@@ -111,7 +111,7 @@ static std::string _uconv_addr_str(const void* address) {
 static void _udraw_display(Gmeng::t_display& __d) {
     const void* address = static_cast<const void*>(&__d);
     std::string v_addr = _uconv_addr_str(address);
-    if (!gm_validate_dvs1dc(__d)) gm_err(1, "_udraw_display(Gmeng::t_display& __d) -> display object &__d (memaddr0 " + v_addr + ") not valid | gm_validate_dvs1dc(*__d) failed");
+    if (!gm_validate_dvs1dc(__d)) throw std::invalid_argument("_udraw_display(Gmeng::t_display& __d) -> display object &__d (memaddr0 " + v_addr + ") not valid | gm_validate_dvs1dc(*__d) failed");
     Objects::coord __vcurr_pos = { .x = __d.pos.x, .y = __d.pos.y };
     int vc_vector_count = 0x00;
     _uset_cursor_pos(__vcurr_pos.x, __vcurr_pos.y);

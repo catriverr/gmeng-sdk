@@ -53,6 +53,14 @@
     #define GMENG_BUILD_NO "(UNKNOWN_BUILD)"
 #endif
 
+/// sets a timeout and asyncronously calls a callback once the time in milliseconds has passed
+void set_timeout(std::function<void()> cb, uint64_t delay_ms) {
+    std::async(std::launch::async, [cb, delay_ms]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+        cb();
+    });
+}
+
 // place TRACEFUNC at the end of your function parameters
 // to get information about the caller of the current function.
 // creates the following variables for the scope this util was
@@ -441,7 +449,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "12.0.0-d";
+    static std::string version = "12.0.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -894,6 +902,189 @@ inline std::string _uthread_id(const std::thread& thread) {
     return std::to_string(hashValue);
 };
 
+/// splits a text into characters but includes colorcodes in chars.
+std::vector<std::string> split_with_ansi(const std::string& input)
+{
+    std::vector<std::string> result;
+    std::string pending_ansi;
+
+    auto read_ansi = [&](size_t& i) {
+        size_t start = i++;
+        if (i >= input.size()) return;
+
+        if (input[i] == '[') // CSI
+        {
+            ++i;
+            while (i < input.size() &&
+                   (input[i] < '@' || input[i] > '~'))
+                ++i;
+            if (i < input.size()) ++i;
+        }
+        else if (input[i] == ']') // OSC
+        {
+            ++i;
+            while (i < input.size() &&
+                   !(input[i] == '\x07' ||
+                     (input[i] == '\x1B' && i + 1 < input.size() && input[i + 1] == '\\')))
+                ++i;
+            if (i < input.size())
+            {
+                if (input[i] == '\x1B') i += 2;
+                else ++i;
+            }
+        }
+        else // single-char ESC
+        {
+            ++i;
+        }
+
+        pending_ansi.append(input, start, i - start);
+    };
+
+    for (size_t i = 0; i < input.size();)
+    {
+        if (input[i] == '\x1B')
+        {
+            read_ansi(i);
+        }
+        else
+        {
+            std::string s;
+            s.reserve(pending_ansi.size() + 1);
+            s += pending_ansi;
+            pending_ansi.clear();
+
+            s += input[i++];
+            result.push_back(std::move(s));
+        }
+    }
+
+    // Trailing ANSI → attach to last character
+    if (!pending_ansi.empty() && !result.empty())
+    {
+        result.back() += pending_ansi;
+    }
+
+    return result;
+}
+
+inline bool is_ansi_start(char c) noexcept
+{
+    return c == '\x1B';
+}
+
+size_t logical_to_physical_index(const std::string& s, size_t logical_index)
+{
+    size_t logical = 0;
+    size_t i = 0;
+    const size_t n = s.size();
+
+    while (i < n)
+    {
+        if (is_ansi_start(s[i]))
+        {
+            ++i;
+            if (i >= n) break;
+
+            // CSI: ESC [
+            if (s[i] == '[')
+            {
+                ++i;
+                while (i < n && (s[i] < '@' || s[i] > '~'))
+                    ++i;
+                if (i < n) ++i;
+            }
+            // OSC: ESC ]
+            else if (s[i] == ']')
+            {
+                ++i;
+                while (i < n &&
+                       !(s[i] == '\x07' ||
+                        (s[i] == '\x1B' && i + 1 < n && s[i + 1] == '\\')))
+                    ++i;
+                if (i < n)
+                {
+                    if (s[i] == '\x1B') i += 2;
+                    else ++i;
+                }
+            }
+            // Single-character ESC
+            else
+            {
+                ++i;
+            }
+        }
+        else
+        {
+            if (logical == logical_index)
+                return i;
+
+            ++logical;
+            ++i;
+        }
+    }
+
+    return std::string::npos;
+}
+
+
+/// strips all ANSI escape codes / color codes from a text.
+/// Used for getting the actual length of strings without accounting
+/// for colorcodes.
+std::string strip_ansi(const std::string& input)
+{
+    std::string out;
+    out.reserve(input.size());
+
+    for (size_t i = 0; i < input.size();)
+    {
+        if (input[i] == '\x1B') // ESC
+        {
+            ++i;
+            if (i >= input.size()) break;
+
+            // CSI: ESC [
+            if (input[i] == '[')
+            {
+                ++i;
+                while (i < input.size() &&
+                       (input[i] < '@' || input[i] > '~'))
+                {
+                    ++i;
+                }
+                if (i < input.size()) ++i;
+            }
+            // OSC: ESC ]
+            else if (input[i] == ']')
+            {
+                ++i;
+                while (i < input.size() &&
+                       !(input[i] == '\x07' || 
+                        (input[i] == '\x1B' && i + 1 < input.size() && input[i + 1] == '\\')))
+                {
+                    ++i;
+                }
+                if (i < input.size())
+                {
+                    if (input[i] == '\x1B') i += 2;
+                    else ++i;
+                }
+            }
+            // Other ESC sequences
+            else
+            {
+                ++i;
+            }
+        }
+        else
+        {
+            out += input[i++];
+        }
+    }
+
+    return out;
+}
+
 #define v_intl int
 #define v_static_cast static_cast
 #define v_sizel std::size_t
@@ -1098,19 +1289,6 @@ static void dgm_log(std::string _msg, bool use_endl = true) {
     if (Gmeng::global.shush) return;
     _gm_log(":",0,"UNKNOWN_SOURCE",_msg,use_endl);
 };
-
-static void gm_err(v_intl type, v_title err_title, TRACEFUNC) {
-    __functree_call__(gm_err);
-    _gm_log(func_caller_file, func_caller_line, func_caller, Gmeng::colors[Gmeng::RED] + "ERR! " + Gmeng::resetcolor + err_title);
-    switch (type) {
-        case 0: // v_gm_err case 0: continue running program
-            break;
-        case 1: // v_gm_err case 1: exception (stop execution)
-            throw std::invalid_argument(Gmeng::colors[4] + "gm:0 *error >> " + err_title + v_nl + v_rcol);
-            break;
-    };
-};
-
 
 
 #define gm_log(x) _gm_log(__FILE__, __LINE__, __FUNCTION__, x)
@@ -1408,10 +1586,6 @@ static void _gmeng_show_warning(std::string warning_, char* filename, int fileli
 
         std::cout << "\n\nan internal subsystem of gmeng (" << get_filename(filename) << ':' << fileline << " & " << TRACEFUNC_STR <<  ")\n";
         std::cout << "has invoked a warning for '" << warning_ << "',\n";
-        std::cout << "but a custom warning screen for it is not defined.\n";
-
-        std::cout << "\nthis could be caused by correlated programming errors\nin the code for this game and out-of-bound function calls.\n";
-        std::cout << "\nit is advised to report this to the developers of this game\nwith a full copy of the files `gmeng.log` and `gmeng-functree.log`\nthat can be found in the current folder/directory.\n";
 
         std::cout << "\npress CTRL+C to quit or any other key to continue anyway.\n";
 
@@ -1422,6 +1596,21 @@ static void _gmeng_show_warning(std::string warning_, char* filename, int fileli
 // internal warning method. displays warnings related to functions of the engine.
 // do not use this method for your game. implement your own warning screen mechanisms.
 #define gmeng_show_warning(x) _gmeng_show_warning( x, __FILE__, __LINE__ )
+
+
+static void gm_err(v_intl type, v_title err_title, TRACEFUNC) {
+    __functree_call__(gm_err);
+    _gm_log(func_caller_file, func_caller_line, func_caller, Gmeng::colors[Gmeng::RED] + "ERR! " + Gmeng::resetcolor + err_title);
+    switch (type) {
+        case 0: // v_gm_err case 0: continue running program
+            gmeng_show_warning( err_title );
+            break;
+        case 1: // v_gm_err case 1: exception (stop execution)
+            throw std::invalid_argument(Gmeng::colors[4] + "gm:0 *error >> " + err_title + v_nl + v_rcol);
+            break;
+    };
+    return;
+};
 
 
 ///// __controller_satisfy__

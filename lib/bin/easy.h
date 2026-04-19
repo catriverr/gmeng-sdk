@@ -30,6 +30,7 @@
 
 #define vgm_load Gmeng::_uread_into_vgm
 
+/// gets a texture from the VGM with the specified name
 #define vgm_texture(x) Gmeng::vd_find_texture( vgm_textures, x )
 #define vgm_model(x) Gmeng::vd_find_model( vgm_rmodels, x )
 

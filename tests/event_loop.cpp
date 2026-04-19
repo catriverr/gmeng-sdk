@@ -26,7 +26,6 @@ void reset() {
     if (filesystem::exists("envs/proto_level.glvl")) read_level_data("envs/proto_level.glvl", level);
     level.display.viewpoint =  Gmeng::Renderer::viewpoint { { 0, 0 }, { *DEF_DELTAX, *DEF_DELTAY } };
 
-
     ev.level = &level;
 };
 
@@ -80,17 +79,9 @@ int main(int argc, char** argv) {
         if (info->KEYPRESS_CODE == 'y') {
             Mogus mogus_char;
             mogus_char.position = { 30, 25 };
-            mogus_char.sprite = vd_find_texture(vgm_defaults::vg_textures, "smol_player");
+            mogus_char.sprite = vd_find_texture(vgm_defaults::vg_textures, "catriver");
 
             level->entities.push_back( std::move( std::make_unique<Mogus>( mogus_char ) ) );
-        };
-
-        if (info->KEYPRESS_CODE == 'u') {
-            Player player;
-            player.position = { 0, 0 };
-            player.sprite = vd_find_texture(vgm_defaults::vg_textures, "mini_allah");
-
-            level->entities.push_back( std::move( std::make_unique<Player>(player) ) );
         };
 
         auto cake_model = level->entities.at(0).get();

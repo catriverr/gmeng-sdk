@@ -24,6 +24,8 @@
 #include <typeinfo>
 #include <functional>
 
+#include "../utils/gridmap.cc"
+
 namespace fs = std::filesystem;
 
 
@@ -272,7 +274,6 @@ namespace Gmeng {
 
         // type decl
         class Display {
-            private:
             public:
                 /// Main camera of the display. this utility  is how a level object is rendered or seen,
                 /// but the camera does not have positions since it is not an object. The camera renders units
@@ -481,7 +482,7 @@ namespace Gmeng {
     };
     /// reads a folder's VGM texture & model files into Gmeng::vgm_defaults::vg_rdmodels & vg_textures
     /// for ease-of-access to textures without having to read them from the disc.
-    inline void _uread_into_vgm(const v_title& folder) {
+    inline int _uread_into_vgm(const v_title& folder) {
         __functree_call__(Gmeng::_uread_into_vgm);
         // we wait until all textures are in vgm_defaults before we load any models
         // afterwards we loop through the vector and load them into Gmeng::vgm_defaults::vg_rdmodels
@@ -558,6 +559,7 @@ namespace Gmeng {
         } catch (const fs::filesystem_error& ex) {
             gm_err(1, "g,gm,gmeng,Gmeng -> _uread_into_vgm(const v_title& folder) : status v_error -> vgm data in folder " + std::string(ex.what()) + " is corrupt/faulty.");
         };
+        return 0;
     };
 
     /// writes values in Gmeng::vgm_defaults::vg_rdmodels & vg_textures into vectors v_mdls and v_txtrs
@@ -739,7 +741,7 @@ namespace Gmeng {
         };
 
         Interaction_Type type;
-        std::unique_ptr<EntityBase>* interacted_by;
+        std::shared_ptr<EntityBase> interacted_by;
     };
 
     /// type decl
@@ -798,7 +800,7 @@ namespace Gmeng {
         //
         // the capitalised 'X' is the position value.
         // So in this case it would be (x=2,y=1)
-        Renderer::drawpoint position;
+        Renderer::drawpoint position = { 0, 0 };
         // random id, to differenciate entities
         // does not have to be user-set unless
         // the entity is being duplicated.
@@ -813,6 +815,10 @@ namespace Gmeng {
         //
         // Defaults to 5
         unsigned int interaction_proximity = 5;
+
+        /// cache status of the entity.
+        /// Can be used to send client updates in multiplayer scenarios.
+        bool cached = false;
 
         /// Entity creation
         EntityBase() = default;
@@ -886,6 +892,28 @@ namespace Gmeng {
             // default behaviour for drawing the entity.
             // can be extended with subclasses
             return this->sprite;
+        };
+
+        /// Internal execution function for this->interact()
+        /// for multiplayer-mode caching check
+        void _interact( Entity_Interaction interaction, Level* lvl ) {
+            this->cached = false;
+            this->interact( interaction, lvl );
+            gm_log("an interaction occured finally");
+        };
+
+        /// Internal execution function for this->periodic()
+        /// for multiplayer-mode caching check
+        void _periodic( EventLoop* ev ) {
+            this->cached = false;
+            this->periodic( ev );
+        };
+
+        /// Internal execution function for this->animate()
+        /// for multiplayer-mode caching check
+        void _animate( EventLoop* ev ) {
+            this->cached = false;
+            this->animate( ev );
         };
 
         /// Method to be called when any interaction with
@@ -1213,6 +1241,105 @@ namespace Gmeng {
 
     }; GMENG_ENTITY_SET_ID( SERIALIZED_ENGINE_INFO, -2 ); REGISTER_ENTITY_TYPE( SERIALIZED_ENGINE_INFO );
 
+    /// Interactable Entity.
+    /// Set the proximity for the proximity limit of the interaction.
+    /// set the interaction tag for the interaction callback.
+    class Interaction : public Entity<Interaction> {
+      public:
+        /// the tag of the interaction. When this entity is interacted with,
+        /// the callback from Gmeng::Level::callbacks that hold this tag will
+        /// be called with Entity* and EventLoop* parameters.
+        std::string tag = "unknown_interaction";
+
+        inline void serialize( std::ostream& out ) const override {
+            this->default_serialize( out );
+
+            std::size_t tag_length = tag.size();
+            out.write( reinterpret_cast<const char*>( tag_length ), sizeof( tag_length ) );
+            out.write( this->tag.c_str(), tag_length );
+
+        };
+
+        inline void deserialize( std::istream& in ) override {
+            this->default_deserialize( in );
+
+            std::size_t tag_length;
+            in.read( reinterpret_cast<char*>(&tag_length), sizeof ( tag_length ) );
+            //in.read( &this->tag[0], tag_length );
+        };
+
+        inline void interact( Entity_Interaction inter, Level* lvl ) override {
+            gm_log("interaction entity (tagged " + this->tag+ ") with id "$(this->entity_id)" interacted with by "$(inter.interacted_by->entity_id)". type: "$(inter.type)"");
+        };
+    }; GMENG_ENTITY_SET_ID( Interaction, -3 ); REGISTER_ENTITY_TYPE( Interaction );
+
+
+
+    class Animated_Entity : public Gmeng::Entity<Animated_Entity> {
+      using texture = Gmeng::texture;
+      public:
+        std::vector<texture> anim_textures = {};
+
+        bool animation_enabled = false;
+        bool always_animate = false;
+        int animation_step = 0;
+
+        Gmeng::Renderer::drawpoint cached_pos = this->position;
+
+        /// Animation function. By default, this checks the cached
+        /// position of the entity and if it has moved updates the
+        /// current sprite the next animation step. Basically a
+        /// move/walk animation. Override this to change functionality.
+        ///
+        /// In version 13.0.0, this will swap to a callback function instead
+        /// so not all animations require their seperate entity types.
+        inline void animate(Gmeng::EventLoop*) override {
+            if ( this->anim_textures.size() < 1 ) return;
+            if ( (animation_enabled && this->cached_pos != this->position) || this->always_animate ) {
+
+                this->cached_pos = this->position;
+
+                this->sprite = anim_textures.at( animation_step );
+
+                animation_step++;
+                if ( animation_step >= anim_textures.size() ) animation_step = 0;
+            } else this->sprite = anim_textures.at(animation_step );
+        };
+
+        inline texture draw( Gmeng::Renderer_Type ) override {
+
+            if (this->cached_pos != this->position || this->always_animate) {
+                this->animation_enabled = true;
+            };
+
+            this->cached_pos = this->position;
+            return this->sprite;
+        };
+
+        inline void serialize( std::ostream& out ) const override {
+            this->default_serialize( out );
+
+            std::size_t texture_size = this->anim_textures.size();
+            out.write( reinterpret_cast<const char*>( &texture_size ), sizeof( texture_size ) );
+            for ( const auto& texture : this->anim_textures ) {
+                serialize_texture( texture, out );
+            };
+        };
+
+        inline void deserialize( std::istream& in ) override {
+            this->default_deserialize( in );
+
+            std::size_t texture_size;
+            in.read( reinterpret_cast<char*>(&texture_size), sizeof( texture_size ) );
+            this->anim_textures.resize( texture_size );
+
+            for ( auto& texture : this->anim_textures ) {
+                deserialize_texture( texture, in );
+            };
+        };
+    }; GMENG_ENTITY_SET_ID( Animated_Entity, -4 ); REGISTER_ENTITY_TYPE( Animated_Entity );
+
+
     /// ENDS ENTITY TYPES:
     ///     GMENG_INTERNAL_ENTITY will place entities at the end of the entity derived factory list.
     ///     So, GMENG_ENTITYTYPES_END::id is a way to check for Entity id overflow.
@@ -1284,7 +1411,13 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                     // units.at(x) provides error logging and throws exceptions.
                     // otherwise if the base_map is empty units[x] would
                     // cause a segmentation fault and exit the program.
-                    Gmeng::Unit v_unit = base_map->units.at(vpos);
+                    Gmeng::Unit v_unit;
+                    try {
+                        v_unit = base_map->units.at(vpos);
+                    } catch (std::exception& e) {
+                        gm_log("error_catch: normally raises gm_err(1) but game is probably closing so ignoring");
+                        v_unit = Unit { RED, false, .special_c_unit="?" };
+                    };
 
                     units.push_back(v_unit);
                     if (Gmeng::global.dont_hold_back)
@@ -1303,6 +1436,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 int debug_render_mode = this->display.camera.modifiers.get_value("debug_render");
                 this->display.camera.model_count = 0;
                 this->modelmap = {};
+                if ( !chunk.models.empty() )
                 for ( auto& _model : chunk.models ) {
                     /// Update the model count of the camera
                     this->display.camera.model_count++;
@@ -1518,6 +1652,12 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             ///
             /// Entities are not bound with chunks.
             vector<std::shared_ptr<EntityBase>> entities;
+            /// The Level's interaction grid map.
+            /// The level is divided into 32x32 cells that
+            /// contain buckets of entities, which makes
+            /// checking for proximity between entities
+            /// easier
+            GridMap<Gmeng::EntityBase> entity_grid;
             /// Description of the level.
             ///
             /// can be set with 4.1 text-based GLVL files
@@ -1670,7 +1810,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// the renderscale functions instead.
             ///
             /// @since 4.1-glvl
-            inline void refresh() {/*
+            [[deprecated]] inline void refresh() {/*
                 this->display.set_resolution(this->display.width, this->display.height);
                 this->display.draw(this->player, this->plcoords);
             */};
@@ -1680,7 +1820,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// see renderer.cpp:EntityBase or renderer.cpp:Entity<Player>.
             /// for players.
             /// @since 4.1-glvl
-            inline void set_player(Objects::G_Player p, int x, int y) {/*
+            [[deprecated]] inline void set_player(Objects::G_Player p, int x, int y) {/*
                 __functree_call__(Gmeng::Level::set_player);
                 if (this->display.camera.player_init) this->display.nplunit(this->plcoords);
                 this->player = p; this->plcoords = { .x=x, .y=y };
@@ -1693,7 +1833,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// see renderer.cpp:EntityBase or renderer.cpp:Entity<Player>.
             /// for players.
             /// @since 4.1-glvl
-            inline void move_player(int x, int y) {/*
+            [[deprecated]] inline void move_player(int x, int y) {/*
                 __functree_call__(Gmeng::Level::move_player);
                 this->plcoords.x=x; this->plcoords.y=y;
                 this->display.viewpoint = this->calculate_camera_viewpoint();
@@ -1714,7 +1854,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
         if (v_check.end.x >= v_control.start.x && v_check.end.y >= v_control.start.y &&
             v_check.end.x <= v_control.end.x && v_check.end.y <= v_control.end.y) {
             __shared__.push_back(v_check.end);
-        }
+         }
 
         // Check if v_checks start and end points overlap control
         if (v_check.start.x <= v_control.end.x && v_check.end.x >= v_control.start.x &&
@@ -2182,18 +2322,29 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             return u.is_entity == 1;
         });
 
-        /// check if the light_cache is empty, sets initial render to true.
-        /// can be set to true to refresh the render of lighting cache.
-        bool redo_lightsource_cache = lvl.lighting_cache.empty();
-        if ( redo_lightsource_cache ) gm_log("recalculating lighting cache as one or more environments have changed");
+        /// lighting modifier from the camera's modifier
+        auto lighting_enabled = lvl.display.camera.modifiers.get_value( "lighting" ) == 1;
+
+
+        /// lighting check for the cache, skipped unless lighting is enabled
+        if ( lighting_enabled ) {
+            /// check if the light_cache is empty, sets initial render to true.
+            /// can be set to true to refresh the render of lighting cache.
+            bool redo_lightsource_cache = lvl.lighting_cache.empty();
+            if ( redo_lightsource_cache && lvl.light_sources.size() > 0 ) gm_log("recalculating lighting cache as one or more environments have changed");
+        };
 
         for ( int entity_id = 0; entity_id < lvl.entities.size(); entity_id++) {
             auto _entity = lvl.entities.at(entity_id);
             auto entity = _entity.get();
+
+            /// skip incative entities
+            if ( !entity->active ) continue;
+
             /// debugger mode only message for comparing entity ids to LightSource::id
             DEBUGGER gm_log("entity id "$(entity->get_serialization_id()) " vs "$(Entity<LightSource>::id)".");
-            /// detect LightSource entities and add to lightsource render cache
-            if ( entity->get_serialization_id() == Entity<LightSource>::id ) {
+            /// detect LightSource entities and add to lightsource render cache ( if lighting is enabled )
+            if ( entity->get_serialization_id() == Entity<LightSource>::id && lighting_enabled ) {
                 /// recreate LightSource* object from EntityBase
                 std::shared_ptr<LightSource> light_source_ptr = std::dynamic_pointer_cast<LightSource>( _entity );
                 /// check if cache contains the LightSource already, add if not.
@@ -2211,16 +2362,14 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 /// skip rendering of the light source as it's a non-rendering entity.
                 continue;
             };
-
             /// entity rendering. also calls animate() for each entity.
 
-            /// skip incative entities
-            if ( !entity->active ) continue;
+
             /// call animate() for the entity to animate itself if it has
             /// an animated sprite or texture. no internal limit here,
             /// so if a bad entity is created it will crash the app.
             /// Oh well!
-            entity->animate();
+            entity->_animate( NULL );
 
             /// Draw the sprite and emplace it to the displacement for the entity.
             auto drawn_sprite = entity->draw(
@@ -2254,7 +2403,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                     if ( drawn_sprite.units.at(loops).transparent && unit.color != YELLOW ) continue;
                 };
                 /// place the unit.
-                trimmed_units.at(y).at(x) = unit;
+                if( y > -1 && x > -1 ) trimmed_units.at(y).at(x) = unit;
             };
 
             /// entity proximity renderer, for debugger showing tracers to
@@ -2286,7 +2435,6 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
 
         /// minimum light intensity of the camera
         auto cam_light_floor = lvl.display.camera.modifiers.get_value( "lighting_floor" );
-        auto lighting_enabled = lvl.display.camera.modifiers.get_value( "lighting" ) == 1;
 
         /// loop over light sources in the level
         for ( auto light_source : lvl.light_sources ) {

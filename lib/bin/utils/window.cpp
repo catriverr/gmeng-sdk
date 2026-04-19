@@ -2,6 +2,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
+#include <filesystem>
+
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
@@ -22,6 +24,8 @@
 #include "../../../include/imgui/backends/imgui_impl_sdl2.h"
 #include "../../../include/imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "../../../include/imgui/imgui.h"
+#include "SDL_render.h"
+#include "../types/IconsFontAwesome7.h"
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -76,6 +80,47 @@ bool ImGui_CenteredSelection(
     return changed;
 }
 
+bool ImGui_ClickableRect(const char* str_id, ImVec2 p_min, ImVec2 p_max, ImU32 color, ImU32 hover_color, ImU32 click_color)
+{
+    // Calculate the size required for the invisible button
+    ImVec2 size = ImVec2(p_max.x - p_min.x, p_max.y - p_min.y);
+
+    // Save the current cursor position so we don't disrupt the normal UI flow
+    ImVec2 backup_pos = ImGui::GetCursorScreenPos();
+
+    // Set absolute position for our custom widget (p_min is our top-left starting point)
+    ImGui::SetCursorScreenPos(p_min);
+
+    // Create an invisible button to handle interaction (hover, click, active states)
+    ImGui::PushID(str_id);
+    bool clicked = ImGui::InvisibleButton("##clickable_rect", size);
+    ImGui::PopID();
+
+    // Check interaction states
+    bool is_hovered = ImGui::IsItemHovered();
+    bool is_active = ImGui::IsItemActive(); // True while the mouse button is held down
+
+    // Determine the color based on the current state
+    ImU32 current_color = color;
+    if (is_active)
+    {
+        current_color = click_color;
+    }
+    else if (is_hovered)
+    {
+        current_color = hover_color;
+    }
+
+    // Draw the rectangle using the provided min and max bounds directly
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    draw_list->AddRectFilled(p_min, p_max, current_color);
+
+    // Restore the cursor position for standard ImGui widgets that follow
+    ImGui::SetCursorScreenPos(backup_pos);
+
+    return clicked;
+}
+
 bool ImGui_SelectableImage(ImTextureID texture, ImVec2 size, bool selected = false, ImU32 highlightColor = IM_COL32(255, 255, 0, 255), float thickness = 2.0f) {
     ImVec2 pos = ImGui::GetCursorScreenPos();
     ImGui::Image(texture, size);
@@ -105,6 +150,48 @@ void ImGui_CenteredText(const char* text, ImFont* font = nullptr) {
     ImGui::TextUnformatted(text);
     if (font) ImGui::PopFont();
 }
+
+struct GmengImGuiScripts {
+  public:
+    bool open = 0;
+    std::string selected_file = "";
+    inline void Draw() {
+        ImGui::SetNextItemOpen(false);
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({ 960, 540 });
+        ImGui::Begin("gmeng script manager", &open, ImGuiWindowFlags_NoResize);
+
+        ImGui_CenteredText(selected_file.length() > 0 ? selected_file.c_str() : "select a script file to view its contents");
+
+
+            ImGui::BeginChild("script_list", { 340,0 }, true);
+                ImGui::SeparatorText("scripts/src/**");
+                for (auto f : filesystem::directory_iterator("scripts/src/")) {
+                    auto file_icon = f.is_directory() ? ICON_FA_FOLDER : ICON_FA_FILE_CODE;
+                    auto label = (file_icon + f.path().generic_string());
+
+                    if (f.path().generic_string() != selected_file) {
+                        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32( 0, 0, 0, 0 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 40, 40, 170, 200 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32( 40, 40, 170, 255 ));
+                    };
+
+                    if (f.is_directory()) ImGui::BeginDisabled();
+                    if (ImGui::Button(label.c_str()) && selected_file != f.path().generic_string()) {
+                        selected_file = f.path().generic_string();
+                        ImGui::PopStyleColor(3);
+                    };
+                    if (f.is_directory()) ImGui::EndDisabled();
+                    if ( selected_file != f.path().generic_string() ) ImGui::PopStyleColor(3);
+                    ImGui::Separator();
+                }
+
+            ImGui::EndChild();
+            ImGui::SameLine();
+            ImGui::Separator();
+        ImGui::End();
+    };
+};
 
 struct GmengImGuiVGM {
     Gmeng::EventLoop* ev;
@@ -181,8 +268,9 @@ struct GmengImGuiVGM {
             };
         };
 
-        ImGui::SetNextWindowSize(ImVec2( 600, 400 ));
-        ImGui::Begin("gmeng vgm");
+        ImGui::SetNextWindowPos({ 1220, 540 });
+        ImGui::SetNextWindowSize(ImVec2( 700, 375 ));
+        ImGui::Begin("gmeng vgm", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
         ImGui_CenteredText("VisualCache Graphics Manager");
 
@@ -351,6 +439,8 @@ struct GmengImGuiVGM {
 
             ImGui::PopStyleColor();
             ImGui::EndPopup();
+
+            textures.clear();
         };
 
         ImGui::End();
@@ -535,18 +625,28 @@ struct GmengImGuiInfoWindow {
         return h;
     }
 
+    int graphg_ = 0;
+
     void Draw( SDL_Renderer* renderer ) {
 
-        ImGui::Begin("game info", nullptr);
+        int w_, h_;
+        SDL_GetRendererOutputSize(renderer, &w_, &h_);
+
+        ImGui::SetNextWindowPos({ 960, 0 });
+        ImGui::SetNextWindowSize({ 260, 540 });
+        ImGui::Begin("game info", nullptr, ImGuiWindowFlags_NoResize);
 
         ImGui_CenteredText(std::string("gmeng " + Gmeng::version + " - build " + GMENG_BUILD_NO).c_str());
 
         ImGui::Separator();
 
-        ImGui_CenteredText(std::string("frame_time: "$(ev->level->display.camera.frame_time)
-                                "ms | draw_time " + v_str(ev->level->display.camera.draw_time) +
+        ImGui_CenteredText(std::string("frame: "$(ev->level->display.camera.frame_time)
+                                "ms | draw: " + v_str(ev->level->display.camera.draw_time) +
                                 "ms | FPS: "$(1000 / ev->level->display.camera.draw_time)"").c_str());
         ImGui::Separator();
+        ev->frame_time_graph.at(graphg_ % 10) = ev->level->display.camera.frame_time;
+        ImGui::SetNextItemWidth(245);
+        ImGui::PlotHistogram("##", ev->frame_time_graph.data(), 10);
 
         ImGui_CenteredText(std::string("entity count: "$(ev->level->display.camera.entity_count)" | model count: " + v_str(ev->level->display.camera.model_count)).c_str());
 
@@ -555,26 +655,32 @@ struct GmengImGuiInfoWindow {
         ImGui_CenteredText("viewpoint");
 
         ImGui::SetNextItemWidth(85);
-        ImGui::InputInt("start.x", &ev->level->display.viewpoint.start.x);
+        ImGui::InputInt("x1    ", &ev->level->display.viewpoint.start.x);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
-        ImGui::InputInt("start.y",&ev->level->display.viewpoint.start.y);
+        ImGui::InputInt("y1",&ev->level->display.viewpoint.start.y);
 
         ImGui::SetNextItemWidth(85);
-        ImGui::InputInt("end.x  ", &ev->level->display.viewpoint.end.x);
+        ImGui::InputInt("x2    ", &ev->level->display.viewpoint.end.x);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
-        ImGui::InputInt("end.y", &ev->level->display.viewpoint.end.y);
+        ImGui::InputInt("y2", &ev->level->display.viewpoint.end.y);
 
 
         ImGui::Separator();
 
         ImGui_CenteredText("modifiers");
 
+        ImVec4 col_red( 255, 0, 0, 255 );
+        ImVec4 col_green( 0, 255, 0, 255 );
+        ImVec4 col_yellow( 255, 255, 47, 255);
+
         for ( auto& modifier : ev->level->display.camera.modifiers.values ) {
-            ImGui::SetNextItemWidth(65);
-            ImGui::InputInt(modifier.name.c_str(), &modifier.value, 0, 0);
+            auto col = modifier.value == 0 ? col_red : ( modifier.value == 1 ? col_green : col_yellow );
+            ImGui::TextColored( col, (ICON_FA_CUBE + modifier.name).c_str() );
             ImGui::SameLine();
+            ImGui::SetNextItemWidth(260-ImGui::CalcTextSize(modifier.name.c_str()).x);
+            ImGui::InputInt(("##" + modifier.name).c_str(), &modifier.value, 0, 0);
         };
         ImGui::Text(""); // end last SameLine
 
@@ -582,7 +688,8 @@ struct GmengImGuiInfoWindow {
 
         SDL_Texture* obj;
 
-        if (ImGui::CollapsingHeader("preview")) {
+        ImGui::SetNextItemOpen(true);
+        if (ImGui::CollapsingHeader("preview" )) {
             Gmeng::sImage img;
             img.width = ev->level->base.width;
             img.height = ev->level->base.height;
@@ -622,13 +729,15 @@ struct GmengImGuiInfoWindow {
             ImGui::Separator();
         };
 
+
         ImGui::End();
+        graphg_++;
     };
 };
 
 
 struct GmengImGuiLog {
-    const std::stringstream& external_stream;   // Reference to your external stream
+    const std::stringstream& external_stream;
 
     ImGuiTextFilter Filter;
     ImVector<int> LineOffsets;   // Line breaks offsets in current buffer
@@ -665,12 +774,13 @@ struct GmengImGuiLog {
         }
     }
 
-    void Draw(const char* title, bool* p_opened = nullptr)
+    void Draw(const char* title, ImVec2 pos = { 0, 0 }, ImVec2 dsize = { 480, 375 }, bool* p_opened = nullptr)
     {
         UpdateBuffer();
 
-        ImGui::SetNextWindowSize(ImVec2(500,400), ImGuiCond_FirstUseEver);
-        ImGui::Begin(title, p_opened);
+        ImGui::SetNextWindowPos( pos );
+        ImGui::SetNextWindowSize(dsize);
+        ImGui::Begin(title, p_opened, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
         if (ImGui::Button("Clear"))
         {
@@ -824,7 +934,8 @@ struct GmengImGuiConsole
     {
         UpdateBuffer();
 
-        ImGui::SetNextWindowSize(ImVec2(650,500), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({ 0, 540 });
+        ImGui::SetNextWindowSize(ImVec2(480,375), ImGuiCond_FirstUseEver);
         ImGui::Begin(title, p_opened, ImGuiWindowFlags_NoResize |
                                                     ImGuiWindowFlags_NoCollapse);
 
@@ -844,13 +955,9 @@ struct GmengImGuiConsole
         ImGui::SameLine();
         Filter.Draw("Filter", -100.0f);
 
-        ImGui::SameLine(ImGui::GetWindowWidth()-25);
-        if (ImGui::Button("X")) {
-            dev_console_open = false;
-        };
 
         ImGui::Separator();
-        ImGui::BeginChild("scrolling", ImVec2(0,405), false,
+        ImGui::BeginChild("scrolling", ImVec2(0,290), false,
         ImGuiChildFlags_None | ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiWindowFlags_HorizontalScrollbar);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0,1));
         if (copy) ImGui::LogToClipboard();
@@ -928,10 +1035,13 @@ namespace Gmeng {
             return h;
         }
     public:
+
+        int frame_width;
+        int frame_height;
         // initializer for an SDL Window.
         GameWindow(const char* title =
                    std::string("GMENG " + (Gmeng::version) + " BUILD " + GMENG_BUILD_NO + " | " + Gmeng::global.raw_arguments).c_str(), int width = 800, int height = 800)
-            : window(nullptr), renderer(nullptr), width(width), height(height) {
+            : window(nullptr), renderer(nullptr), width(width), height(height), frame_width(width), frame_height(height) {
 
             __functree_call__(gmeng_external::__optional_utils__::libsdl2::GameWindow::__constructor__::GameWindow);
 
@@ -1307,8 +1417,9 @@ struct GmengImGuiLevel {
             };
         };
 
-        ImGui::SetNextWindowSize( { 700, 500 } );
-        ImGui::Begin("level inspector");
+        ImGui::SetNextWindowPos({ 1220, 0 });
+        ImGui::SetNextWindowSize( { 700, 540 } );
+        ImGui::Begin("level inspector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
         ImGui_CenteredText( ( "level '" + (
                                 ev->level->name.empty() ? Gmeng::global.executable : ev->level->name) + "' (chunk " + v_str(selected_chunk) + ")" ).c_str() );
         ImGui::Separator();
@@ -1342,10 +1453,10 @@ struct GmengImGuiLevel {
             /// item label
             std::string text =
                         (item.is_entity ?
-                        ( "[E] " + item.entity->sprite.name + " (" + v_str(item.entity->entity_id) + ")" + " (" + _uconv_1ihx( item.entity->entity_id ) + ")" )
-                        : ( std::string("[M] ") + ( &item.model.name[0] ) + std::string(":") + item.g_txtr.name + " (" + v_str( item.model.id ) +
+                        ( ICON_FA_BOOK + item.entity->sprite.name + " (" + v_str(item.entity->entity_id) + ")" + " (" + _uconv_1ihx( item.entity->entity_id ) + ")" )
+                        : ICON_FA_CUBE + std::string( &item.model.name[0] ) + std::string(":") + item.g_txtr.name + " (" + v_str( item.model.id ) +
                         ") (" + (item.model.texture.collidable ? "C" : "A") +
-                        ") (" + _uconv_1ihx( item.model.id ) + ")" ));
+                        ") (" + _uconv_1ihx( item.model.id ) + ")" ).c_str();
             /// filter item if it doesn't include the search string
             if ( !searchstr_.empty() && text.find( searchstr_ ) == text.npos ) continue;
 
@@ -1520,6 +1631,11 @@ struct GmengImGuiLevel {
                         ImGui::SameLine();
                         ImGui::SetNextItemWidth(150);
                         ImGui::InputInt("max brightness", &derived_entity->max_brightness);
+                        float color_values[3] = { derived_entity->color.r / 255.0f, derived_entity->color.g / 255.0f, derived_entity->color.b / 255.0f, };
+                        if (ImGui::ColorEdit3("modulation color", color_values)) {
+                            Gmeng::color32_t new_col( color_values[0]*255, color_values[1]*255, color_values[2]*255 );
+                            derived_entity->color = new_col;
+                        };
 
                         if (ImGui::Button("invalidate cache")) {
                             derived_entity->cached = false;
@@ -1540,7 +1656,6 @@ struct GmengImGuiLevel {
                             };
 
                             ev->level->entities.swap( new_entity_vector );
-                            ev->level->light_sources.erase( derived_entity->entity_id );
                             gmeng_run_dev_command(ev, "lighting_redoall", true);
                         };
                         ImGui::PopStyleColor(3);
@@ -1551,6 +1666,24 @@ struct GmengImGuiLevel {
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(150);
                     ImGui::InputInt("pos.y", &selected_item->entity->position.y);
+
+                        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32( 204, 36, 29, 255 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32( 244, 73, 52, 255 ));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32( 197, 79, 69, 255 ));
+                        if (ImGui::Button("remove entity")) {
+                            selected_item->selected = false;
+                            redo_cache = true;
+
+                            vector<std::shared_ptr<Gmeng::EntityBase>> new_entity_vector;
+                            for (auto entity : ev->level->entities) {
+                                if (entity->entity_id != selected_item->entity->entity_id)
+                                    new_entity_vector.push_back(entity);
+                            };
+
+                            ev->level->entities.swap( new_entity_vector );
+                            gmeng_run_dev_command(ev, "lighting_redoall", true);
+                        };
+                        ImGui::PopStyleColor(3);
                 };
             };
 
@@ -1575,5 +1708,269 @@ struct GmengImGuiLevel {
     };
 };
 
+
+    void GmengImGuiTextureEditor::ResizeTexture(std::size_t new_w, std::size_t new_h) {
+        if (new_w < 1) new_w = 1;
+        if (new_h < 1) new_h = 1;
+
+        std::vector<Gmeng::Unit> new_units(new_w * new_h, Gmeng::Unit { .transparent = true });
+
+        // Safely copy old data into the new buffer where overlapping
+        for (std::size_t y = 0; y < std::min(tex.height, new_h); ++y) {
+            for (std::size_t x = 0; x < std::min(tex.width, new_w); ++x) {
+                new_units[y * new_w + x] = tex.units[y * tex.width + x];
+            }
+        }
+
+        tex.width = new_w;
+        tex.height = new_h;
+        tex.units = new_units;
+
+        zoom = (ImGui::GetContentRegionAvail().x + 10) / tex.width;
+    }
+
+    void GmengImGuiTextureEditor::Save(const std::string& fname) {
+        std::ofstream file(fname);
+        if (!file.is_open()) return;
+
+        // Write Header matching parser's expected layout
+        file << "name=" << tex.name
+             << ",width=" << tex.width
+             << ",height=" << tex.height
+             << ",collision=" << (tex.collidable ? "true" : "false") << "\n";
+
+        // Write Units line-by-line
+        for (const auto& unit : tex.units) {
+            if (unit.transparent) {
+                file << "__gtransparent_unit__\n";
+            } else {
+                // Ensure the special char isn't empty, otherwise g_splitStr might misalignment it upon reloading
+                std::string s_char = unit.special_c_unit.empty() ? "X" : unit.special_c_unit;
+                file << unit.color << " "
+                     << (unit.special ? "true" : "false") << " "
+                     << unit.special_clr << " "
+                     << s_char << "\n";
+            }
+        }
+
+        // Add the closing builder signature comment
+        file << ";%tsgmeng::builder.texture4_0() -> auto_generated\n";
+        file.close();
+        gm_log("wrote " + fname + " texturedata (" $(tex.units.size()) " units)");
+    }
+
+    void GmengImGuiTextureEditor::Load(const std::string& fname) {
+        // Delegate reading entirely to engine's parsing logic
+        if (filesystem::exists( fname ) && !filesystem::is_directory(fname))
+            tex = Gmeng::LoadTexture(fname), loaded = true;
+
+        /// palette finder
+        texture_palette.clear();
+        for ( auto un : tex.units ) {
+            if ( !texture_palette.contains( un.color ) ) texture_palette.insert( un.color );
+        };
+    }
+
+void GmengImGuiTextureEditor::Draw() {
+        if (!is_open) return;
+
+        ImGui::SetNextWindowSize({ 860, 550 });
+        ImGui::Begin("Gmeng Texture Editor", &is_open, ImGuiWindowFlags_NoResize);
+
+        ImGui_CenteredText(("texture editor for Gmeng Game Development Kit " + Gmeng::version + " build " + GMENG_BUILD_NO).c_str());
+        // ==========================================
+        // --- LEFT PANEL: Modifiers ---
+        // ==========================================
+        // Create a bordered child panel with a fixed width of 350. '0' height means it fills the window vertically.
+        ImGui::BeginChild("LeftSettingsPanel", ImVec2(350, 0), true);
+
+        // --- File I/O ---
+        char fileBuf[256];
+        strncpy(fileBuf, current_filename.c_str(), sizeof(fileBuf));
+        if (ImGui::InputText("Target File", fileBuf, sizeof(fileBuf))) {
+            current_filename = fileBuf;
+        }
+
+        if (ImGui::Button("Save")) Save(current_filename);
+        ImGui::SameLine();
+        if (ImGui::Button("Load")) Load(current_filename);
+        ImGui::Separator();
+
+        // --- Texture Properties ---
+        char nameBuf[256];
+        strncpy(nameBuf, tex.name.c_str(), sizeof(nameBuf));
+        if (ImGui::InputText("Texture Name", nameBuf, sizeof(nameBuf))) {
+            tex.name = nameBuf;
+        }
+
+        // Convert size_t to int for ImGui manipulators
+        int size[2] = { static_cast<int>(tex.width), static_cast<int>(tex.height) };
+        if (ImGui::InputInt2("Size (W/H)", size)) {
+            ResizeTexture(static_cast<std::size_t>(size[0]), static_cast<std::size_t>(size[1]));
+        }
+
+        ImGui::Checkbox("collision", &tex.collidable);
+        ImGui::Separator();
+
+        // --- Brush Settings ---
+        ImGui_CenteredText("Brush Settings");
+        ImGui::Checkbox("transparent", &current_brush.transparent);
+
+        if (!current_brush.transparent) {
+            // Edit the brush color using ImGui's floating color picker
+            if (ImGui::ColorEdit3("color", brush_color_float)) {
+                // Instantly convert ImGui floats back into your engine's color32_t / uint32_t
+                Gmeng::color32_t new_color(
+                    static_cast<uint8_t>(brush_color_float[0] * 255.0f),
+                    static_cast<uint8_t>(brush_color_float[1] * 255.0f),
+                    static_cast<uint8_t>(brush_color_float[2] * 255.0f)
+                );
+                current_brush.color = Gmeng::uint32_from_color32(new_color);
+            }
+
+            ImGui::Separator();
+            ImGui_CenteredText("Special Settings");
+            ImGui::Checkbox("enabled", &current_brush.special);
+            ImGui::InputInt("color", &current_brush.special_clr);
+
+            char charBuf[16];
+            strncpy(charBuf, current_brush.special_c_unit.c_str(), sizeof(charBuf));
+            if (ImGui::InputText("character", charBuf, sizeof(charBuf))) {
+                current_brush.special_c_unit = charBuf;
+            }
+            ImGui::Separator();
+
+            int brush_size = 52;
+            float b_zoom_item_height = ImGui::GetFrameHeight();
+            float offset = (texture_palette.size()/6.0f) * (brush_size + 2);
+
+            ImGui::BeginChild("palette", {0, ImGui::GetContentRegionAvail().y + ( offset )}, false, ImGuiWindowFlags_NoScrollbar);
+
+
+            ImGui_CenteredText(("texture palette (" + v_str(texture_palette.size()) + ")").c_str());
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+            int i = 0;
+
+            ImVec2 c_pos = ImGui::GetCursorScreenPos();
+
+            for ( auto brush : texture_palette ) {
+                Gmeng::color32_t rgb( brush );
+
+                ImVec2 p_min( ( (i % 6)*2 ) + c_pos.x + (i % 6) * brush_size    , ( (int)(i / 6)*2 ) + ((c_pos.y) + ((i / 6.0f))*brush_size) - (i % 6)*8.6658 );
+                ImVec2 p_max( ( (i % 6)*2 ) + c_pos.x + ((i % 6)+1) * brush_size, ( (int)(i / 6)*2 ) + c_pos.y + ((i / 6.0f)+1) * brush_size - (i % 6)*8.6658 );
+
+                if (ImGui_ClickableRect((v_str(i) + "_colord").c_str(), p_min, p_max, IM_COL32( rgb.r, rgb.g, rgb.b, 255 ),
+                                                                                 IM_COL32( 255-rgb.r, 255-rgb.g, 255-rgb.b, 255 ),
+                                                                                 IM_COL32( rgb.r-20, rgb.g-20, rgb.b-20, 255 ) )) {
+                    current_brush.color = uint32_from_color32(rgb);
+                    brush_color_float[0] = rgb.r / 255.0f;
+                    brush_color_float[1] = rgb.g / 255.0f;
+                    brush_color_float[2] = rgb.b / 255.0f;
+                };
+
+                // outline the item if its selected
+                if ( current_brush.color == uint32_from_color32(rgb) ) ImGui::SetNextItemAllowOverlap(),
+                    draw_list->AddRect(p_min, p_max, IM_COL32( 255-rgb.r, 255-rgb.g, 255-rgb.b, 155 ), 0, 0, 3);
+
+                i++;
+            };
+            ImGui::EndChild();
+
+        }
+        ImGui::EndChild(); // End Left Panel
+
+        ImGui::SameLine(); // Move to the right for the next panel
+
+        // ==========================================
+        // --- RIGHT PANEL: Workspace (Canvas & Zoom) ---
+        // ==========================================
+        // This child takes the remaining width and full height
+        ImGui::BeginChild("RightWorkspacePanel", ImVec2(0, 0), false);
+
+        // Pre-calculate the height of the zoom slider so we know how much space to leave at the bottom
+        float zoom_item_height = ImGui::GetFrameHeightWithSpacing();
+
+        // --- Interactive Canvas Area ---
+        // We put the canvas in its own scrollable child window. It takes all vertical space MINUS the zoom slider.
+        ImGui::BeginChild("CanvasRegion", ImVec2(0, ImGui::GetContentRegionAvail().y - zoom_item_height), true, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+        ImVec2 canvas_size(tex.width * zoom, tex.height * zoom);
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        // Draw the background border for the canvas
+        draw_list->AddRectFilled(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), IM_COL32(30, 30, 30, 255));
+
+        // Invisible button acts as a hit-box mapping mouse interactions
+        ImGui::InvisibleButton("canvas_interact", canvas_size);
+
+        // Painting Logic
+        if (ImGui::IsItemActive() && (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDragging(ImGuiMouseButton_Left))) {
+            ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+            int tx = static_cast<int>((mouse_pos.x - canvas_pos.x) / zoom);
+            int ty = static_cast<int>((mouse_pos.y - canvas_pos.y) / zoom);
+            if (tx >= 0 && tx < static_cast<int>(tex.width) && ty >= 0 && ty < static_cast<int>(tex.height)) {
+                tex.units[ty * tex.width + tx] = current_brush;
+                if ( !texture_palette.contains( current_brush.color ) ) texture_palette.insert( current_brush.color );
+            }
+        }
+
+        // Render Canvas
+        for (std::size_t y = 0; y < tex.height; ++y) {
+            for (std::size_t x = 0; x < tex.width; ++x) {
+                ImVec2 p_min(canvas_pos.x + x * zoom, canvas_pos.y + y * zoom);
+                ImVec2 p_max(canvas_pos.x + (x + 1) * zoom, canvas_pos.y + (y + 1) * zoom);
+
+                const Gmeng::Unit& unit = tex.units[y * tex.width + x];
+                std::string coordinate_str( v_str(x) + "," + v_str(y));
+
+                if (unit.transparent) {
+                    // Render checkerboard pattern for transparent cells
+                    ImU32 checker_col = ((x + y) % 2 == 0) ? IM_COL32(50, 50, 50, 255) : IM_COL32(40, 40, 40, 255);
+                    draw_list->AddRectFilled(p_min, p_max, checker_col);
+                    draw_list->AddLine(p_min, p_max, IM_COL32(200, 50, 50, 150), 2.0f);
+
+                    if ( zoom >= 30.0f ) {
+                        ImVec2 text_size = ImGui::CalcTextSize(coordinate_str.c_str() );
+                        ImVec2 text_pos(p_min.x + (zoom - text_size.x) * 0.5f, p_min.y + (zoom - text_size.y) * 0.5f);
+                        draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255), coordinate_str.c_str());
+                    };
+                } else {
+                    // Convert your uint32_t color back to color32_t for drawing
+                    Gmeng::color32_t rgb(unit.color);
+                    ImU32 cell_color = IM_COL32(rgb.r, rgb.g, rgb.b, 255);
+                    draw_list->AddRectFilled(p_min, p_max, cell_color);
+
+                    if ( zoom >= 30.0f ) {
+                        ImVec2 text_size = ImGui::CalcTextSize(coordinate_str.c_str() );
+                        ImVec2 text_pos(p_min.x + (zoom - text_size.x) * 0.5f, p_min.y + (zoom - text_size.y) * 0.5f);
+                        draw_list->AddText(text_pos, IM_COL32(255 - rgb.r, 255 - rgb.g, 255 - rgb.b, 255), coordinate_str.c_str());
+                    };
+
+                    // If special flags are raised and zoom allows, show the special char
+                    if (unit.special && zoom >= 15.0f && !unit.special_c_unit.empty()) {
+                        ImVec2 text_size_sp = ImGui::CalcTextSize(unit.special_c_unit.c_str());
+                        ImVec2 text_pos_sp(p_min.x + (zoom - text_size_sp.x) * 0.5f, p_min.y + (zoom - text_size_sp.y) * 0.5f);
+                        draw_list->AddText(text_pos_sp, IM_COL32(255, 255, 255, 255), unit.special_c_unit.c_str());
+                    }
+                }
+
+                // Draw a faint outline for the grid
+                draw_list->AddRect(p_min, p_max, IM_COL32(100, 100, 100, 50));
+            }
+        }
+
+        ImGui::EndChild(); // End CanvasRegion (Scrollable area)
+
+        // --- Zoom Control (Anchored to bottom of RightWorkspacePanel) ---
+        // Set the width to fill the available space dynamically
+        ImGui::SetNextItemWidth( (int)ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("Zoom").x - ImGui::GetStyle().ItemInnerSpacing.x);
+        ImGui::SliderFloat("Zoom", &zoom, 5.0f, 100.0f, "%.1fx");
+
+        ImGui::EndChild(); // End Right Panel
+
+        ImGui::End(); // End Main Window
+    };
 
 #define GMENG_SDL_INIT true

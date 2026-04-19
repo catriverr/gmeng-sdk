@@ -99,7 +99,7 @@ ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
     CXXFLAGS += -fsanitize=address
 	CXXFLAGS += -g -pg
 else
-	CXXFLAGS += -Ofast
+	CXXFLAGS += -O3
 endif
 
 
@@ -192,6 +192,10 @@ ifeq ($(filter configure,$(MAKECMDGOALS)),configure)
 endif
 
 CXXFLAGS_MINIMAL := -Wno-all -std=c++2a -o config lib/bin/utils/configure.cc `pkg-config --cflags --libs ncursesw`
+
+level-editor:
+	$(CXX) lib/bin/src/level_editor.cc $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o editor
+
 
 configure:
 	@echo GMENG BUILD DEPENDENCIES:
@@ -304,4 +308,4 @@ setup:
 	@echo "[gmeng-setup] setup process complete"
 
 # Phony targets
-.PHONY: setup build all compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
+.PHONY: setup build all level-editor compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
