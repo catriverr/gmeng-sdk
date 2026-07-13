@@ -293,9 +293,12 @@ setup:
 		echo;\
 		echo "[gmeng-setup] installing libncurses-dev...";\
 		brew install ncurses;\
+		brew link ncurses;\
 		echo;\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
 		brew install curl;\
+		echo "[gmeng-setup] installing libsdl2, sdl2_ttf, sdl2_image...";\
+		brew install sdl2 sdl2_ttf sdl2_image;\
 		echo;\
 		echo "[gmeng-setup] Apple/ApplicationServices (default installed with macOS).";\
 		echo;\

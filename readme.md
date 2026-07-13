@@ -27,11 +27,14 @@ To get started, clone the repository and set it up with
 ```sh
 git clone https://github.com/catriverr/gmeng-sdk
 cd gmeng-sdk
-sudo make setup
+make setup
 ```
+#### make sure that the cloned directory has read and write permissions.
+
 > [!IMPORTANT]
-> You will need to run `sudo make setup`
-> to include the sources for libraries & dependencies which gmeng uses.<br>
+> You will need to run `make setup`
+> to include the sources for libraries & dependencies which gmeng uses.
+> Without this, the engine will not compile.<br>
 >
 > **submodules**<br>
 > Currently, gmeng uses the following submodules:
@@ -44,7 +47,8 @@ sudo make setup
 > - `libcurl4-openssl-dev` for easy telecommunications & networking functions,
 > - `libncurses-dev` for easy terminal-based UI creation on CLI commands,
 > - `libasound2-dev` **(linux only)** for the ALSA (Advanced Linux Sound Architecture) audio engine,
-> - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities
+> - `ApplicationServices` **(macOS only)** for the ApplicationServices general Mac Service utilities,
+> - `libsdl2, sdl2_ttf` **(optional)** for SDL-based window games and for the implementation of the level editor 
 
 ### Build Options
 ```make
