@@ -18,6 +18,7 @@
                                                       // used for .dylib prebuilt C++ script handling.
 #include "../gmeng.h"
 #include "../utils/gridmap.cc"
+#include "SDL_keycode.h"
 
 /// MAX MAP SIZE
 /// can be set in the makefile
@@ -2338,7 +2339,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
                 bool alt = (e.key.keysym.mod & KMOD_ALT);
 
                 /// Default keystroke for Gmeng Dev Console Open
-                if ( key_sym == SDLK_BACKQUOTE && shift ) {
+                if ( key_sym == SDLK_TAB && shift ) {
                     if ( Gmeng::global.dev_console ) dev_console_open = !dev_console_open;
                     if (dev_console_open) gm_log("developer console opened (instance " + _uconv_1ihx(GET_TIME()) + ")");
                     level_inspector_open = dev_console_open;
