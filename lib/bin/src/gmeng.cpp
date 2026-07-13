@@ -1596,9 +1596,9 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
                     GAME_LOG("cmd: `" + name + "`");
                 };
                 GAME_LOG("\nSDL keybinds:");
-                GAME_LOG("\t|shift + `| : toggle developer console");
-                GAME_LOG("\t|alt + TAB| : toggle vgm model editor");
-                GAME_LOG("\t|alt + L  | : toggle level inspector");
+                GAME_LOG("\t|shift + TAB| : toggle developer console");
+                GAME_LOG("\t| alt + TAB | : toggle vgm model editor");
+                GAME_LOG("\t| alt +  L  | : toggle level inspector");
                 return 0;
             } },
         { "info", [](vector<string>, Gmeng::EventLoop* ev) -> int {
