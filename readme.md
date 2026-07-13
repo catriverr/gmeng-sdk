@@ -39,7 +39,8 @@ make setup
 > **submodules**<br>
 > Currently, gmeng uses the following submodules:
 > - [`catriverr/liblmf`](https://github.com/catriverr/liblmf) for interleafing and configuration file parsing,
-> - [`catriverr/noble`](https://github.com/catriverr/noble) for scripting, script parsing and plugin support
+> - [`catriverr/noble`](https://github.com/catriverr/noble) for scripting, script parsing and plugin support,
+> - `ocrnut/imgui` for modular UI elements in SDL based windows
 >
 > **libraries & utilities**<br>
 > - `homebrew` for installing & implementing libraries required by gmeng,

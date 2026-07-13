@@ -293,7 +293,7 @@ setup:
 		echo;\
 		echo "[gmeng-setup] installing libncurses-dev...";\
 		brew install ncurses;\
-		brew link ncurses;\
+		brew link --force ncurses;\
 		echo;\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
 		brew install curl;\
