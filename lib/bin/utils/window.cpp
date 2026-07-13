@@ -1715,7 +1715,6 @@ struct GmengImGuiLevel {
 
         std::vector<Gmeng::Unit> new_units(new_w * new_h, Gmeng::Unit { .transparent = true });
 
-        // Safely copy old data into the new buffer where overlapping
         for (std::size_t y = 0; y < std::min(tex.height, new_h); ++y) {
             for (std::size_t x = 0; x < std::min(tex.width, new_w); ++x) {
                 new_units[y * new_w + x] = tex.units[y * tex.width + x];
@@ -1733,18 +1732,15 @@ struct GmengImGuiLevel {
         std::ofstream file(fname);
         if (!file.is_open()) return;
 
-        // Write Header matching parser's expected layout
         file << "name=" << tex.name
              << ",width=" << tex.width
              << ",height=" << tex.height
              << ",collision=" << (tex.collidable ? "true" : "false") << "\n";
 
-        // Write Units line-by-line
         for (const auto& unit : tex.units) {
             if (unit.transparent) {
                 file << "__gtransparent_unit__\n";
             } else {
-                // Ensure the special char isn't empty, otherwise g_splitStr might misalignment it upon reloading
                 std::string s_char = unit.special_c_unit.empty() ? "X" : unit.special_c_unit;
                 file << unit.color << " "
                      << (unit.special ? "true" : "false") << " "
@@ -1753,14 +1749,12 @@ struct GmengImGuiLevel {
             }
         }
 
-        // Add the closing builder signature comment
-        file << ";%tsgmeng::builder.texture4_0() -> auto_generated\n";
+        file << "; gmeng_texture_editor[12.0.0] Save() -> from g_command `edit_texture`\n";
         file.close();
         gm_log("wrote " + fname + " texturedata (" $(tex.units.size()) " units)");
     }
 
     void GmengImGuiTextureEditor::Load(const std::string& fname) {
-        // Delegate reading entirely to engine's parsing logic
         if (filesystem::exists( fname ) && !filesystem::is_directory(fname))
             tex = Gmeng::LoadTexture(fname), loaded = true;
 
@@ -1778,10 +1772,8 @@ void GmengImGuiTextureEditor::Draw() {
         ImGui::Begin("Gmeng Texture Editor", &is_open, ImGuiWindowFlags_NoResize);
 
         ImGui_CenteredText(("texture editor for Gmeng Game Development Kit " + Gmeng::version + " build " + GMENG_BUILD_NO).c_str());
-        // ==========================================
-        // --- LEFT PANEL: Modifiers ---
-        // ==========================================
-        // Create a bordered child panel with a fixed width of 350. '0' height means it fills the window vertically.
+
+        // Child Panel
         ImGui::BeginChild("LeftSettingsPanel", ImVec2(350, 0), true);
 
         // --- File I/O ---
@@ -1796,14 +1788,13 @@ void GmengImGuiTextureEditor::Draw() {
         if (ImGui::Button("Load")) Load(current_filename);
         ImGui::Separator();
 
-        // --- Texture Properties ---
+        // Texture Properties
         char nameBuf[256];
         strncpy(nameBuf, tex.name.c_str(), sizeof(nameBuf));
         if (ImGui::InputText("Texture Name", nameBuf, sizeof(nameBuf))) {
             tex.name = nameBuf;
         }
 
-        // Convert size_t to int for ImGui manipulators
         int size[2] = { static_cast<int>(tex.width), static_cast<int>(tex.height) };
         if (ImGui::InputInt2("Size (W/H)", size)) {
             ResizeTexture(static_cast<std::size_t>(size[0]), static_cast<std::size_t>(size[1]));
@@ -1812,7 +1803,7 @@ void GmengImGuiTextureEditor::Draw() {
         ImGui::Checkbox("collision", &tex.collidable);
         ImGui::Separator();
 
-        // --- Brush Settings ---
+        // Brush Settings
         ImGui_CenteredText("Brush Settings");
         ImGui::Checkbox("transparent", &current_brush.transparent);
 
@@ -1869,29 +1860,62 @@ void GmengImGuiTextureEditor::Draw() {
                     brush_color_float[2] = rgb.b / 255.0f;
                 };
 
-                // outline the item if its selected
                 if ( current_brush.color == uint32_from_color32(rgb) ) ImGui::SetNextItemAllowOverlap(),
                     draw_list->AddRect(p_min, p_max, IM_COL32( 255-rgb.r, 255-rgb.g, 255-rgb.b, 155 ), 0, 0, 3);
 
                 i++;
             };
+
+
+            ImGui::Dummy( ImVec2 { 0, (float)((int) (i-1)/6) * brush_size + 54 } );
+
+            ImGui::Separator();
+
+            ImGui_CenteredText("engine palette (gmeng:default)");
+
+
+
+
+
+
+
+            int j = 0;
+            ImVec2 c_pos2 = ImGui::GetCursorScreenPos();
+
+            for ( auto brush : Gmeng::rgb_colors ) {
+                Gmeng::color32_t rgb( brush[0], brush[1], brush[2] );
+
+                ImVec2 p_min( ( (j % 6)*2 ) + c_pos.x + (j % 6) * brush_size    , ( ((int)((i-1) / 6) + 1) *brush_size + 30) + ( (int)(j / 6)*2 ) + ((c_pos.y) + ((j / 6.0f))*brush_size) - (j % 6)*8.6658 );
+                ImVec2 p_max( ( (j % 6)*2 ) + c_pos.x + ((j % 6)+1) * brush_size, ( ((int)((i-1) / 6) + 1) *brush_size + 30) + ( (int)(j / 6)*2 ) + c_pos.y + ((j / 6.0f)+1) * brush_size - (j % 6)*8.6658 );
+
+                if (ImGui_ClickableRect((v_str(j) + "_default_palette_colord").c_str(), p_min, p_max, IM_COL32( rgb.r, rgb.g, rgb.b, 255 ),
+                                                                                 IM_COL32( 255-rgb.r, 255-rgb.g, 255-rgb.b, 255 ),
+                                                                                 IM_COL32( rgb.r-20, rgb.g-20, rgb.b-20, 255 ) )) {
+                    current_brush.color = uint32_from_color32(rgb);
+                    brush_color_float[0] = rgb.r / 255.0f;
+                    brush_color_float[1] = rgb.g / 255.0f;
+                    brush_color_float[2] = rgb.b / 255.0f;
+                };
+
+                if ( current_brush.color == uint32_from_color32(rgb) ) ImGui::SetNextItemAllowOverlap(),
+                    draw_list->AddRect(p_min, p_max, IM_COL32( 255-rgb.r, 255-rgb.g, 255-rgb.b, 155 ), 0, 0, 3);
+
+                j++;
+            }
+
             ImGui::EndChild();
 
         }
         ImGui::EndChild(); // End Left Panel
 
-        ImGui::SameLine(); // Move to the right for the next panel
+        ImGui::SameLine();
 
-        // ==========================================
-        // --- RIGHT PANEL: Workspace (Canvas & Zoom) ---
-        // ==========================================
+        // Canvas
         // This child takes the remaining width and full height
         ImGui::BeginChild("RightWorkspacePanel", ImVec2(0, 0), false);
 
-        // Pre-calculate the height of the zoom slider so we know how much space to leave at the bottom
         float zoom_item_height = ImGui::GetFrameHeightWithSpacing();
 
-        // --- Interactive Canvas Area ---
         // We put the canvas in its own scrollable child window. It takes all vertical space MINUS the zoom slider.
         ImGui::BeginChild("CanvasRegion", ImVec2(0, ImGui::GetContentRegionAvail().y - zoom_item_height), true, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
@@ -1913,6 +1937,16 @@ void GmengImGuiTextureEditor::Draw() {
             if (tx >= 0 && tx < static_cast<int>(tex.width) && ty >= 0 && ty < static_cast<int>(tex.height)) {
                 tex.units[ty * tex.width + tx] = current_brush;
                 if ( !texture_palette.contains( current_brush.color ) ) texture_palette.insert( current_brush.color );
+            }
+        }
+
+        // Right-Click erases to transparent unit
+        if (ImGui::IsItemActive() && (ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDragging(ImGuiMouseButton_Right))) {
+            ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+            int tx = static_cast<int>((mouse_pos.x - canvas_pos.x) / zoom);
+            int ty = static_cast<int>((mouse_pos.y - canvas_pos.y) / zoom);
+            if (tx >= 0 && tx < static_cast<int>(tex.width) && ty >= 0 && ty < static_cast<int>(tex.height)) {
+                tex.units[ty * tex.width + tx] = Gmeng::Unit { .transparent=true };
             }
         }
 

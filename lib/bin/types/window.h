@@ -92,7 +92,41 @@ static uint32_t color_to_uint32(const SDL_Color& color) {
     return (color.r << 24) | (color.g << 16) | (color.b << 8) | (color.a);
 };
 
-/// Create SDL_Texture from Gmeng::sImage using proper packed pixel buffer
+Gmeng::color_t get_dominant_color(const Gmeng::color32_t& input_color) {
+    using namespace Gmeng;
+    static const struct { int r, g, b; } palette[8] = {
+        { 255, 255, 255 }, // 0: WHITE
+        { 0,   0,   255 }, // 1: BLUE
+        { 0,   255, 0   }, // 2: GREEN
+        { 0,   255, 255 }, // 3: CYAN
+        { 255, 0,   0   }, // 4: RED
+        { 255, 0,   255 }, // 5: PINK (Magenta)
+        { 255, 255, 0   }, // 6: YELLOW
+        { 0,   0,   0   }  // 7: BLACK
+    };
+
+    color_t closest_color = WHITE;
+
+    // Initialize with a value larger than the maximum possible squared distance
+    // (255^2 * 3 = 195075)
+    int min_dist_sq = 200000;
+
+    for (int i = 0; i < 8; ++i) {
+        int dr = input_color.r - palette[i].r;
+        int dg = input_color.g - palette[i].g;
+        int db = input_color.b - palette[i].b;
+
+        int dist_sq = (dr * dr) + (dg * dg) + (db * db);
+
+        if (dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
+            closest_color = static_cast<color_t>(i);
+        }
+    }
+
+    return closest_color;
+}
+/// Creates an SDL_Texture from Gmeng::sImage using proper packed pixel buffer
 static SDL_Texture* make_texture(SDL_Renderer* renderer, const Gmeng::sImage& image) {
     uint32_t width = image.width;
     uint32_t height = image.height;
@@ -102,7 +136,11 @@ static SDL_Texture* make_texture(SDL_Renderer* renderer, const Gmeng::sImage& im
 
     // Convert color indices to packed pixels
     for (auto colorIndex : image.content) {
-        SDL_Color color = Gmeng::scolors[colorIndex];
+        int filtered_index = 8; //orange
+        if ( colorIndex > 8 ) filtered_index = get_dominant_color( Gmeng::color32_t( colorIndex ) );
+        else filtered_index = colorIndex;
+
+        SDL_Color color = Gmeng::scolors[ filtered_index ];
         pixels.push_back(color_to_uint32(color));
     }
 

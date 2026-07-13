@@ -2331,7 +2331,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// check if the light_cache is empty, sets initial render to true.
             /// can be set to true to refresh the render of lighting cache.
             bool redo_lightsource_cache = lvl.lighting_cache.empty();
-            if ( redo_lightsource_cache && lvl.light_sources.size() > 0 ) gm_log("recalculating lighting cache as one or more environments have changed");
+            if ( redo_lightsource_cache && lvl.light_sources.size() > 0 ) gm_log("("$(redo_lightsource_cache)") recalculating lighting cache as one or more environments have changed");
         };
 
         for ( int entity_id = 0; entity_id < lvl.entities.size(); entity_id++) {
@@ -2542,16 +2542,14 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 if ( lighting_enabled ) {
                     /// get the RGB value of the unit, so we can blend with the brightness value of the lightsource
                     auto rgb_col = color32_t( new_unit.color );
+
+                    auto state_iterator = lvl.lighting_cache.find( _dp.y*__level_base_width__ + _dp.x );
                     // check if the position of the unit is already in the lightcache_posmap.
                     // if it is, the value is changed instead of being created again
-                    if ( std::find( lightcache_posmap.begin(), lightcache_posmap.end(),
-                        _dp.y*__level_base_width__ + _dp.x ) != lightcache_posmap.end() ) {
+                    if ( state_iterator != lvl.lighting_cache.end() ) {
                         // get the cached lighting data, for its brightness value.
-                        auto _cached_lighting = lvl.lighting_cache.find( _dp.y*__level_base_width__ + _dp.x );
-                        // create new cache for the lighting state
-                        LightingState cached_lighting;
                         // if the cached data exists ( != lvl.lighting_cache.end() ) of the lighting cache, apply the value
-                        if (_cached_lighting != lvl.lighting_cache.end()) cached_lighting = _cached_lighting->second;
+                        LightingState cached_lighting = state_iterator->second;
                         // change the surface color to the default color of the unit
                         cached_lighting.surface_color = color32_t( new_unit.color );
                         // apply the lighting data

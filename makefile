@@ -1,5 +1,5 @@
 # Compiler and flags
-CXX := g++
+CXX := clang++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -fpermissive
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
@@ -96,8 +96,8 @@ ifeq ($(UNAME_S), Linux)
 endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
-    CXXFLAGS += -fsanitize=address
-	CXXFLAGS += -g -pg
+#    CXXFLAGS += -fsanitize=address
+	CXXFLAGS += -g
 else
 	CXXFLAGS += -O3
 endif
@@ -164,8 +164,8 @@ $(info compiling in $(current_dir))
 include $(current_dir)/make/buildcheck.mk
 
 ifeq ($(DEBUG_MODE),true)
-	CXXFLAGS += -fsanitize=address
-	CXXFLAGS += -g -pg
+#	CXXFLAGS += -fsanitize=address
+	CXXFLAGS += -g
 endif
 
 ifeq ($(USE_EXTERNAL),true)

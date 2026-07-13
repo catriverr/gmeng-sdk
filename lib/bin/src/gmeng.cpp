@@ -2494,7 +2494,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
 
         /// Info Menu draw, handled by GmengImGuiInfoWindow
         if (ev->level->display.camera.modifiers.get_value("draw_info") == 1 && dev_console_open)
-            info_window.Draw( win->renderer );
+           info_window.Draw( win->renderer );
 
         /// Developer Console draw, handled by GmengImGuiConsole
         if (dev_console_open) console.Draw(
@@ -2505,7 +2505,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
         if (vgm_open && dev_console_open) vgm_manager.Draw();
 
         /// Gmeng Level Inspector draw, handled by GmengImGuiLevel
-        if (level_inspector_open) level_inspector.Draw(), script_manager.Draw();
+        if (level_inspector_open) level_inspector.Draw();
 
         /// End ImGui Frame and Render it
         ImGui::Render();
