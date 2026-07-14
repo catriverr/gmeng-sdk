@@ -1911,6 +1911,9 @@ bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
         auto v4 = g_install_font(exec_path + "/assets/HackNerdFontMono-BoldItalic.ttf");
         if (!v4) gm_err(0, "unable to install /assets/HackNerdFontMono-BoldItalic.ttf to the system.", __FUNCTION__, __FILE__, __LINE__);
 
+        std::cout << "grace period 3s to ensure the Apple Font daemon registers the newly added fonts...\n";
+        std::system("sleep 3");
+
         std::cout << "declaring that the setup is complete...\n";
         std::system(std::string("touch " + exec_path + "/.gmeng_setup").c_str());
         std::cout << "checking if setup has been successfully declared complete...\n";
