@@ -1950,11 +1950,6 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 
     if (info->EVENT == KEYPRESS) {
         switch (info->KEYPRESS_CODE) {
-            case 27: /// esc
-                dd_info.KEYPRESS_CODE = '~';
-                ev->call_event(KEYPRESS, dd_info);
-                return;
-                break;
             case 10: /// enter
                 run = true;
                 cmd = dev_console_input;
