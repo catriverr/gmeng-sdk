@@ -18,8 +18,10 @@
                                                       // used for .dylib prebuilt C++ script handling.
 #include "../gmeng.h"
 #include "../utils/gridmap.cc"
-#include "SDL_keycode.h"
 
+#ifdef GMENG_SDL
+#include "SDL_keycode.h"
+#endif
 /// MAX MAP SIZE
 /// can be set in the makefile
 /// version 10.1.1 will add this option to `make configure`
@@ -1120,7 +1122,8 @@ namespace Gmeng {
         bool prevent_default = false;
         /// Alternative usage.
         /// usually triggered by holding shift.
-        /// one example is using shift + scroll for left-right movement instead of usual down-up movement.
+        /// one example is using shift + scroll for
+        /// left-right movement instead of usual down-up movement.
         bool alternative = false;
         /// Keypress WITH ctrl keydown
         /// SDL-Only
@@ -1161,11 +1164,7 @@ namespace Gmeng {
     typedef struct EventLoop {
       private:
           void init_default_event_hooks() {
-            DEFAULT_EVENT_HOOKS.push_back(         EventHook { .id=-100, .events= { MOUSE_CLICK_LEFT_START, MOUSE_CLICK_LEFT_END, MOUSE_CLICK_RIGHT_START, MOUSE_CLICK_RIGHT_END,
-                                MOUSE_CLICK_MIDDLE_START, MOUSE_CLICK_MIDDLE_END, MOUSE_CLICK_END_ANY },
-                        .handler=[](Gmeng::Level* lvl, EventInfo* info) {
-
-                    } } );
+            // no default behaviour on any events for now
           };
       public:
         int id; Gmeng::Level* level; std::vector<std::string>* logstream = GAME_LOGSTREAM;
@@ -1253,27 +1252,38 @@ namespace Gmeng {
             /// clear next tick processes.
         };
 
-        /// Adds an EventHook handler for handling the specified handlers at @param events
+        /// Registers an Event Hook to the EventLoop.
+        /// Event Hooks can have multiple events to listen for.
+        /// This is useful in cases where the interaction can be
+        /// handled by the same event listener, like mouse interactions
+        /// ({ MOUSE_CLICK_LEFT, MOUSE_CLICK_RIGHT }).
         void add_hook(vector<Event> events, handler_function_type handler) {
+            /// Unique identifier for the EventHook
             int id = g_mkid();
+            /// Register the event hook to the EventLoop
             this->hooks.push_back({ id, events, handler });
+            /// log the new event hook
             gm_log("registered an EventHook("$(id)") for the following events:");
             gm_log(list_events(events) + ".");
         };
 
         /// Emits an Event of type 'ev' with the specified EventInfo
         void call_event( Event ev, EventInfo& info ) {
+            /// set the event loop pointer
             info.event_loop = this;
             /// Search for event handlers, call each hook that uses it
             for (auto& hook : this->hooks) {
-                if (hook.locked) continue; /// check if the event handler is busy
-                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) { /// if the event handler
-                                                                                                                        /// handles the specified event
-                    if ((global.dev_mode || global.debugger)) { /// log info about the event if the debugger or devmode is enabled
-                        if ((ev == UPDATE || ev == FIXED_UPDATE) && !Gmeng::global.dont_hold_back); /// dont log update calls unless dont_hold_back is enabled
+                /// check if the event handler is busy
+                if (hook.locked) continue;
+                /// if the event handler handles the specified event
+                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
+                     /// log info about the event if the debugger or devmode is enabled
+                    if ((global.dev_mode || global.debugger)) {
+                        /// dont log update calls unless dont_hold_back is enabled
+                        if ((ev == UPDATE || ev == FIXED_UPDATE) && !Gmeng::global.dont_hold_back);
                         else gm_log("call to external event hook(id="$(hook.id)") for event " + get_event_name(ev));
                     };
-                    /// lock the event, prevent being recalled
+                    /// lock the handler, prevent being recalled
                     /// while the handler is busy.
                     hook.locked = true;
                     /// Run the handler for the hook.
@@ -1320,7 +1330,6 @@ namespace Gmeng {
 #ifdef GMENG_SDL
         /// ImGui Texture editor map.
         std::map<std::string, std::unique_ptr<GmengImGuiTextureEditor>> editors;
-
 #endif
 
         /// unless ran in a different worker thread,
@@ -1414,7 +1423,12 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 
 
 #ifndef GMENG_COMPILING_SCRIPT
-
+/// (Gmeng) emit a log string to the engine's developer console
+/// unless debug mode, developer mode or dont_hold_back is enabled,
+/// this will not write to the gmeng.log logfile.
+///
+/// This implementation is for internal logging (files included by
+/// the source code of the main program during compile time).
 #define GAME_LOG(str)                                              \
     do {                                                           \
         auto splitEntries = g_splitStr(str, "\n");                 \
@@ -1425,7 +1439,13 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
     } while (0)
 
 #else
-
+/// (Gmeng) emit a log string to the engine's developer console
+/// unless debug mode, developer mode or dont_hold_back is enabled,
+/// this will not write to the gmeng.log logfile.
+///
+/// This implementation is for externally attached programs (files
+/// not included during compile time of the source program) such as
+/// NOBLE scripts and plugins, liblmf attachments and dylibs.
 #define GAME_LOG(str)                                                                                                                   \
     do {                                                                                                                                \
         auto splitEntries = g_splitStr(str, "\n");                                                                                      \
@@ -2052,6 +2072,12 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     if (ev->cancelled) return -1;
     else ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
 
+    int cl = std::max(ev->level->display.viewpoint.end.x - ev->level->display.viewpoint.start.x, 10) + 2;
+    int rw = std::max(ev->level->display.viewpoint.end.y - ev->level->display.viewpoint.start.y, 15)/2 + 2;
+
+    if ((ev->level)->display.camera.modifiers.get_value("draw_info") == 1) resize_macos_terminal( cl + 85, rw );
+    else resize_macos_terminal(cl, rw);
+
     ev->call_event(Gmeng::UPDATE, Gmeng::NO_EVENT_INFO);
     state.console_open = false;
     bool curstate = state.console_open;
@@ -2106,11 +2132,20 @@ int do_event_loop(Gmeng::EventLoop* ev) {
         GAME_LOG("server at port "$(port)" was closed");
     });*/
 #endif
+    bool resize_was_done = false;
     /// main handler thread, for the game events
     while (!ev->cancelled) {
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf)); /// total bytes read
         Gmeng::Event t_event = Gmeng::UNKNOWN; // current event
         Gmeng::EventInfo info; // filled later, event info
+
+        if ((ev->level)->display.camera.modifiers.get_value("draw_info") == 1 || dev_console_open) {
+            if (!resize_was_done) { resize_macos_terminal( cl + 85, rw );
+                                    resize_was_done = true; };
+        } else {
+            if (resize_was_done)  { resize_macos_terminal(cl, rw);
+                                    resize_was_done = false; };
+        };
 
         if (n > 0) { /// if the event is not null
             buf[n] = '\0'; /// string terminate
@@ -2173,7 +2208,11 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                         if (state.console_open) ev->level->display.camera.clear_screen();
                         state.console_open = !state.console_open;
                         dev_console_open = state.console_open;
+
+                        if (dev_console_open) resize_macos_terminal(cl + 85, rw);
+                        else resize_macos_terminal(cl, rw);
                         gmeng_dev_console(ev, &info);
+                        gmeng_run_dev_command(ev, "refresh", true);
                     };
 
                     Gmeng::EventInfo d = {

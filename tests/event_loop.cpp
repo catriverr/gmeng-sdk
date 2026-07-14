@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         emplace_lvl_camera(*level, lvl_view);
         level->display.camera.reset_cur();
         auto time = GET_TIME();
-        std::cout << level->display.camera.draw() << "\n" << Gmeng::resetcolor;
+        std::cout << level->display.camera.draw();
         level->display.camera.draw_time = GET_TIME() - time;
         if (level->display.camera.modifiers.get_value("draw_info") == 1) level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
     });

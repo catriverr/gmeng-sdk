@@ -20,6 +20,7 @@
 #include <sstream>
 #include <functional>
 #include <atomic>
+#include <climits>
 #include <execinfo.h> // function call tracing
 #include <cxxabi.h> // function call tracing
 #include "src/objects.cpp"
@@ -449,7 +450,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "13.0.0-d";
+    static std::string version = "13.1.0-d";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -1475,17 +1476,19 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
         /// and writing to stdout extremely.
         /// show warning against this.
         /// Do not modify this warning.
-        std::cout << Gmeng::colors[Gmeng::RED] << "WARNING!" << Gmeng::resetcolor;
-        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal program/shell to be SHIT.\n";
-        std::cout << "\nTMUX AND iTerm combo is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
+        std::cout << Gmeng::colors[Gmeng::YELLOW] << "WARNING!" << Gmeng::resetcolor;
+        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal program/shell to be incompatible.\n"
+                  <<        "While this will not cause crashes, it will almost certainly cause display issues and bad input processing.\n\n";
+        std::cout << "\nTMUX is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
         std::cout << "as it slows down input receiver signals, introduces massive input lag,\n";
         std::cout << "is unable to handle multiple keypresses at once";
-        std::cout << " and slows down output writing by up to 5000%.\n\n";
-        std::cout << "If your terminal depends on iTerm for true color output,";
-        std::cout << " do not run this game with it.\nGmeng supports 16-color terminals by default.\n\n";
+        std::cout << " and slows down output writing by up to 5 times.\n\n";
+        std::cout << "If your terminal depends on tmux for color output,";
+        std::cout << " do not run this game with it.\n\n";
         std::cout << "Recommended Terminal Programs:";
         std::cout << "\n- windows: Windows Terminal\n";
-        std::cout << "- macOS: Apple Terminal (tmux for better 16-color support)\n";
+        std::cout << "- macOS: Apple Terminal (if using macOS Tahoe or later)\n";
+        std::cout << "- macOS: iTerm2 (if using an older version of macOS than Tahoe [26.0])\n";
         std::cout << "- linux / Windows Subsystem for linux: the default tty will suffice.\n";
         std::cout << "\nPress CTRL+C to quit.\n";
         std::cout << "\nPress any key to continue anyway.";
@@ -1612,6 +1615,28 @@ static void gm_err(v_intl type, v_title err_title, TRACEFUNC) {
     return;
 };
 
+static void set_terminal_size(int width, int height) {
+    // The ANSI sequence to resize the window is \033[8;{height};{width}t
+    std::cout << "\033[8;" << height << ";" << width << "t" << std::flush;
+}
+
+void resize_macos_terminal(int columns, int rows) {
+    // osascript to command the Terminal application directly.
+    std::string script =
+        "osascript "
+        "-e 'tell application \"Terminal\"' "
+        "-e 'set number of columns of front window to " + std::to_string(columns) + "' "
+        "-e 'set number of rows of front window to " + std::to_string(rows) + "' "
+        "-e 'end tell' > /dev/null 2>&1";
+
+    std::system(script.c_str());
+}
+
+static void set_terminal_title(const std::string& title) {
+    // \033]0; starts the title sequence
+    // \007 (BEL character) ends the sequence
+    std::cout << "\033]0;" << title << "\007" << std::flush;
+};
 
 ///// __controller_satisfy__
 ///// OS Error for Windows
@@ -1628,6 +1653,278 @@ static void ansi_clear_screen() {
     std::cout.flush();
 }
 
+namespace fs = std::filesystem;
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+
+/// (Gmeng) installs a font to the user's fonts directory
+/// if the font is not already installed.
+bool g_install_font(const std::string& fontFilePath) {
+    // get user's home directory (~)
+    const char* homeDir = std::getenv("HOME");
+    if (!homeDir) {
+        std::cerr << "Error: Could not determine user home directory.\n";
+        return false;
+    }
+
+    // validate the source file exists
+    fs::path sourcePath(fontFilePath);
+    if (!fs::exists(sourcePath)) {
+        std::cerr << "Error: Font file not found at " << fontFilePath << "\n";
+        return false;
+    }
+
+    // copy to fonts directory path (~/Library/Fonts/FontName.ttf)
+    fs::path destDir = fs::path(homeDir) / "Library" / "Fonts";
+    fs::path destPath = destDir / sourcePath.filename();
+
+    // check if the font is already installed
+    if (fs::exists(destPath)) {
+        // compare file sizes to ensure it's not corrupted
+        // it's basic but should at least work (sometimes idk)
+        if (fs::file_size(sourcePath) == fs::file_size(destPath)) {
+            return true; // Already installed, silently proceed
+        }
+    }
+
+    // copy the font into the user's Fonts folder
+    try {
+        fs::copy_file(sourcePath, destPath, fs::copy_options::overwrite_existing);
+        std::cout << "Successfully installed font: " << sourcePath.filename().string() << "\n";
+        return true;
+    } catch (const fs::filesystem_error& e) {
+        gm_err(1, ("Filesystem error installing font: " + std::string(e.what()) + "\n"), __FUNCTION__, __FILE__, __LINE__);
+        return false;
+    }
+}
+
+/// Returns the directory in which the current
+/// executable is in. Absolute directory only,
+/// calls realpath().
+std::string get_executable_directory() {
+    char rawPath[PATH_MAX];
+    uint32_t size = sizeof(rawPath);
+
+    if (_NSGetExecutablePath(rawPath, &size) != 0) {
+        // In the extremely rare case the path exceeds PATH_MAX, _NSGetExecutablePath
+        // updates 'size' to the required size (as defined in man 3 dyld), handling that dynamically here.
+        std::string dynamicPath(size, '\0');
+        if (_NSGetExecutablePath(&dynamicPath[0], &size) != 0) {
+            return ""; // Failed to get path
+        }
+        // Copy back to rawPath for realpath processing
+        std::strncpy(rawPath, dynamicPath.c_str(), PATH_MAX);
+    }
+
+    // 2. Use realpath() to resolve absolute path, removing './', '../', and symlinks
+    char resolvedPath[PATH_MAX];
+    if (realpath(rawPath, resolvedPath) == nullptr) {
+        return ""; // Failed to resolve path
+    }
+
+    // extract the parent directory
+    std::filesystem::path fullPath(resolvedPath);
+    return fullPath.parent_path().string();
+}
+
+
+/// Forces the macos terminal to use the correct
+/// terminal profile (provided by gmeng) when running
+/// the program.
+///
+/// Return values:
+///    [success] 0 -> the profile is already set up, proceed
+///    [error] 1 -> the current executable path too long
+///    [error] 2 -> fail while copying terminal profile to /tmp
+///    [success] 3 -> terminal profile launched
+static int enforce_macos_terminal_profile(const std::string& templateProfilePath, bool already_set_up) {
+    // If the engine already detected the flag, we are good to go.
+    if (already_set_up) {
+        return 0;
+    }
+
+    // Get the absolute path of this running executable
+    char pathBuf[1024];
+    uint32_t size = sizeof(pathBuf);
+    if (_NSGetExecutablePath(pathBuf, &size) != 0) {
+        std::cerr << "Error: Engine executable path is too long.\n";
+        return 1;
+    }
+    char pathreal[1024];
+    /// set to absolute file path ( so no symlinks or directory options like /../ )
+    realpath(pathBuf, pathreal);
+
+    std::string execPath = pathreal;
+
+    std::string uniqueId = v_str(g_mkid());
+
+    // temporary file locations
+    std::string tempFile = "/tmp/Gmeng_RequiredProfile_" + uniqueId + ".terminal";
+    std::string tempScript = "/tmp/Gmeng_Launcher_" + uniqueId + ".sh";
+
+    std::ofstream scriptFile(tempScript);
+    if (!scriptFile) {
+        std::cerr << "Error: Could not create temporary launcher script.\n";
+        return 2;
+    }
+    scriptFile << "#!/bin/bash\n";
+    scriptFile << "cd \"" << get_executable_directory() << "\"\n";
+    scriptFile << "exec \"" << execPath << "\" --themed\n";
+    scriptFile.close();
+
+    std::string chmodCmd = "chmod +x \"" + tempScript + "\"";
+    std::system(chmodCmd.c_str());
+
+
+    // copy the base template to the temporary location
+    std::string copyCmd = "cp \"" + templateProfilePath + "\" \"" + tempFile + "\"";
+    if (std::system(copyCmd.c_str()) != 0) {
+        std::cerr << "Error: Failed to copy terminal profile template.\n";
+        return 2;
+    }
+
+    // the launch command, wrapping the path in escaped quotes for spaces
+    std::string launchCmd = "cd \\\"" + get_executable_directory() + "\\\" && \\\"" + execPath + "\\\" --themed";
+
+    // Inject the command into the temporary .terminal file using PlistBuddy
+    std::string delCmdStr = "/usr/libexec/PlistBuddy -c \"Delete :CommandString\" \"" + tempFile + "\" 2>/dev/null";
+    std::string addCmdStr = "/usr/libexec/PlistBuddy -c \"Add :CommandString string '" + tempScript + "'\" \"" + tempFile + "\"";
+
+    std::string delRunShell = "/usr/libexec/PlistBuddy -c \"Delete :RunCommandAsShell\" \"" + tempFile + "\" 2>/dev/null";
+    std::string addRunShell = "/usr/libexec/PlistBuddy -c \"Add :RunCommandAsShell bool true\" \"" + tempFile + "\"";
+
+    // shellExitAction 2 = Don't close window
+    std::string delExitAction = "/usr/libexec/PlistBuddy -c \"Delete :shellExitAction\" \"" + tempFile + "\" 2>/dev/null";
+    std::string addExitAction = "/usr/libexec/PlistBuddy -c \"Add :shellExitAction integer 2\" \"" + tempFile + "\"";
+
+    std::string delScroll = "/usr/libexec/PlistBuddy -c \"Delete :ScrollbackLines\" \"" + tempFile + "\" 2>/dev/null";
+    std::string addScroll = "/usr/libexec/PlistBuddy -c \"Add :ScrollbackLines integer 0\" \"" + tempFile + "\"";
+
+    std::system(delScroll.c_str());
+    std::system(addScroll.c_str());
+
+    std::system(delCmdStr.c_str());
+    std::system(addCmdStr.c_str());
+
+    std::system(delRunShell.c_str());
+    std::system(addRunShell.c_str());
+
+    std::system(delExitAction.c_str());
+    std::system(addExitAction.c_str());
+
+    // Launch program
+    std::string openCmd = "open \"" + tempFile + "\"";
+    std::system(openCmd.c_str());
+    // Tell the caller to exit this generic terminal instance
+    return 3;
+}
+
+
+
+/// Gmeng's internal setup for macOS terminals.
+/// This installs the truetype font Hacker Nerd Font Mono,
+/// Sets up the required Apple Terminal Profile for games
+/// and ensures `make setup was successful`
+bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
+    __annot__(patch_argv_global, "sets up Gmeng for MacOS & Apple Terminal");
+    __functree_call__(gmeng_macos_terminal_setup);
+
+    std::cout << "you will be prompted to access the terminal's controls.\n";
+    std::cout << "Allow this setting so Gmeng can receive input from your keyboard and mouse.\n";
+    resize_macos_terminal(125, 30);
+
+    std::string exec_path = get_executable_directory();
+    if (exec_path.empty()) {
+        gm_err(1, "an error occured while beginning setup: gmeng.h/internal/macos/func/get_executable_directory() returned an empty string.",
+                __FUNCTION__, __FILE__, __LINE__);
+        return false;
+    };
+    if (!fs::exists(exec_path + "/.gmeng_setup")) {
+        /// Gmeng Setup
+        ansi_clear_screen();
+        std::cout << Gmeng::bgcolors[Gmeng::YELLOW] << Gmeng::colors[Gmeng::RED] << "Gmeng " << Gmeng::version
+                  << Gmeng::resetcolor << " > Go-To Console Game Engine.\n";
+        std::cout << "\nGmeng (the game engine architecture that this game runs on) needs to initialize"
+                  << "\n its fonts and terminal profile before this game is playable.\n";
+
+        std::cout << "\nThe setup will install the following prequisites:"
+                  << "\n\t- Hack Nerd Font Mono (the preffered font for displaying Gmeng games),"
+                  << "\n\t- Default Gmeng Apple Terminal Profile (used to launch all Gmeng games),"
+                  << "\n\t- Morhetz/Gruvbox colorprofile and theme (default palette for Gmeng)\n";
+
+        std::cout << "\nDuring the setup, the engine will need to access your font directory."
+                  << "\nThis process will only be ran once and will not be required when launching"
+                  << " this game in the future.\n";
+
+        std::cout << "\nFor more information, visit " << Gmeng::colors[Gmeng::BLUE] << "https://gmeng.org/?doc=macos-setup" << Gmeng::resetcolor << ".";
+        std::cout << Gmeng::boldcolor << "\nPress CTRL+C to cancel the installation or any other key to proceed.\n";
+
+        std::cin.get();
+        ansi_clear_screen();
+
+        std::cout << Gmeng::bgcolors[Gmeng::YELLOW] << Gmeng::colors[Gmeng::RED] << "Gmeng " << Gmeng::version
+                  << Gmeng::resetcolor << " > Go-To Console Game Engine.\n";
+        std::cout <<"\nBeginning installation...";
+        if (!fs::exists(exec_path + "/assets/gmeng.terminal")) {
+            gm_err(1, "install directory for assets/gmeng.terminal is missing. Abort", __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        };
+        std::cout << "Morhetz/Gruvbox colorprofile (found in <assets/gmeng.terminal>)\n";
+        std::cout << "Default Gmeng Apple Terminal Profile (found in <assets/gmeng.terminal>)\n";
+        std::cout << "\nInstalling fonts... (found in <assets/HackNerdFont-*.ttf)\n";
+
+        std::cout << "\t> Installing HackNerdFontMono-Regular.ttf...\n";
+
+        if (!fs::exists(exec_path + "/assets/HackNerdFontMono-Regular.ttf")) {
+            gm_err(1, "install directory for assets/HackNerdFontMono-Regular.ttf is missing. Abort", __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        };
+        auto v = g_install_font(exec_path + "/assets/HackNerdFontMono-Regular.ttf");
+        if (!v) gm_err(0, "unable to install /assets/HackNerdFontMono-Regular.ttf to the system.", __FUNCTION__, __FILE__, __LINE__);
+
+        std::cout << "\t> Installing HackNerdFontMono-Bold.ttf...\n";
+
+        if (!fs::exists(exec_path + "/assets/HackNerdFontMono-Bold.ttf")) {
+            gm_err(1, "install directory for assets/HackNerdFontMono-Bold.ttf is missing. Abort", __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        };
+
+        auto v2 = g_install_font(exec_path + "/assets/HackNerdFontMono-Bold.ttf");
+        if (!v2) gm_err(0, "unable to install /assets/HackNerdFontMono-Bold.ttf to the system.", __FUNCTION__, __FILE__, __LINE__);
+
+        std::cout << "\t> Installing HackNerdFontMono-Italic.ttf...\n";
+
+        if (!fs::exists(exec_path + "/assets/HackNerdFontMono-Italic.ttf")) {
+            gm_err(1, "install directory for assets/HackNerdFontMono-Italic.ttf is missing. Abort", __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        };
+        auto v3 = g_install_font(exec_path + "/assets/HackNerdFontMono-Italic.ttf");
+        if (!v3) gm_err(0, "unable to install /assets/HackNerdFontMono-Italic.ttf to the system.", __FUNCTION__, __FILE__, __LINE__);
+
+        std::cout << "\t> Installing HackNerdFontMono-BoldItalic.ttf...\n";
+
+        if (!fs::exists(exec_path + "/assets/HackNerdFontMono-BoldItalic.ttf")) {
+            gm_err(1, "install directory for assets/HackNerdFontMono-BoldItalic.ttf is missing. Abort", __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        };
+        auto v4 = g_install_font(exec_path + "/assets/HackNerdFontMono-BoldItalic.ttf");
+        if (!v4) gm_err(0, "unable to install /assets/HackNerdFontMono-BoldItalic.ttf to the system.", __FUNCTION__, __FILE__, __LINE__);
+
+        std::cout << "declaring that the setup is complete...\n";
+        std::system(std::string("touch " + exec_path + "/.gmeng_setup").c_str());
+        std::cout << "checking if setup has been successfully declared complete...\n";
+        if (!fs::exists(exec_path + "/.gmeng_setup")) {
+            gm_err(1, "unable to declare setup complete. Check if the program has the required read/write permissions for the current directory as well as the ~/Library/Fonts directory.",
+                    __FUNCTION__, __FILE__, __LINE__);
+            return false;
+        }
+        std::cout << "setup complete. proceeding to the game...\n";
+    };
+    return true;
+};
+
+#endif // __APPLE__
 
 
 /// Patches gmeng's 'global' variables required by the engine,
@@ -1678,14 +1975,20 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
     int has_restart_flag = std::count(v_argv.begin(), v_argv.end(), restart_flag);
     bool restarted_instance = false;
     if (has_restart_flag > 0) restarted_instance = true;
+
     Gmeng::global.restarted_instance = restarted_instance;
 
     if (!restarted_instance) Gmeng::outfile.open("gmeng.log");
     else Gmeng::outfile.open("gmeng.log", std::ios::app);
 
+    bool IS_USING_GMENG_APPLETERMINAL_THEMED = false;
+
     for (int i = 0; i < argc; i++) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
+
+        /// For the game to launch using the correct apple terminal profile.
+        if (argument == "--themed") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
 
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
             __functree_call__(__gmeng__help__menu__);
@@ -1724,6 +2027,29 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
         if ( argument == "-weird" ) Gmeng::global.weird_ass = true;
         if ( argument == "-ignore-assert" ) Gmeng::global.ignore_assert = true;
     };
+
+#ifdef __APPLE__
+    /// Launch Gmeng MacOS setup (setup will exit immediately if the game directory was already set-up)
+    bool setup = gmeng_macos_terminal_setup(argc, argv);
+    if (!setup) {
+        INF("[apple_setup] error (0) nontrue return value from gmeng_macos_terminal_setup. cannot proceed.\n");
+        exit(1);
+    }
+
+    /// Force MacOS to use Apple Terminal
+
+    std::string exc_path = get_executable_directory();
+    int force_profile = enforce_macos_terminal_profile(exc_path + "/assets/gmeng.terminal", IS_USING_GMENG_APPLETERMINAL_THEMED);
+    /// return value (3) means the game has launched with the required gmeng profile.
+    if (force_profile == 3) exit(0);
+    /// return value (0) means the game is already using the required gmeng profile.
+    /// otherwise, error.
+    if (force_profile != 0) {
+        INF("[apple_setup] error (" + v_str(force_profile) +") nonzero return value from enforce_macos_terminal_profile. cannot proceed.\n");
+        exit(1);
+    };
+#endif
+    set_terminal_title("GMENG " + Gmeng::version + " | build " + GMENG_BUILD_NO);
     init_logc();
     gm_log("hello");
 #endif
