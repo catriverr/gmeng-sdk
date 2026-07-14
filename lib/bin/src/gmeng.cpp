@@ -2204,7 +2204,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 };
 
                 if (ev->modifiers.get_value("allow_console") == 1) {
-                    if (info.KEYPRESS_CODE == '~') {
+                    if (info.KEYPRESS_CODE == 27) { /// either ESC or shift+tab
                         if (state.console_open) ev->level->display.camera.clear_screen();
                         state.console_open = !state.console_open;
                         dev_console_open = state.console_open;
