@@ -89,7 +89,6 @@ int main(int argc, char** argv) {
         auto real_cake_model = level->chunks.at(0).models.at(2);
         bool nomove = info->prevent_default;
 
-        std::cout << "KEYPRESSCODE: " << v_str((int)info->KEYPRESS_CODE) << "\n";
 
         switch (info->KEYPRESS_CODE) {
             case 'f': case 'F': {
