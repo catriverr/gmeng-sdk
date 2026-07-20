@@ -419,7 +419,7 @@ namespace Gmeng {
         /// Adds a UI element to the Camera.
         inline void add_element( ui_element& elem ) {
             __functree_call__(Gmeng::Camera_UI_Manager::add_element);
-            gm_log("registering new UI element with id "$(elem.id)" to the UI element manager.");
+            DEBUGGER gm_log("registering new UI element with id "$(elem.id)" to the UI element manager.");
             this->elements[ elem.id ] = elem;
         };
 
@@ -1258,6 +1258,7 @@ namespace Gmeng {
         /// handled by the same event listener, like mouse interactions
         /// ({ MOUSE_CLICK_LEFT, MOUSE_CLICK_RIGHT }).
         void add_hook(vector<Event> events, handler_function_type handler) {
+            __functree_call__(Gmeng::EventLoop::add_hook);
             /// Unique identifier for the EventHook
             int id = g_mkid();
             /// Register the event hook to the EventLoop
@@ -1950,6 +1951,8 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
 
     if (info->EVENT == KEYPRESS) {
         switch (info->KEYPRESS_CODE) {
+            case 27: /// esc or shift+tab
+                break;
             case 10: /// enter
                 run = true;
                 cmd = dev_console_input;

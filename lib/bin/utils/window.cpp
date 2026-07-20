@@ -1635,6 +1635,7 @@ struct GmengImGuiLevel {
                         if (ImGui::ColorEdit3("modulation color", color_values)) {
                             Gmeng::color32_t new_col( color_values[0]*255, color_values[1]*255, color_values[2]*255 );
                             derived_entity->color = new_col;
+                            derived_entity->cached = false;
                         };
 
                         if (ImGui::Button("invalidate cache")) {

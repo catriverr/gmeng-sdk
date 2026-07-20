@@ -373,7 +373,6 @@ static int g_mkid() {
     return distribution(gen);
 }
 
-#define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
 using namespace std;
 using MouseClickCallback = std::function<void()>;
@@ -1770,7 +1769,7 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
     }
     scriptFile << "#!/bin/bash\n";
     scriptFile << "cd \"" << get_executable_directory() << "\"\n";
-    scriptFile << "exec \"" << execPath << "\" --themed\n";
+    scriptFile << "exec \"" << execPath << "\" --profile\n";
     scriptFile.close();
 
     std::string chmodCmd = "chmod +x \"" + tempScript + "\"";
@@ -1785,7 +1784,7 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
     }
 
     // the launch command, wrapping the path in escaped quotes for spaces
-    std::string launchCmd = "cd \\\"" + get_executable_directory() + "\\\" && \\\"" + execPath + "\\\" --themed";
+    std::string launchCmd = "cd \\\"" + get_executable_directory() + "\\\" && \\\"" + execPath + "\\\" --profile";
 
     // Inject the command into the temporary .terminal file using PlistBuddy
     std::string delCmdStr = "/usr/libexec/PlistBuddy -c \"Delete :CommandString\" \"" + tempFile + "\" 2>/dev/null";
@@ -1830,9 +1829,9 @@ bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
     __annot__(patch_argv_global, "sets up Gmeng for MacOS & Apple Terminal");
     __functree_call__(gmeng_macos_terminal_setup);
 
-    std::cout << "you will be prompted to access the terminal's controls.\n";
-    std::cout << "Allow this setting so Gmeng can receive input from your keyboard and mouse.\n";
-    resize_macos_terminal(125, 30);
+    INF("you will be prompted to access the terminal's controls.\n");
+    INF("Allow this setting so Gmeng can receive input from your keyboard and mouse.\n");
+    INF("~i~you can change this later in System Settings > Privacy & Security > Automation > Terminal.app~n~\n");
 
     std::string exec_path = get_executable_directory();
     if (exec_path.empty()) {
@@ -1991,7 +1990,7 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
         std::string argument (v_arg);
 
         /// For the game to launch using the correct apple terminal profile.
-        if (argument == "--themed") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
+        if (argument == "--profile") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
 
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
             __functree_call__(__gmeng__help__menu__);
@@ -2009,11 +2008,12 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
             SAY("\t    ~y~gmeng ~p~-devc \t\t~_~enables developer console\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-no-devc\t\t~_~disables developer console\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-devmode\t\t~_~enables developer diagnostics\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~--profile\t\t~_~asumes terminal is correct\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-log-to-cout\t\t~_~streams logs to stout\t\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-no-functree\t\t~_~disables the gmeng functree\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-debugger -debug\t~_~enables extensive debug logs\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-functree-extensive\t~_~makes functree logs extensive\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-shut-the-fuck-up\t~_~silences all logging\t\t~r~(DEFAULT=~p~false~r~)\n");
+            SAY("\t    ~y~gmeng ~p~-functree-extensive\t~_~makes functree logs extensive\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("\t    ~y~gmeng ~p~-tell-me-everything\t~_~enables all logging methods\t~r~(DEFAULT=~p~false~r~)\n");
             SAY("~b~" + repeatString(" ", 11) + "~st~" + repeatString("-", times) + "~n~\n");
             exit(0);

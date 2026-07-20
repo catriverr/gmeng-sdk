@@ -30,6 +30,11 @@ namespace fs = std::filesystem;
 
 
 namespace Gmeng {
+    /// Ansi escape code for HOME (0, 0 cursor position)
+    constexpr const char* HOME = "\033[H";
+
+    class Level;
+
     /// All Renderer utilities, structs, objects
     /// controllers, handlers and more.
     namespace Renderer {
@@ -313,13 +318,11 @@ namespace Gmeng {
                     this->camera.SetResolution(this->width, this->height);
                 };
 
-                /// refreshes the display (not the camera), re-setting the
-                /// resolution for the camera.
-                inline void refresh() {
-                    __functree_call__(Gmeng::Renderer::Display::refresh);
-                    // refresh resolution
-                    this->camera.SetResolution(this->width, this->height);
-                };
+                /// Generates and draws the newest frame to the screen.
+                /// Default draw for both engines (SDL & Terminal-based)
+                ///
+                /// TODO: Also add SDL default draw support (currently does nothing)
+                inline void refresh(Gmeng::Level*);
                 /// Moves the display's viewpoint to the specified new viewpoint.
                 inline void move_to(Gmeng::Renderer::viewpoint __vp) {
                     __functree_call__(Gmeng::Renderer::Display::move_to);
@@ -745,7 +748,6 @@ namespace Gmeng {
     };
 
     /// type decl
-    class Level;
     class EventLoop;
 
     class EntityBase {
@@ -2882,6 +2884,48 @@ inline textblob_t textarea(Gmeng::Camera<0, 0> cam, Renderer::drawpoint pos, std
 };
 
 
+inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
+    DEBUGGER __functree_call__(Gmeng::Renderer::Display::refresh);
+    #ifndef GMENG_SDL
+        /// Generate a priority drawable scale of the level
+        /// (renderscale ignores objects that are too far out
+        ///  of view from the display's viewpoint/resolution)
+        auto renderscale = Gmeng::get_renderscale(*level);
+        /// converts the renderscale into a text blob so it can be
+        /// drawn as raw text by the camera to the Terminal screen
+        std::string lvl_view = Gmeng::get_lvl_view(*level, renderscale);
+        /// Places the level view into the camera so its draw()
+        /// function consumes the data and can write it to the screeen.
+        Gmeng::emplace_lvl_camera(*level, lvl_view);
+
+        /// For draw_time calculation. drawing the frame takes longer
+        /// than generating the frame in the terminal since the raw
+        /// text contains a large chunk of colorcodes and escape sequences.
+        /// draw_time includes the frame_time as well.
+        ///
+        /// draw = frame + write
+        auto draw_time_b = GET_TIME();
+
+        /// Updates and emplaces UI elements to the camera view.
+        level->display.camera.apply_ui();
+        /// seeks to the 0,0 position of the terminal screen
+        /// and writes the new frame. This will override the
+        /// previously displayed frame, but if there was a change
+        /// of resolution between frames this means that artifacts
+        /// of the previous frame will be visible on the screen.
+        ///
+        /// Camera::clear_screen() can be called in such cases but
+        /// since resolution changes are not called by the engine
+        /// there is no need for an internal system to detect them
+        /// and clear the screen accordingly, as it's the user's responsibility.
+        std::cout << Gmeng::HOME <<  level->display.camera.draw() << Gmeng::resetcolor;
+        /// Set the actual draw time
+        level->display.camera.draw_time = GET_TIME() - draw_time_b;
+        /// checks draw_info for displaying debug information to the screen.
+        if (level->display.camera.modifiers.get_value("draw_info") == 1)
+            level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
+    #endif
+};
 
 
 #define __GMENG_MODELRENDERER__INIT__ true
