@@ -35,12 +35,12 @@ namespace Gmeng {
 
     class Level;
 
-    /// All Renderer utilities, structs, objects
-    /// controllers, handlers and more.
+    /// Gmeng's Rendering Utilities
     namespace Renderer {
         /// position in a viewpoint
         struct drawpoint {
             int x; int y;
+
             /// drawpoint comparison
             bool operator<(const drawpoint& other) const {
                 if (y != other.y) return y < other.y;
@@ -51,7 +51,48 @@ namespace Gmeng {
         };
         /// viewpoint, 2 drawpoints with a start and end
         struct viewpoint { drawpoint start; drawpoint end; };
+    };
 
+    /// returns delta of a viewpoint's X coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
+    };
+
+    /// returns delta of a viewpoint's Y coordinate
+    template <typename number_type = int>
+    inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
+        return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
+    };
+
+    template <typename... Args>
+    auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
+    };
+
+    template <typename... Args>
+    auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
+        return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
+    };
+
+    /// returns position of a 2d pointer in a vector as a 1d index to the vector
+    /// example:
+    /// { 0, 1, 2,
+    ///   3, 4, 5 }
+    /// width = 3,
+    /// pointer = (1, 1)
+    /// y (1) * width (3) + x (1) => pos(4)
+    /// vector[4] = 4
+    template <typename number_type = int>
+    inline number_type _vcreate_vu2d_delta_xy(int x, int y, int width) {
+        __functree_call__(_vcreate_vu2d_delta_xy);
+        return v_static_cast<number_type>( ( y * width ) + x );
+    };
+
+
+    /// All Renderer utilities, structs, objects
+    /// controllers, handlers and more.
+    namespace Renderer {
         int dp_distance(const drawpoint& a, const drawpoint& b) {
             int dx = b.x - a.x;
             int dy = b.y - a.y;
@@ -77,9 +118,9 @@ namespace Gmeng {
             return __t;
         };
 
-        /// Models
-        ///
-        /// @since 4.1-glvl
+        /// Gmeng class for Models. Models are any standalone object
+        /// within a render instance that isn't treated as an entity.
+        /// Models are part of a 'chunk' which make up a Level instance.
         class Model {
             private:
               inline Objects::coord get_pointXY(int pos) {
@@ -92,10 +133,46 @@ namespace Gmeng {
                   };
               };
             public:
-              /// used for editors
-              bool highlighted = false; bool active = true;
-              std::size_t width; std::size_t height; std::size_t size; drawpoint position;
-              std::string name; Gmeng::texture texture; int id;
+              /// Whether or not the model is highlighted. Gmeng
+              /// internally draws a box around the model if this
+              /// parameter is set to true. Useful for debugging.
+              bool highlighted = false;
+              /// Activity status of the model. If set to false,
+              /// the model is treated as inactive and it will
+              /// not be drawn in the renderscale. Any effects
+              /// the model might have on collision and lighting
+              /// will also not be taken into account during calculation.
+              bool active = true;
+              /// Width of the model. This should always be equal to
+              /// `Model::texture.width`, as the texture is what's
+              /// taken into account when drawing a Model.
+              std::size_t width;
+              /// Height of the model. This should always be equal to
+              /// `Model::texture.height`, as the texture is what's
+              /// taken into account when drawing a Model.
+              std::size_t height;
+              /// Size of the model. This should always be equal to
+              /// `Model::width * Model::height`. Internally managed.
+              std::size_t size;
+              /// Position of the model within its parent `chunk`
+              /// container. This is almost always equal to the
+              /// model's position within the Level, but with
+              /// levels that have multiple chunks, it's not guaranteed.
+              drawpoint position;
+              /// Name of the model. Useful for identifying specific
+              /// models that may be using the same texture as another
+              /// model within the same level.
+              std::string name;
+              /// Texture of the model. The texture controls the
+              /// model's `width, height, size` values internally.
+              /// This is the image that is drawn as a Model when
+              /// `get_renderscale` accesses this model's parent chunk.
+              Gmeng::texture texture;
+              /// ID of the model.
+              int id;
+
+              GMENG_INIT_TYPE( highlighted, active, width, height,
+                               size, position, name, texture, id );
               /// Resets the texture into the default null-layer with the same height
               /// as the previously attached texture.
               ///
@@ -149,20 +226,21 @@ namespace Gmeng {
             };
         };
 
-
-
-
-
-
-
-
-
-
-
-
-
+        /// 'Skybox' implementation in Gmeng. Basically, this 'base'
+        /// is the underlying texture of a `Gmeng::Level` instance.
+        /// All chunks within a level are drawn on top of this texture
+        /// and this also defines the boundaries of a Level.
         struct LevelBase {
-            Gmeng::texture lvl_template; std::size_t width; std::size_t height;
+            /// texture of the level base (skybox)
+            Gmeng::texture lvl_template;
+            /// Width of the level base as well as the maximum width
+            /// of the parent level instance.
+            std::size_t width;
+            /// Height of the level base as well as the maximum height
+            /// of the parent level instance.
+            std::size_t height;
+
+            GMENG_INIT_TYPE( lvl_template, width, height );
         };
 
         struct gnmdl {
@@ -293,14 +371,25 @@ namespace Gmeng {
                 /// Setting this variable by itself is not recommended. Use
                 /// set_resolution() instead, as it will also update the camera.
                 std::size_t width;
+                /// The maximum width that the display can have. Set by the
+                /// Level instance managing this display. The value will be equal
+                /// to the level's base_texture width.
+                std::size_t max_width;
                 /// The height of the display. Not synced with the viewpoint.
                 /// Setting this variable by itself is not recommended. Use
                 /// set_resolution() instead, as it will also update the camera.
                 std::size_t height;
+                /// THe maximum height that the display can have. Set by the
+                /// Level instance managing this display. The value will be equal
+                /// to the level's base_texture height.
+                std::size_t max_height;
                 /// Units rendered on the display. used for camera syncing internally.
                 /// This vector will usually be empty, it is not for usage in games.
                 /// use either Camera::display_map::unitmap or Level::renderscale.
                 vector<Unit> rendered_units;
+
+                GMENG_INIT_TYPE( camera, viewpoint, width, max_width,
+                                 height, max_height, rendered_units );
 
                 /// enables / disables cursor visibility on the terminal.
                 inline void set_cursor_visibility(bool state) {
@@ -328,18 +417,64 @@ namespace Gmeng {
                     __functree_call__(Gmeng::Renderer::Display::move_to);
                     this->viewpoint = __vp;
                 };
+
+                /// Moves the display's viewpoint by the specified X and Y
+                /// values. The values are added to the existing viewpoint.
+                ///
+                /// THIS DOES NOT OVERRIDE THE VIEWPOINT! It merely will
+                /// add the specified X and Y deltas to the viewpoint.
+                ///
+                /// For example:
+                ///
+                /// using move_viewpoint_by(1, 1) will move a viewpoint of
+                /// values: { start = { 50, 50 }, end = { 75, 75 } } to
+                /// moved: { start = { 51, 51, }, end = { 76, 76 } }.
+                ///
+                /// The values can be negative as well.
+                inline void move_viewpoint_by(int by_x = 0, int by_y = 0) {
+
+                    int vp_width_end_x = this->viewpoint.end.x + by_x;
+                    int vp_width_start_x = this->viewpoint.start.x + by_x;
+
+                    /// X position of the viewpoint are smaller than is possible.
+                    if ( vp_width_end_x < 0 || vp_width_start_x < 0 ) return;
+
+                    /// X position of the viewpoint is larger than the allowed positions.
+                    if ( vp_width_end_x > this->max_width ||
+                         vp_width_start_x > this->max_width ) return;
+
+                    int vp_height_end_y = this->viewpoint.end.y + by_y;
+                    int vp_height_start_y = this->viewpoint.start.y + by_y;
+
+                    /// X position of the viewpoint are smaller than is possible.
+                    if ( vp_height_end_y < 0 || vp_height_end_y < 0 ) return;
+
+                    /// Y position of the viewpoint is larger than the allowed positions.
+                    if ( vp_height_end_y > this->max_height ||
+                         vp_height_start_y > this->max_height ) return;
+
+                    /// the X delta of the new viewpoint is smaller than the display width
+                    if ( vp_width_end_x - vp_width_start_x != this->width ) return;
+                    /// the Y delta of the new viewpoint is smaller than the display height
+                    if ( vp_height_end_y - vp_height_start_y != this->height ) return;
+
+                    this->viewpoint = { { vp_width_start_x, vp_height_start_y },
+                                        { vp_width_end_x,     vp_height_end_y }};
+                };
         };
     };
-    // chunk of a level
-    // similar to how minecraft handles chunks
-    // in Gmeng::Level::wm_render() a std::vector<Gmeng::r_chunk> chunks is loaded
-    // these chunks contain { Gmeng::Renderer::viewpoint vp; } metadata
-    // which in Gmeng::Level::Display::draw() are located.
-    // The chunk's std::vector<Gmeng::Renderer::Model> models object is recieved
-    // and compiled into a Gmeng::Camera::unitmap;
+    // chunk of a `Gmeng::Level` instance. similar to how minecraft handles chunks.
+    // in `Gmeng::Level::render_chunk()` a `std::vector<Gmeng::r_chunk> chunks` is loaded.
+    // these chunks contain { Gmeng::Renderer::viewpoint vp; } metadata. The chunk's
+    // `std::vector<Gmeng::Renderer::Model>` models object is recieved and compiled into a unitmap.
     struct chunk {
+        /// Viewpoint of the chunk. Defines the part of the Level that this
+        /// chunk is responsible for containing Model and Entity data for.
         Renderer::viewpoint vp;
+        /// Models within the chunk.
         vector<Renderer::Model> models;
+
+        GMENG_INIT_TYPE( vp, models );
     };
     // levelinfo (parsed into Gmeng::Level::load_level after Gmeng::parse_glvl())
     struct LevelInfo {
@@ -681,41 +816,6 @@ namespace Gmeng {
         return info;
     };
 
-    /// returns delta of a viewpoint's X coordinate
-    template <typename number_type = int>
-    inline number_type _vcreate_vp2d_deltax(Renderer::viewpoint vp) {
-        return v_static_cast<number_type>( (vp.end.x - vp.start.x) );
-    };
-
-    /// returns delta of a viewpoint's Y coordinate
-    template <typename number_type = int>
-    inline number_type _vcreate_vp2d_deltay(Renderer::viewpoint vp) {
-        return v_static_cast<number_type>( (vp.end.y - vp.start.y) );
-    };
-
-    template <typename... Args>
-    auto vp_width(Args&&... args) -> decltype(_vcreate_vp2d_deltax(std::forward<Args>(args)...)) {
-        return _vcreate_vp2d_deltax(std::forward<Args>(args)...);
-    };
-
-    template <typename... Args>
-    auto vp_height(Args&&... args) -> decltype(_vcreate_vp2d_deltay(std::forward<Args>(args)...)) {
-        return _vcreate_vp2d_deltay(std::forward<Args>(args)...);
-    };
-
-    /// returns position of a 2d pointer in a vector as a 1d index to the vector
-    /// example:
-    /// { 0, 1, 2,
-    ///   3, 4, 5 }
-    /// width = 3,
-    /// pointer = (1, 1)
-    /// y (1) * width (3) + x (1) => pos(4)
-    /// vector[4] = 4
-    template <typename number_type = int>
-    inline number_type _vcreate_vu2d_delta_xy(int x, int y, int width) {
-        __functree_call__(_vcreate_vu2d_delta_xy);
-        return v_static_cast<number_type>( ( y * width ) + x );
-    };
 
 
     static const Objects::G_Player v_base_player = (Objects::G_Player {
@@ -821,6 +921,9 @@ namespace Gmeng {
         /// cache status of the entity.
         /// Can be used to send client updates in multiplayer scenarios.
         bool cached = false;
+
+        GMENG_INIT_TYPE( active, sprite, position, entity_id,
+                         interaction_proximity, cached );
 
         /// Entity creation
         EntityBase() = default;
@@ -1101,7 +1204,7 @@ namespace Gmeng {
     /// LightSource objects have a size of 1x1 units.
     class LightSource : public Entity<LightSource> {
       public:
-#define LIGHTSOURCE_TEXTURE_OBJECT texture{ 0, 0, true, {}, \
+#define LIGHTSOURCE_TEXTURE_OBJECT texture{ Blob<0, 0> { 0, 0, {} }, true, \
         "LIGHT_SOURCE" };
         /// LightSource interactions do not happen.
         /// LightSources are not interactable entites,
@@ -1162,6 +1265,7 @@ namespace Gmeng {
             if ( this->cached_position != this->position ) this->cached = false;
             /// check intensity
             if ( this->cached_intensity != this->intensity ) this->cached = false;
+            /// TODO: add modulation color check
         };
         /// custom serialization function for
         /// LightSource objects since they contain
@@ -1418,7 +1522,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                         v_unit = base_map->units.at(vpos);
                     } catch (std::exception& e) {
                         gm_log("error_catch: normally raises gm_err(1) but game is probably closing so ignoring");
-                        v_unit = Unit { RED, false, .special_c_unit="?" };
+                        v_unit = Unit { .color=RED, .collidable=false, .special_c_unit="?" };
                     };
 
                     units.push_back(v_unit);
@@ -1436,8 +1540,13 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 // compile models into unitmaps and write them to x,y coordinates
                 // within the r_chunk by getting placement positions with get_placement
                 int debug_render_mode = this->display.camera.modifiers.get_value("debug_render");
+                // for ease we just reset the model count here
                 this->display.camera.model_count = 0;
+                // also reset the model map (inefficient)
                 this->modelmap = {};
+
+                // loop through the models wthin the chunk
+                // (if there are any)
                 if ( !chunk.models.empty() )
                 for ( auto& _model : chunk.models ) {
                     /// Update the model count of the camera
@@ -1670,6 +1779,10 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// can be set by 4.1 text-based GLVL files
             /// with name="<name>" on the file headers.
             std::string name;
+
+            GMENG_INIT_TYPE( displacement_cache, light_sources, lighting_cache,
+                             modelmap, renderscale, base, display, chunks,
+                             entities, entity_grid, desc, name );
 
             /// Loads a chunk from the given param,
             /// and returns the id that the chunk is assigned to.
@@ -2340,6 +2453,9 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             auto _entity = lvl.entities.at(entity_id);
             auto entity = _entity.get();
 
+            /// entity is not valid
+            if ( entity == nullptr ) continue;
+
             /// skip incative entities
             if ( !entity->active ) continue;
 
@@ -2380,8 +2496,9 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
 #else
                 Renderer_Type::CONSOLE
 #endif
-
             );
+
+            /// Draw each sprite
             for ( int loops = 0; loops < drawn_sprite.width*drawn_sprite.height; loops++ ) {
                 /// for debug render
                 bool debug = lvl.display.camera.modifiers.get_value("debug_render") >= 1;
@@ -2405,7 +2522,9 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                     if ( drawn_sprite.units.at(loops).transparent && unit.color != YELLOW ) continue;
                 };
                 /// place the unit.
-                if( y > -1 && x > -1 ) trimmed_units.at(y).at(x) = unit;
+                if( y > -1 && x > -1 &&
+                    y < trimmed_units.size() &&
+                    x < trimmed_units.at(y).size()) trimmed_units.at(y).at(x) = unit;
             };
 
             /// entity proximity renderer, for debugger showing tracers to
@@ -2675,6 +2794,32 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             return u.is_entity == true; // (x == true) operator is required because u.is_entity can be NULL
         }); /// TRIMMED_UNITS == line of units. trimmed_units[0] = vector<Unit>(LINE_0)
 
+        /// The frame has extra Blobs that
+        /// needs to be drawn into the frame.
+        if ( !level_t.display.camera.frame_draw_list.empty() ) {
+            for ( auto _blob : level_t.display.camera.frame_draw_list ) {
+                int x_start = std::get<0>( _blob ).x,
+                    y_start = std::get<0>( _blob ).y;
+
+                auto blob = std::get<1>( _blob );
+
+                for ( int i = 0; i < (int)blob.height; i++ ) {
+                    for ( int j = 0; j < (int)blob.width; j++ ) {
+                        Gmeng::Unit unit_at_ij;
+                        try { unit_at_ij = blob.units.at( i * blob.height + j ); }
+                        catch (std::exception e) { unit_at_ij = { .transparent = true }; };
+                        if (unit_at_ij.transparent) continue;
+
+                        int x = x_start + j, y = y_start + i;
+                        trimmed_units.at(y).at(x) = unit_at_ij;
+                    };
+                };
+            };
+            /// Clear the frame (since blobs are temporary, they should be
+            /// updated each frame because they are not part of the actual
+            /// draw_list of the entire frame and camera viewpoint.)
+            level_t.display.camera.frame_draw_list.clear();
+        };
 
         /// debugger-special logs
         /// trimmed_unit inspection
@@ -2906,6 +3051,10 @@ inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
         /// draw = frame + write
         auto draw_time_b = GET_TIME();
 
+        /// checks draw_info for displaying debug information to the screen.
+        if (level->display.camera.modifiers.get_value("draw_info") == 1)
+            level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
+
         /// Updates and emplaces UI elements to the camera view.
         level->display.camera.apply_ui();
         /// seeks to the 0,0 position of the terminal screen
@@ -2921,9 +3070,7 @@ inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
         std::cout << Gmeng::HOME <<  level->display.camera.draw() << Gmeng::resetcolor;
         /// Set the actual draw time
         level->display.camera.draw_time = GET_TIME() - draw_time_b;
-        /// checks draw_info for displaying debug information to the screen.
-        if (level->display.camera.modifiers.get_value("draw_info") == 1)
-            level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
+
     #endif
 };
 

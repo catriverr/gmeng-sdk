@@ -53,20 +53,11 @@ int main(int argc, char** argv) {
         //write_level_data("envs/proto_level.glvl", *level);
     });
 
-    ev.add_hook( { EXIT }, [&](Level* level, EventInfo*) {
-        write_level_data("envs/proto_level.glvl", *level);
-    } );
 
     ev.add_hook( { FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
         if (info->EVENT == MOUSE_MOVE) return;
-        renderscale = get_renderscale(*level);
-        std::string lvl_view = get_lvl_view(*level, renderscale);
-        emplace_lvl_camera(*level, lvl_view);
-        level->display.camera.reset_cur();
-        auto time = GET_TIME();
-        std::cout << level->display.camera.draw();
-        level->display.camera.draw_time = GET_TIME() - time;
-        if (level->display.camera.modifiers.get_value("draw_info") == 1) level->display.camera.draw_info(vp_width(level->display.viewpoint)+2, 0);
+
+        level->display.refresh(level);
     });
 
     ev.add_hook({ KEYPRESS }, [&](Level* level, EventInfo* info) {

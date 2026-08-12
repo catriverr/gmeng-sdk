@@ -6,7 +6,6 @@
 #ifdef __GMENG_INIT__
 #ifndef __GMENG_MAP_INIT__
 
-#define stob(str) (str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
 using namespace std;
 

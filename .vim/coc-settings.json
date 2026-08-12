@@ -1,0 +1,31 @@
+{
+    "clangd.enabled": true,
+    "clangd.fallbackFlags": [
+        "-std=c++20",
+        "-I${workspaceFolder}/include",
+        "-I${workspaceFolder}/include/imgui",
+        "-I${workspaceFolder}/include/asio",
+        "-Wno-format-security",
+        "-Wno-mixed-indent",
+        "-D_THREAD_SAFE",
+        "-I/opt/homebrew/include/SDL2",
+        "-I/opt/homebrew/include",
+        "-lSDL2",
+        "-DNCURSES_WIDECHAR",
+        "-I/opt/homebrew/Cellar/ncurses/6.5/include/ncursesw",
+        "-I/opt/homebrew/Cellar/ncurses/6.5/include",
+        "-I/opt/homebrew/",
+        "-Wno-writable-strings",
+        "-Linclude",
+        "-Iinclude",
+        "-I./include",
+        "-Iinclude/",
+        "-Iinclude/imgui",
+        "-Iinclude/asio",
+        "-Linclude/asio",
+        "-DGMENG_SDL=false"
+    ],
+    "clangd.arguments": [
+        "--background-index=true"
+    ]
+}

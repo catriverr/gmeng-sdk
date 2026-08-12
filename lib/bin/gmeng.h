@@ -23,7 +23,19 @@
 #include <climits>
 #include <execinfo.h> // function call tracing
 #include <cxxabi.h> // function call tracing
+
+
+
 #include "src/objects.cpp"
+/// class initialization
+#include "utils/setup_class.h"
+/// Gmeng::global utility
+#include "utils/global.h"
+/// Gmeng::Assert utility
+#include "utils/assert.h"
+
+/// gm_log() logging utility
+#include "utils/log.h"
 
 #include <filesystem>
 #if _WIN32 == false
@@ -37,75 +49,21 @@
 #endif
 
 
-#ifndef __GMENG_LOG_TO_COUT__
 
-#if GMENG_SDL
-    #define __GMENG_LOG_TO_COUT__ true
-#else
-    #define __GMENG_LOG_TO_COUT__ false
-#endif
+using std::vector;
+using std::string;
 
-#endif
 
-#define time_rn std::chrono::system_clock::now().time_since_epoch()
-#define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
-
-#ifndef GMENG_BUILD_NO
-    #define GMENG_BUILD_NO "(UNKNOWN_BUILD)"
-#endif
 
 /// sets a timeout and asyncronously calls a callback once the time in milliseconds has passed
 void set_timeout(std::function<void()> cb, uint64_t delay_ms) {
-    std::async(std::launch::async, [cb, delay_ms]() {
+    (void)std::async(std::launch::async, [cb, delay_ms]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
         cb();
     });
 }
 
-// place TRACEFUNC at the end of your function parameters
-// to get information about the caller of the current function.
-// creates the following variables for the scope this util was
-// used in:
-//
-// - func_caller for the name of the calling function,
-// - func_caller_file for the name of the calling file,
-// - func_caller_line for the name of the calling file line.
-//
-// Must be placed as a function parameter, will not function
-// otherwise.
-//
-// Usage:
-// void func1(int otherparam, int someotherparam, int optionalparam = 0, TRACEFUNC) {
-//    std::cout << func_caller << " from file " << func_caller_file << ":" << func_caller_line << " called func1().\n";
-// };
-//
-// void caller() {
-//    func2(0, 1);
-// }
-//
-// can also use TRACEFUNC_STR like:
-//
-//void func1(TRACEFUNC) {
-//    std::cout << TRACEFUNC_STR << '\n';
-// };
-//
-// void caller() {
-//    func2();
-// }
-//
-#define TRACEFUNC const char* func_caller       = __builtin_FUNCTION(), \
-                  const char* func_caller_file  = __builtin_FILE(),     \
-                  int         func_caller_line  = __builtin_LINE()
-
-// place TRACEFUNC_STR inside a function that uses a
-// TRACEFUNC parameter. Will not work otherwise.
-//
-// Usage:
-//
-// void func_with_tracefunc(TRACEFUNC) {
-//     std::string func_trace_string = TRACEFUNC_STR;
-// }
-#define TRACEFUNC_STR std::string(func_caller_file) + ":" + std::to_string(func_caller_line) + " % " + std::string(func_caller)
+#include "utils/tracefunc.h"
 
 /// Gets the current working directory
 static std::string get_cwd() {
@@ -150,183 +108,56 @@ static std::string get_username() {
 
 #ifdef __GMENG_OBJECTINIT__
 
-/// Main Gmeng namespace
-namespace Gmeng {
-    typedef struct {
-        std::vector<int> indexes;
-        std::vector<std::string> containers;
 
-        bool dev_console; bool debugger;
-        bool log_stout; bool dev_mode;
-        bool dont_hold_back; bool shush;
-        bool weird_ass; bool restarted_instance;
-        bool ignore_assert;
+#include "utils/functree.h"
 
 
-        std::string raw_arguments;
 
-        std::string executable;
-        std::string raw_executable_name;
+/// Creates a Kitty terminal config that is
+/// compatible with Gmeng's requirements.
+void kitty_create_config(std::string fname) {
+    std::ofstream f(fname);
 
-        std::string user;
-        std::string pwd;
+    if (!f.is_open()) std::cerr << "error writing";
+    else {
+        f << "allow_remote_control yes\n";
+        f << "font_size 18.0\n";
 
-        int prog_argc;
-        char** prog_argv;
-
-    } __global_object__;
-    /// GMENG global variables
-    static __global_object__ global = {
-        .dev_console = true, .debugger = false,
-        .log_stout = __GMENG_LOG_TO_COUT__, .dev_mode = false,
-        .dont_hold_back = false, .shush = false,
-        .weird_ass = false,
-    };
-};
-
-using std::vector;
-using std::string;
-
-// Custom ASSERT system for Gmeng,
-// not like traditional ASSERT though.
-namespace Gmeng::Assertions {
-    typedef struct assert_t {
-        enum jWRAP { ON = 0, OFF = 1, NOT_SET = 2 };
-        std::map<string, jWRAP> headers;
-        const char* bound;
-    } vd_assert;
-
-    typedef struct assert_data_t {
-        string header;
-        assert_t::jWRAP state;
-        const char* bound;
-    } assertable_t;
-
-    static std::map<const char*, vd_assert> list;
-
-    static vd_assert to_assert_t(assertable_t data) {
-        vd_assert obj;
-        obj.headers = std::map<string, vd_assert::jWRAP>();
-        obj.bound = data.bound;
-        obj.headers.emplace(data.header, data.state);
-        return obj;
+        f.close();
+        std::cout << "written to " << fname;
     };
 
-    static void set_assert(assertable_t data) {
-        if (!Assertions::list.contains(data.bound)) list.emplace(data.bound, to_assert_t(data));
-        Assertions::list.find(data.bound)->second.headers.insert_or_assign(data.header, data.state);
-    };
-
-    static vd_assert::jWRAP get_assert(string header, const char* bound) {
-        if ( Gmeng::global.ignore_assert ) return assert_t::ON;
-
-        if (!Assertions::list.contains(bound)) return assert_t::NOT_SET;
-        auto fd = Assertions::list.find(bound)->second.headers;
-        return fd.contains(header) ? fd.find(header)->second : assert_t::NOT_SET;
-    };
 };
 
-struct GMENG_NULL_T {
-    void* content;
+/// Kitty terminal : resizes the window.
+/// Requires an unknown amount of grace milliseconds.
+void kitty_resize_window(int width, int height) {
+    std::system(("kitten @ resize-os-window --width " + std::to_string(width) + " --height " + std::to_string(height)).c_str());
 };
 
-template<typename T = int>
-struct not_nullptr_t {
-    T val = 1;
+/// Kitty terminal : sets font size.
+void kitty_set_font_size(int size) {
+    std::system(("kitten @ set-font-size " + std::to_string(size)).c_str());
 };
 
-static not_nullptr_t<int> not_nullptr_ref = { 1 };
-static not_nullptr_t<int>* not_nullptr = &not_nullptr_ref;
-
-/// runs a piece of code only if
-/// Gmeng's debug mode is enabled
-#define DEBUGGER if (Gmeng::global.debugger)
-/// runs a piece of code only if
-/// Gmeng's developer mode is enabled
-#define DEVMODE if (Gmeng::global.dev_mode)
-
-#define ASSERT(x,y) Gmeng::Assertions::set_assert(  \
-            {                                       \
-                .header = x,                        \
-                .state = y,                         \
-                .bound = __FUNCTION__               \
-            }                                       \
-        )
-
-#define PREF(x) Gmeng::Assertions::get_assert(      \
-            x,                                      \
-            __FUNCTION__                            \
-        )
-
-#define GET_PREF(x, f) Gmeng::Assertions::get_assert( \
-            x, f                                      \
-        )
-
-#define IS_SET Gmeng::Assertions::vd_assert::ON ==
-#define IS_DISABLED Gmeng::Assertions::vd_assert::OFF ==
-#define IS_UNKNOWN Gmeng::Assertions::vd_assert::NOT_SET ==
-
-#define DISABLE() Gmeng::Assertions::vd_assert::OFF
-#define ENABLE() Gmeng::Assertions::vd_assert::ON
-
-#define p_no DISABLE()
-#define p_yes ENABLE()
-
-#define vl_get_name(x) #x
-#define vl_filename(path) (strrchr(path, '/') ? strrchr(path, '/') + 1 : path)
 
 
-namespace Gmeng {
-    static std::map<std::string, std::string> func_annotations;
-    static std::ofstream funclog("gmeng-functree.log");
-    static bool functree_init = false;
-    volatile static bool functree_enabled = true;
-    volatile static bool functree_extensive = false;
-    static std::vector<std::string> func_last(5000);
-    static std::stringstream functree_calls;
-};
-
-// annotates a function, like information about a function.
-static void _func_annot(const char* func, const char* info) {
-    Gmeng::func_annotations.emplace(func, std::string(info));
-};
-
-#define __annot__(func, info)      _func_annot(vl_get_name(func), info)
-#define __info__                   __annot__
-#define __annotation__             __annot__
-
-#define __functree_init__() if (!Gmeng::functree_init) Gmeng::funclog << "-- cleared previous log --\n~~GMENG_FUNCTREE~~\n*** This file is used for diagnostics ***\n", Gmeng::functree_init = true
-
-static void _functree_vl(char* file, int line, const char* func, const char* pretty_func) {
-    if (!Gmeng::functree_enabled) return;
-    if (!Gmeng::functree_init) __functree_init__();
-    std::string func_annot = "";
-    auto v = Gmeng::func_annotations.find(func);
-    if (v != Gmeng::func_annotations.end()) func_annot = "\t\t/// " + v->second;
-    std::string pretty_annot = Gmeng::functree_extensive ? std::string(" [ ") + pretty_func + " ]" : "";
-    std::string dat = vl_filename(file) + std::string(":") + std::to_string(line) + " >> " + func + pretty_annot + func_annot;
-    Gmeng::funclog << dat << std::endl;
-    if (Gmeng::func_last.size() >= Gmeng::func_last.max_size()) Gmeng::func_last.clear();
-    Gmeng::func_last.push_back(dat);
-    Gmeng::functree_calls << dat << '\n';
-};
-
-#define __functree_call__(func) _functree_vl(__FILE__, __LINE__, vl_get_name(func), __PRETTY_FUNCTION__)
-
-
-#define v_str std::to_string
-
+/// Returns the address of any given object.
 template<typename T>
 static uintptr_t _uget_addr(const T& obj) {
     //__functree_call__(_uget_addr);
     return (reinterpret_cast<uintptr_t>(&obj));
 };
 
+/// Gmeng : returns whether a file with the given filename exists.
 static bool file_exists(std::string f) {
     __functree_call__(file_exists);
     return std::filesystem::is_directory(f) || std::filesystem::exists(f);
 }
 
+/// Gmeng : Repeats a given string `times` number of times.
+/// The string is referenced but is not modified,
+/// the function returns the generated string.
 static std::string repeatString(const std::string& str, int times) {
     //__functree_call__(repeatString);
     std::string result = "";
@@ -336,6 +167,7 @@ static std::string repeatString(const std::string& str, int times) {
     return result;
 }
 
+/// Gmeng : Repeats any `Thing` of any type `times` number of times.
 template<typename Thing>
 static std::vector<Thing> repeatThing(Thing obj, int times) {
     std::vector<Thing> Things;
@@ -343,6 +175,9 @@ static std::vector<Thing> repeatThing(Thing obj, int times) {
     return Things;
 };
 
+/// Gmeng : Splits a vector of any type with a user-provided `checker` function.
+/// If the checker function returns true, the vector is split.
+/// Returns a vector of a vector of things.
 template<typename Thing>
 static std::vector<std::vector<Thing>> splitThing(std::vector<Thing> obj, std::function<bool(Thing)> checker) {
     std::vector<std::vector<Thing>> Things;
@@ -356,7 +191,7 @@ static std::vector<std::vector<Thing>> splitThing(std::vector<Thing> obj, std::f
     return Things;
 };
 
-/// returns the hex value of an integer
+/// Gmeng : returns the hex value of an integer
 static std::string _uconv_1ihx(int value) {
     //__functree_call__(_conv_1ihx);
     std::stringstream stream;
@@ -364,14 +199,6 @@ static std::string _uconv_1ihx(int value) {
     return stream.str();
 }
 
-static int g_mkid() {
-    //__functree_call__(g_mkid);
-    std::random_device rd; // random device to seed the generator
-    std::mt19937 gen(rd()); // mersenne twister 19937 generator
-    std::uniform_int_distribution<int> distribution(1000000, 9999999); // 7-digit range
-
-    return distribution(gen);
-}
 
 #define cpps(str) ( std::string(str) )
 using namespace std;
@@ -396,12 +223,16 @@ static bool startsWith(const std::string& str, const char* prefix)
     return startsWith(str, prefix, std::string::traits_type::length(prefix));
 };
 
+/// @deprecated sleeps the current thread for a given delay
+/// and calls a callbackfunction after that delay (in milliseconds).
 static void g_setTimeout(std::function<void()> callback, int delay) {
     __functree_call__(g_setTimeout);
     std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     callback();
 }
 
+/// Gmeng : Reads a file and returns it as a string.
+/// lines are split with `\n` or `\r\n` (depending on the line feed)
 static std::string g_readFile(const string &fileName)
 {
     __functree_call__(g_readFile);
@@ -416,6 +247,9 @@ static std::string g_readFile(const string &fileName)
     return std::string(bytes.data(), fileSize);
 };
 
+/// Gmeng : Removes a group of characters from a given string.
+/// All occurences of the characters in the given char[] array
+/// are removed from the string. Since it is a reference, nothing is returned.
 static void g_rmChar( string &str, char* charsToRemove ) {
     __functree_call__(g_rmChar);
    for ( unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
@@ -423,33 +257,13 @@ static void g_rmChar( string &str, char* charsToRemove ) {
    }
 }
 
-static std::string g_joinStr(std::vector<std::string> v, std::string delimiter) {
-	std::string result;
-	for ( auto i : v) { result += i + delimiter; };
-	return result;
-};
-
-static std::vector<std::string> g_splitStr(std::string s, std::string delimiter) {
-    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-    std::string token;
-    std::vector<std::string> res;
-
-    while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
-        token = s.substr (pos_start, pos_end - pos_start);
-        pos_start = pos_end + delim_len;
-        res.push_back (token);
-    }
-
-    res.push_back (s.substr (pos_start));
-    return res;
-}
 
 namespace Gmeng {
     /// current version of the engine.
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "13.1.0-d";
+    static std::string version = "13.3.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -491,6 +305,12 @@ namespace Gmeng {
 		C_PlugEvent = 8544, PE_Type0 = 8545, PE_Type1 = 8546, PE_Type2 = 8547,
         C_InputEvent = 8554, IE_Type0 = 8555, IE_Type1 = 8556, IE_Type2 = 8557,
 	};
+    /// @deprecated Gmeng 1.1 Stream Events.
+    /// In previous versions of gmeng, a typescript
+    /// event handler would receive these event objects
+    /// and handle them accordingly. As this was painful to maintain
+    /// and was obviously inefficient and insensible, it has been
+    /// deprecated. This functionality (or type structure) is no longer used.
 	struct event {
 		std::string name = ""; int id = 0;
 		std::vector<std::string> params = {};
@@ -519,27 +339,44 @@ namespace Gmeng {
 				g_joinStr(__e.params, "!:"));
 			};
 	};
+    /// X and Y position Coordinate object.
 	struct Coordinate {
 		int x = 0; int y = 0;
 	};
-    static std::stringstream logstream;
+    /// Entire logs of the game, engine, dependencies.
     static std::stringstream completelog;
+    /// Default foreground colorcodes
+    /// to each Gmeng::color_t index.
 	static std::string colors[] = {
 		"\x1B[37m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
+    /// Default background colorcodes
+    /// to each Gmeng::color_t index.
     static std::string bgcolors[] = {
         "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
     };
+    /// Default BOLD foreground colorcodes
+    /// to each Gmeng::color_t index.
     static std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
         "\x1B[107m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
     };
+    /// Colorcodes from ANSI escape code to Gmeng::color_t index.
 	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
-	static std::string resetcolor = "\033[22m\033[0m"; static std::string boldcolor = "\033[1m";
+    /// Resets all ANSI escape code sequences, effectively setting the color to normal.
+	static std::string resetcolor = "\033[22m\033[0m";
+    /// ANSI escape code sequence to make text bold.
+    /// Must be used before the colorcode, as this will
+    /// override it otherwise.
+    static std::string boldcolor = "\033[1m";
     // unicode characters for the 'unit' pixel
     // terminal-only - not used with sdl2 or ncurses
     // for ncurses, see wc_unit
     const char c_unit[4] = "\u2588";
+    /// Ceiling outer_unit. Half a character in height.
+    /// In monospaced fonts, this is a perfect 1x1 square.
 	const char c_outer_unit[4] = "\u2584";
+    /// Floor outer unit. Half a character in height.
+    /// In monospaced fonts, this is a perfect 1x1 square.
 	const char c_outer_unit_floor[4] = "\u2580";
 
     //
@@ -766,7 +603,7 @@ namespace Gmeng {
             unitcoltype type = COLOR_8;
             /// value for COLOR_8 legacy.
             /// '-1' if type != COLOR_8.
-            int c8_value       = -1;
+            int c8_value = -1;
             /// value for RGB.
             /// '0, 0, 0' if type != RGB.
             color32_t rgb_value = { 0, 0, 0 };
@@ -824,77 +661,250 @@ namespace Gmeng {
     /// Works as a pixel, a fragment of a texture, model,
     /// entity, or display map.
 	struct Unit {
-		public:
-			uint32_t color = 1; bool collidable = true; bool is_player = false; bool is_entity = false;
-            Objects::G_Player player={}; bool transparent = false; bool special = false; int special_clr = 0;
-			Objects::G_Entity entity={}; std::string special_c_unit = "";
+      public:
+            /// 24-bit representation of RGB derived
+            /// from `gmeng::color32_t`. values 0-7 are
+            /// reserved for Gmeng's default palette.
+			uint32_t color = 1;
+            /// whether the Unit can be collided with.
+            /// If set to true, collision is disabled
+            /// and entities can collide with this specific
+            /// unit within its larger container (Models, Entities.)
+            bool collidable = true;
+            /// @deprecated gmeng 1.1 - whether the unit is the player entity
+            /// kept for backwards compatibility but is unused since gmeng 4.0.
+            bool is_player = false;
+            /// @deprecated gmeng 1.1 - whether the unit is part of an entity.
+            /// kept for backwards compatibility but is unused since gmeng 4.0.
+            bool is_entity = false;
+            /// @deprecated gmeng 1.1 - G_Player player instance within the unit.
+            /// kept for backwards compatibility but is unused since gmeng 4.0.
+            Objects::G_Player player={};
+            /// whether the Unit is transparent. If set
+            /// to true, the unit is treated as nonexistent,
+            /// and will not have collision enabled even if
+            /// its `collidable` property is set to true.
+            bool transparent = false;
+            /// whether the unit is special. Special units
+            /// will break `cubic_render` functionality and
+            /// display a full-height character in the size
+            /// of a 2x1 rectangle, but allow for displaying
+            /// custom items within 2 units. For esoteric
+            /// textures and models, this can come in handy.
+            bool special = false;
+            /// color of the special unit. If `special` is
+            /// enabled, `special_clr` will set its foreground
+            /// color (24-bit RGB derived from `gmeng::color32_t`).
+            uint32_t special_clr = 0;
+            /// @deprecated gmeng 1.1 - G_Entity entity instance within the unit.
+            /// kept for backwards compatibility but is unused since gmeng 4.0.
+			Objects::G_Entity entity={};
+            /// character string of the special unit. If
+            /// `special` is set, this item will be displayed
+            /// in a 2x1 rectangular full-size character occupying
+            /// the next Y coordinate's same X position.
+            std::string special_c_unit = "";
+
 	};
-    struct texture {
-        std::size_t width = 0; std::size_t height = 0; bool collidable;
-        std::vector<Gmeng::Unit> units; std::string name;
+
+    /// Blob : Render blob that contains a vector of units
+    template<std::size_t w = 0, std::size_t h = 0>
+    struct Blob {
+      public:
+        /// Width of the render blob.
+        std::size_t width = w;
+        /// Height of the render blob.
+        std::size_t height = h;
+        /// Unit vector of the render blob. The vector
+        /// is treated as a 2D entity with a size of
+        /// `VECTOR( WIDTH * HEIGHT )`, every time
+        /// `vector.at(n) % WIDTH` is `0 (divisable)`,
+        /// the next `Y++` value within the `HEIGHT`
+        /// of the blob is present.
+        std::vector<Gmeng::Unit> units;
+
     };
+
+    /// Texture : Gmeng Implementation for textures.
+    /// Works as an image, as the terminal does not support
+    /// importing image files to draw, this is a custom implementation.
+    struct texture : public Blob<0, 0> {
+        /// Collision property. If set to true,
+        /// the texture (weirdly having this parameter)
+        /// will not allow for phasing (multiple-item collision).
+        bool collidable = false;
+        /// Name of the texture. Used by the VisualCache
+        /// Graphics Manager to sort and quickly access
+        /// items within the texture dictionary.
+        std::string name;
+
+        GMENG_INIT_TYPE( width, height, units,
+                         collidable, name );
+    };
+
+
+    /// Sets the Units of g_tx to the Units of g_tx2, copying
+    /// the second texture's image data into the first. This
+    /// function assumes that the second texture is either
+    /// equal or larger in size to the first texture.
     extern void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2);
+    /// Loads a gmeng texture from a file `__fname`.
+    /// This function only loads parsable string-based
+    /// texture files and will throw an error with
+    /// serialized binary-based files introduced in 10.0.0.
     extern Gmeng::texture LoadTexture(std::string __fname);
 
+    /// Modifier : a named in-game variable that can
+    /// be modified by the developer console. Used
+    /// for cases where in-game changes may be requested
+    /// by the player during runtime. Serialized into
+    /// binary with `serialize_modifier`.
     struct modifier {
 	  public:
-		std::string name = "v_unallocated_modifier"; int value = 0;
+        /// Name of the modifier. Accessable in
+        /// `Gmeng::ModifierList::modifiers.at( name )`.
+		std::string name = "v_unallocated_modifier";
+        /// Value of the modifier. Only integer values
+        /// are accepted, for multiple reasons, main
+        /// one being the fact that most of the time,
+        /// modifiers are either enums (glorified integers)
+        /// or integer values by nature anyways.
+        int value = 0;
 	};
+
+    /// ModifierList : Container for modifiers
+    /// concerning any structure. Used in multiple
+    /// internal classes like `Gmeng::Level` and `Gmeng::Camera`.
 	struct ModifierList {
 	  public:
+        /// List of modifiers within the list.
 		std::vector<modifier> values = {};
 
+        /// Returns the value of a modifier with the key
+        /// provided. The function will return the first
+        /// instance of the value, so if there are multiple
+        /// stacked within the list only the first one will
+        /// be returned. If no instances of a modifier with
+        /// the given key is found, `-1` is returned.
         int get_value(std::string key) {
             for (const auto& val : values)
                 if (val.name == key) return val.value;
             return -1;
         };
+
+        /// Sets the vawlue of a modifier with the key
+        /// provided. The function will only set the first
+        /// instance of the value, so if there are multiple
+        /// stacked within the list only the first one will
+        /// be modified. If no instances of a modifier with
+        /// the given key is found, nothing is modified.
+        ///
+        /// This function does NOT create a new entry if
+        /// a modifier with the key provided exists.
+        void set_value(std::string key, int value) {
+            for (auto& val : values)
+                if (val.name == key) { val.value = value; break; };
+        };
 	};
 
+    /// @deprecated Gmeng 1.1 Renderer Options.
 	struct RendererOptions {
 		public:
-		bool countObjects = false; bool useTitle = false;
+        /// Whether the system should count
+        /// single-unit objects. Useful for
+        /// statistics and performance
+        bool countObjects = false;
+        /// Whether the system should use the
+        /// current game title.
+        bool useTitle = false;
+        /// Sets the game title.
 		std::string title = "";
 	};
+
+    /// DisplayMap, container for the unitmap within the
+    /// camera. Units are not raw, so they can be accessed
+    /// by external functions to be modified. Such changes
+    /// will be reflected after `get_lvl_view` and before
+    /// `emplace_lvl_camera` is called. Modifying them
+    /// directly will only reflect for a single frame.
 	template<std::size_t d_width, std::size_t d_height>
 	class DisplayMap {
 		public:
-		int __h = d_width; int __w = d_height;
-		Gmeng::Unit unitmap[CONSTANTS::UNITMAP_SIZE] = {}; int pool_size = (sizeof unitmap / 8);
+		/// Height of the DisplayMap.
+        int __h = d_width;
+        /// Width of the DisplayMap.
+        int __w = d_height;
+        /// Contains the undrawn unitmap within the camera.
+        /// Units are not raw, so they can be accessed by
+        /// external functions to be modified. Such changes
+        /// will be reflected after `get_lvl_view` and before
+        /// `emplace_lvl_camera` is called. Modifying them
+        /// directly will only reflect for a single frame.
+		Gmeng::Unit unitmap[CONSTANTS::UNITMAP_SIZE] = {};
+        /// Pool size of the unitmap. Differs from `CONSTANTS::UNITMAP_SIZE`.
+        /// This property calculates (at compile-time) the byte size of the
+        /// unitmap in accordance to the byte size of one `Gmeng::Unit` instance.
+        int pool_size = (sizeof unitmap / sizeof(Gmeng::Unit));
 	};
+    /// @deprecated gmeng 1.1 renderer. Kept for backwards compatibility. Unused.
+    ///
+    /// Gmeng 1.1 instances of this class will contain single-unit object counts,
+    /// width and height of the display, the displaymap, renderer options and
+    /// a method to set the current viewport of the camera to a given 2D array of units.
 	template<std::size_t _width, std::size_t _height>
 	class G_Renderer {
 		public:
-		std::size_t width = _width; std::size_t height = _height;
-		int totalObjects; Gmeng::DisplayMap<_width, _height> display; Gmeng::RendererOptions options;
+        /// @deprecated - gmeng 1.1 Width of the Renderer.
+		std::size_t width = _width;
+        /// @deprecated - gmeng 1.1 Height of the Renderer.
+        std::size_t height = _height;
+        /// @deprecated - gmeng 1.1 Total single-unit object count.
+		int totalObjects;
+        /// @deprecated - gmeng 1.1 Display map. Contains the unitmap
+        /// of the renderer, which can be drawn by a Camera instance.
+        /// Unused since gmeng 4.1_glvl.
+        Gmeng::DisplayMap<_width, _height> display;
+        /// @deprecated - gmeng 1.1 Renderer options. Contains modifiers
+        /// for `count_objects`, `pool_size` and `renderer_size`. Unused.
+        Gmeng::RendererOptions options;
+        /// @deprecated - gmeng 1.1 Sets the units of the display map.
+        /// Not raw data, only accepts `Gmeng::Unit` objects. Unitmap
+        /// must have a size of `this->width * this->height` in Array form.
 		inline void setUnits(Unit unitmap[_width * _height]) {
             __functree_call__(Gmeng::G_Renderer::setUnits);
+            /// Loop through the width and height, effectively
+            /// for the entire size of the 2D landscape within
+            /// the renderer and display for the camera.
 			for (int i = 0; i < _width * _height; i++) {
+                /// Set the unit at the given position to the
+                /// unit provided to the function
 				this->display.unitmap[i] = unitmap[i];
 			};
 		};
 	};
 
-    static std::ofstream outfile;
+
 };
 
+/// Sets a Global Controller at `index` to `value`.
+/// Global controllers are currently unused in the engine.
+/// They may be used by game instances via accessing `Gmeng::global`.
 inline void controller_set(int index, std::string value) {
     __functree_call__(controller_set);
     Gmeng::global.indexes.push_back(index);
     Gmeng::global.containers.push_back(value);
 };
+
+/// Switches the state of the global dev_console
+/// variable. This will not close/open the console,
+/// it will enable or disable the functionality to do so.
 inline void switch_dev_console() {
     __functree_call__(switch_dev_console);
     Gmeng::global.dev_console = !Gmeng::global.dev_console;
 };
 
-inline std::string _uget_thread() {
-    /// __functree_call__(_uget_thread);
-    static std::atomic<int> counter(0);
-    thread_local int threadId = counter.fetch_add(1);
-    return std::to_string(threadId);
-};
 
+/// Returns the thread ID of the current thread as a hex string.
 inline std::string _uthread_id(const std::thread& thread) {
     /// __functree_call__(_uthread_id);
     std::thread::id threadId = thread.get_id();
@@ -968,11 +978,16 @@ std::vector<std::string> split_with_ansi(const std::string& input)
     return result;
 }
 
+/// Returns whether the character is
+/// the start to an ANSI escape code sequence (`\x1B`)
 inline bool is_ansi_start(char c) noexcept
 {
     return c == '\x1B';
 }
 
+/// Returns an index to a logical index (index in a string EXCLUDING ansi escape codes)
+/// as a physical index (index in a string INCLUDING ansi escape codes).
+/// If the index cannot be found, `std::string::npos` is returned.
 size_t logical_to_physical_index(const std::string& s, size_t logical_index)
 {
     size_t logical = 0;
@@ -1059,7 +1074,7 @@ std::string strip_ansi(const std::string& input)
             {
                 ++i;
                 while (i < input.size() &&
-                       !(input[i] == '\x07' || 
+                       !(input[i] == '\x07' ||
                         (input[i] == '\x1B' && i + 1 < input.size() && input[i + 1] == '\\')))
                 {
                     ++i;
@@ -1094,8 +1109,8 @@ std::string strip_ansi(const std::string& input)
 #define v_nl "\n"
 #define v_rcol Gmeng::resetcolor
 
-/// converts a uint32_t integer containing an RGB value (NOT! RGBA)
-/// to a color32_t value.
+/// converts a uint32_t integer containing
+/// an RGB value (NOT! RGBA) to a color32_t value.
 Gmeng::color32_t Gmeng::color32_from_uint32(uint32_t rgb) {
     return {
         static_cast<uint8_t>((rgb >> 16) & 0xFF), // Red   (bits 16-23)
@@ -1105,6 +1120,7 @@ Gmeng::color32_t Gmeng::color32_from_uint32(uint32_t rgb) {
 }
 
 /// @deprecated use ModifierList::get_value
+/// Returns the index of a modifier with `targetName` within a vector.
 inline int g_find_modifier(const std::vector<Gmeng::modifier>& modifiers, const std::string& targetName) {
     __functree_call__(g_find_modifier);
     for (size_t i = 0; i < modifiers.size(); ++i) { if (modifiers[i].name == targetName) { return static_cast<int>(i); }; };
@@ -1120,14 +1136,11 @@ inline std::vector<std::string> _ulogc_gen1dvfc(int ln = 7400) {
     return vector;
 };
 
-/// writes to a log file (&name) with content (&content)
-static void __gmeng_write_log__(const std::string& name, const std::string& content, bool append = true) {
-    Gmeng::outfile << content;
-};
 
 
 
-
+/// @deprecated @nosource
+/// Logs with newline to the console.
 static void gm_nlog(std::string msg) {
     #ifndef __GMENG_ALLOW_LOG__
         return;
@@ -1142,15 +1155,20 @@ static void gm_nlog(std::string msg) {
 #define g_delim ":"
 #define g_line __LINE__
 
+/// Returns the filename from a file path.
 #define GET_FILENAME(x) (std::string(x).substr(std::string(__FILE__).rfind("/") + 1)).c_str()
+/// current filename without the file path.
 #define FILENAME GET_FILENAME(__FILE__)
 
+/// Returns the current file and line.
 #define __gmeng_attribute__() ({ \
     std::ostringstream oss; \
     oss << FILENAME << ":" << __LINE__; \
     oss.str(); \
 })
 
+/// Replaces all occurences of a substring within
+/// a given string to a given substring.
 static std::string str_replace(const std::string& str, const std::string& from, const std::string& to) {
     // __functree_call__(str_replace);
     std::string result = str; std::size_t start_pos = 0;
@@ -1161,16 +1179,26 @@ static std::string str_replace(const std::string& str, const std::string& from, 
     return result;
 };
 
+/// foregroundcolor text identifiers.
+/// TODO: convert to `char` array.
 static std::vector<std::string> colornames = {
     "w", "b", "g", "c", "r", "p", "y", "0", "_", "o", "1"
     // white blue green cyan red pink yellow black
 };
 
+/// backgroundcolor text identifiers.
 static std::vector<std::string> bgcolornames = {
     "Bw", "Bb", "Bg", "Bc", "Br", "Bp", "By", "B0", "Bw", "B1"
     // white blue green cyan red pink yellow black
 };
 
+/// Formats a text with colorcodes. Converts `~<colorname>~` indexes
+/// into ANSI escape code sequences.
+/// Example:
+/// ```
+/// std::string f_string = "~g~green text ~n~normal text ~b~blue text ...";
+/// std::string formatted = colorformat(f_string);
+/// ```
 static std::string colorformat(std::string data) {
     std::string formatted = data;
     for (int i = 0; i < (sizeof(Gmeng::colors)/sizeof(*Gmeng::colors)); i++) {
@@ -1187,16 +1215,18 @@ static std::string colorformat(std::string data) {
     return formatted + "\033[0m";
 };
 
+/// Writes to the standard output with color formatting.
+/// See `colorformat()` to see ANSI escape code sequencing.
 #define SAY std::cout << colorformat
+/// Writes to the standard output with information formatting.
+/// See `colorformat()` to see ANSI escape code sequencing.
 #define INF std::cout << "\033[1m" + Gmeng::colors[Gmeng::BLUE] + "(i) >> \033[0m" + Gmeng::colors[Gmeng::WHITE] + colorformat
 
-static std::string get_filename(string filepath) {
-    vector<string> fd = g_splitStr(filepath, "/");
-    return fd[fd.size()-1];
-};
 
 #include "strings/replace_all.cc"
 
+/// Parses string variables (VERSION and BUILD).
+/// str vars are accessed with the `$!__VARIABLE_NAME` syntax.
 static std::string parse_str_vars(std::string a) {
     std::string res = a;
     replace_all(res, "$!__VERSION", Gmeng::version);
@@ -1204,37 +1234,14 @@ static std::string parse_str_vars(std::string a) {
     return res;
 };
 
+/// Writes a parsed string to the standard output.
+/// Parsed strings include string variables. See `colorformat()` for
+/// ANSI escape sequencing and highlighting functionality.
 #define WRITE_PARSED(x) std::cout << colorformat(parse_str_vars(x))
 
 #include <iomanip>
 
-static std::string get_curtime() {
-    // Get current time
-    std::time_t now = std::time(nullptr);
-    std::tm* local_time = std::localtime(&now);
-
-    // Format the time as hour:minute:second
-    std::ostringstream time_stream;
-    time_stream << std::setw(2) << std::setfill('0') << local_time->tm_hour << ":"
-                << std::setw(2) << std::setfill('0') << local_time->tm_min << ":"
-                << std::setw(2) << std::setfill('0') << local_time->tm_sec;
-
-    return time_stream.str();
-};
-
-static std::string get_curdate() {
-    // Get current time
-    std::time_t now = std::time(nullptr);
-    std::tm* local_time = std::localtime(&now);
-
-    // Format the date as month:day
-    std::ostringstream date_stream;
-    date_stream << std::setw(2) << std::setfill('0') << (local_time->tm_mon + 1) << "."
-                << std::setw(2) << std::setfill('0') << local_time->tm_mday;
-
-    return date_stream.str();
-};
-
+/// Returns the last line of a stringstream.
 static std::string get_last_line(std::stringstream& ss) {
     std::string s = ss.str();
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
@@ -1247,52 +1254,23 @@ static std::string get_last_line(std::stringstream& ss) {
     return (p == std::string::npos) ? line : line.substr(p + 1);
 }
 
-// Gmeng's logging method.
-// Many internal systems, however this function shouldn't be called directly.
-// Use the gm_log() macro for automatic filename, code line and other useful
-// log info to be parsed into your message.
-static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
-    #if __GMENG_DISABLE_LOG__ == true
-        return;
-    #endif
-    if ((IS_DISABLED GET_PREF("pref.log", func))
-    && !Gmeng::global.dont_hold_back) {
-        if (Gmeng::global.weird_ass) __gmeng_write_log__("gmeng.log", "GET_PREF(" + std::string(func) + ":pref.log) :: " + v_str( (int) GET_PREF("pref.log", func) ) + "\n");
-        return;
-    };
-
-    std::string file = get_filename(std::string(file_)); // remove path, only use filename
-    std::string msg = file + ":" + v_str(line) + " [" + std::string(func) + "] " + _msg;
-
-        #if __GMENG_LOG_TO_COUT__ == true
-            if (Gmeng::global.log_stout) std::cout << msg << std::endl;
-        #endif
-
-        std::string _uthread = _uget_thread();
-        std::string time_text = "(" + get_curtime() + ")";
-        std::string __vl_log_message__ = time_text + " " + std::string(Gmeng::global.executable) + ":" + _uthread + " >> " + msg + (use_endl ? "\n" : "");
 
 
-
-
-        Gmeng::logstream << __vl_log_message__;
-        __gmeng_write_log__("gmeng.log", __vl_log_message__);
-
-};
-
+/// Gmeng : logs to the logger with an unknown source.
 static void dgm_log(const char* file, int line, std::string _msg, bool use_endl = true) {
     if (Gmeng::global.shush) return;
     _gm_log(file, line, "UNKNOWN_SOURCE", _msg, use_endl);
 };
 
+/// Gmeng : logs to the logger with an unknown source.
 static void dgm_log(std::string _msg, bool use_endl = true) {
     if (Gmeng::global.shush) return;
     _gm_log(":",0,"UNKNOWN_SOURCE",_msg,use_endl);
 };
 
 
-#define gm_log(x) _gm_log(__FILE__, __LINE__, __FUNCTION__, x)
 
+/// Gmeng : logs to the logger with an unknown source with a title.
 static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
     if (Gmeng::global.shush) return;
     _gm_log(":", 0, "UNKNOWN_SOURCE", Gmeng::colors[color] + title + " " + Gmeng::colors[Gmeng::WHITE] + text);
@@ -1385,7 +1363,7 @@ namespace Gmeng {
 
 
 
-
+/// Call to catchup with Gmeng's threads
 static void _gthread_catchup() {
     __annotation__(_gthread_catchup, "Gmeng::_uthread catchup function, attaches to all threads and clears them.");
     __functree_call__(_gthread_catchup);
@@ -1393,13 +1371,14 @@ static void _gthread_catchup() {
     Gmeng::join_threads();
 };
 
+/// Generates a hash
 static constexpr uint32_t _ghash(const char* data, size_t const size) noexcept {
     uint32_t hash = 5381;
     for(const char *c = data; c < data + size; ++c) hash = ((hash << 5) + hash) + (unsigned char) *c;
     return hash;
 }
 
-
+/// Concatenates two wchar_t* strings
 static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
     size_t len1 = wcslen(str1); size_t len2 = wcslen(str2);
     wchar_t* concatenated = new wchar_t[len1 + len2 + 1];
@@ -1407,6 +1386,7 @@ static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
     return concatenated;
 };
 
+/// Concatenates a wchar_t* string with a std::string
 static wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
     // Convert std::string to wide character string
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
@@ -1447,6 +1427,7 @@ static wchar_t* repeat_wstring(wchar_t* wc, int times) {
     return str;
 };
 
+/// Repeats a wide string `times` amount of times
 static wchar_t* repeat_wstring(const wchar_t* wc, int times) {
     if (times <= 0) {
         return L"";
@@ -1619,16 +1600,26 @@ static void set_terminal_size(int width, int height) {
     std::cout << "\033[8;" << height << ";" << width << "t" << std::flush;
 }
 
-void resize_macos_terminal(int columns, int rows) {
-    // osascript to command the Terminal application directly.
-    std::string script =
-        "osascript "
-        "-e 'tell application \"Terminal\"' "
-        "-e 'set number of columns of front window to " + std::to_string(columns) + "' "
-        "-e 'set number of rows of front window to " + std::to_string(rows) + "' "
-        "-e 'end tell' > /dev/null 2>&1";
+void resize_terminal(int columns, int rows, bool force = false) {
+    if (!Gmeng::global.window_control) return;
+    char* term_prog = getenv("TERM_PROGRAM");
+    char* term = getenv("TERM");
+    /// MacOS Terminal
+    if ( term_prog != nullptr && ( std::string(term_prog) == "Apple_Terminal") ) {
+        // osascript to command the Terminal application directly.
+        std::string script =
+            "osascript "
+            "-e 'tell application \"Terminal\"' "
+            "-e 'set number of columns of front window to " + std::to_string(columns) + "' "
+            "-e 'set number of rows of front window to " + std::to_string(rows) + "' "
+            "-e 'end tell' > /dev/null 2>&1";
 
-    std::system(script.c_str());
+        std::system(script.c_str());
+    }
+    /// Kitty
+    else if ( term != nullptr && std::string(term) == "xterm-kitty" ) {
+        if (force) kitty_resize_window(columns,rows);
+    };
 }
 
 static void set_terminal_title(const std::string& title) {
@@ -1716,7 +1707,7 @@ std::string get_executable_directory() {
         std::strncpy(rawPath, dynamicPath.c_str(), PATH_MAX);
     }
 
-    // 2. Use realpath() to resolve absolute path, removing './', '../', and symlinks
+    // Use realpath() to resolve absolute path, removing './', '../', and symlinks
     char resolvedPath[PATH_MAX];
     if (realpath(rawPath, resolvedPath) == nullptr) {
         return ""; // Failed to resolve path
@@ -1783,7 +1774,6 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
         return 2;
     }
 
-    // the launch command, wrapping the path in escaped quotes for spaces
     std::string launchCmd = "cd \\\"" + get_executable_directory() + "\\\" && \\\"" + execPath + "\\\" --profile";
 
     // Inject the command into the temporary .terminal file using PlistBuddy
@@ -1991,6 +1981,7 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
 
         /// For the game to launch using the correct apple terminal profile.
         if (argument == "--profile") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
+        if (argument == "--no-window-control") { Gmeng::global.window_control = false; };
 
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
             __functree_call__(__gmeng__help__menu__);
@@ -2032,24 +2023,30 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
     };
 
 #ifdef __APPLE__
-    /// Launch Gmeng MacOS setup (setup will exit immediately if the game directory was already set-up)
-    bool setup = gmeng_macos_terminal_setup(argc, argv);
-    if (!setup) {
-        INF("[apple_setup] error (0) nontrue return value from gmeng_macos_terminal_setup. cannot proceed.\n");
-        exit(1);
-    }
+    if ( std::string( getenv("TERM") ) != "xterm-kitty" ) {
+        /// Launch Gmeng MacOS setup (setup will exit immediately if the game directory was already set-up)
+        bool setup = gmeng_macos_terminal_setup(argc, argv);
+        if (!setup) {
+            INF("[apple_setup] error (0) nontrue return value from gmeng_macos_terminal_setup. cannot proceed.\n");
+            exit(1);
+        }
 
-    /// Force MacOS to use Apple Terminal
+        /// Force MacOS to use Apple Terminal
 
-    std::string exc_path = get_executable_directory();
-    int force_profile = enforce_macos_terminal_profile(exc_path + "/assets/gmeng.terminal", IS_USING_GMENG_APPLETERMINAL_THEMED);
-    /// return value (3) means the game has launched with the required gmeng profile.
-    if (force_profile == 3) exit(0);
-    /// return value (0) means the game is already using the required gmeng profile.
-    /// otherwise, error.
-    if (force_profile != 0) {
-        INF("[apple_setup] error (" + v_str(force_profile) +") nonzero return value from enforce_macos_terminal_profile. cannot proceed.\n");
-        exit(1);
+        std::string exc_path = get_executable_directory();
+        int force_profile = enforce_macos_terminal_profile(exc_path + "/assets/gmeng.terminal", IS_USING_GMENG_APPLETERMINAL_THEMED);
+        /// return value (3) means the game has launched with the required gmeng profile.
+        if (force_profile == 3) exit(0);
+        /// return value (0) means the game is already using the required gmeng profile.
+        /// otherwise, error.
+        if (force_profile != 0) {
+            INF("[apple_setup] error (" + v_str(force_profile) +") nonzero return value from enforce_macos_terminal_profile. cannot proceed.\n");
+            exit(1);
+        };
+    } else if (!IS_USING_GMENG_APPLETERMINAL_THEMED) {
+        std::string exc_path = get_executable_directory();
+        std::system(("kitty --config \"" + exc_path + "/assets/gmeng_kitty.conf\" " + argv[0] + " --profile").c_str());
+        exit(0);
     };
 #endif
     set_terminal_title("GMENG " + Gmeng::version + " | build " + GMENG_BUILD_NO);
@@ -2131,6 +2128,7 @@ static int restart_program() {
 #endif
 #include "utils/util.cpp"
 #include "src/audio.cpp"
+
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;

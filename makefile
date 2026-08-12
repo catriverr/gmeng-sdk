@@ -1,9 +1,12 @@
 # Compiler and flags
-CXX := clang++
+CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -fpermissive
+CXXFLAGS := -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -fpermissive
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
+
+
+
 
 # Compiler to Windows
 WINDOWS_CXX := i686-w64-mingw32-g++ # MinGW compiler for unix-to-windows cross compile.

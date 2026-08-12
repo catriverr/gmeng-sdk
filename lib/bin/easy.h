@@ -58,3 +58,39 @@
 #define level_base_image Gmeng::_vget_renderscale2dpartial_scalar
 #define level_current_image Gmeng::get_lvl_view
 #define level_set_image Gmeng::emplace_lvl_camera
+
+
+
+/// 13.1.0-d GMENG CAMERA ADD_DRAW VALUES
+
+/// no-fill-only-bordered-rectangle-creator
+/// TODO: FIXME: this is broken
+static Gmeng::Blob<> blob_rectangle_no_fill(const std::size_t width = 0, const std::size_t height = 0, Gmeng::color32_t color = (uint32_t)Gmeng::WHITE) {
+    Gmeng::Blob<> blob { width, height };
+
+    for ( int i = 0; i < width; i++ )
+        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32( color ) } );
+
+    for ( int y = 1; y < height-1; y++ ) {
+        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32(color) } );
+
+        for ( int x = 0; x < width-2; x++ )
+            blob.units.push_back( Gmeng::Unit { .transparent = true } );
+
+        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32(color) } );
+    };
+
+    for ( int j = 0; j < width; j++ )
+        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32( color ) } );
+
+    return blob;
+};
+
+/// Gmeng : Basic rectangle blob (single-color)
+#define BLOB_RECTANGLE( WIDTH, HEIGHT, COLOR ) \
+    Gmeng::Blob<> { WIDTH, HEIGHT,             \
+    std::vector<Gmeng::Unit>                   \
+    (WIDTH*HEIGHT, { .color=( COLOR ) }) }
+
+#define BLOB_RECTANGLE_BORDER( WIDTH, HEIGHT, COLOR ) \
+    blob_rectangle_no_fill( WIDTH, HEIGHT, COLOR )

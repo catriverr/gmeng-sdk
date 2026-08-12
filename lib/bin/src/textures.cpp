@@ -28,7 +28,7 @@ namespace Gmeng {
         std::ifstream file(__fname); Gmeng::texture texture;
         if (!file.is_open()) {
             gm_log(Gmeng::colors[4] + "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " + __fname + ": e_file_unavailable");
-            return { 0, 0, false, {}, "NO_CONTENT_FILE_INVALID" };
+            return Gmeng::texture { Blob<0, 0> { 0, 0, {} }, false, "NO_CONTENT_FILE_INVALID" };
         };
 
 

@@ -183,7 +183,7 @@ Renderer::drawpoint get_mouse_pos() {
     auto win_id = get_window_id();
     CGDirectDisplayID display_id = get_display_for_window(win_id);
     Renderer::drawpoint window_size = get_window_size(win_id);
-    CGRect dbounds = {.origin=NULL,.size={
+    CGRect dbounds = {.origin={ (double)NULL },.size={
         .width = v_static_cast<CGFloat>(window_size.x),
         .height = v_static_cast<CGFloat>(window_size.y)
     }};

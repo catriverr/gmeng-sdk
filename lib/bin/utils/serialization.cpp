@@ -17,7 +17,7 @@
 //         none of these methods are used by themselves.
 //    instead, use `write_level_data()` and `read_level_data()`.
  ///
- ///
+  ///
 
 #include "./serialization_def.cpp"
 
