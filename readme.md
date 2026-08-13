@@ -1,5 +1,5 @@
 <p align="center">
-    <img src ="https://gmeng.org/assets/Gmeng.png" style="width: 80%;"><br/>
+    <img src ="assets/new_gmeng_logo.png" style="width: 80%;"><br/>
     <p3>A Powerful, Terminal-Based 2D Game Engine written in C++.</p3>
 </p>
 <hr/>
