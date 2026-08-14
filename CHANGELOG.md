@@ -1,5 +1,4 @@
 <div align="center">
-    <img src="assets/gmeng-hd.png" style="max-width: 900px;">
     <h2>Gmeng Changelog</h2>
 </div>
 
