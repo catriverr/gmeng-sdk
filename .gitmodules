@@ -10,3 +10,6 @@
 [submodule "include/mp-pico-cpp"]
 	path = include/mp-pico-cpp
 	url = https://github.com/catriverr/mp-pico-cpp
+[submodule "include/sol"]
+	path = include/sol
+	url = https://github.com/ThePHD/sol2.git

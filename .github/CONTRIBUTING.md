@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://allahcorp.com/static/assets/gmeng-more-hd.png##">
+  <img src="assets/gmeng_logo.png">
   <h1>Contributing to the Gmeng SDK</h1>
 </div>
 
