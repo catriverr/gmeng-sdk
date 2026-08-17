@@ -1823,7 +1823,7 @@ void GmengImGuiTextureEditor::Draw() {
             ImGui::Separator();
             ImGui_CenteredText("Special Settings");
             ImGui::Checkbox("enabled", &current_brush.special);
-            ImGui::InputInt("color", &current_brush.special_clr);
+            ImGui::InputInt("color", &(current_brush.special_clr));
 
             char charBuf[16];
             strncpy(charBuf, current_brush.special_c_unit.c_str(), sizeof(charBuf));

@@ -10,7 +10,6 @@
 #include <cstring>
 #include <tuple>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 #include <algorithm>
 
@@ -680,6 +679,9 @@ namespace Gmeng {
         /// should only be called by the user if you are using
         /// a custom screen refresh handler.
         inline void apply_ui() {
+            /// if allow_ui isn't enabled ( allow_ui != 1 ),
+            /// don't apply any UI elements to the screen.
+            if ( !this->has_modifier("allow_ui") ) return;
             std::vector<int> to_erase;
             /// loop through all UI elements getting their id and element object
             for ( auto [ e_id, e ] : this->ui_manager.elements ) {
@@ -1563,6 +1565,14 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 
 #endif
 
+/// Defines the GAME_LOG macro binding to lua-script.
+static int __gmeng_define_lua_gmeng_log_method = ([]() -> int {
+    Gmeng::Scripts::lua.set_function("GAME_LOG", [&](std::string message) {
+        GAME_LOG( message );
+    });
+    return 0;
+})();
+
 std::deque<std::string> gmeng_log_get_last_lines(int n = 5) {
     return get_last_n_lines(*GAME_LOGSTREAM, n);
 };
@@ -1633,6 +1643,21 @@ extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
 ///
 /// a do_event_loop() instance handles the internal workings of the engine automatically.
 static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::EventLoop*)>> > commands = {
+        { "lua", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
+            params.erase(params.begin());
+
+            if ( params.size() < 1 ) {
+                GAME_LOG("lua: evaluates a lua expression.\nusage: lua <expression>");
+                return 1;
+            };
+
+            try {
+                Gmeng::Scripts::lua.script( g_joinStr(params, " ") );
+            } catch(std::exception& e) {
+                GAME_LOG((std::string)e.what());
+            };
+            return 0;
+        } },
         { "echo", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             params.erase(params.begin());
             GAME_LOG(g_joinStr(params, " "));

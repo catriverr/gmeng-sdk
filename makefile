@@ -1,7 +1,7 @@
 # Compiler and flags
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=c++2a -pthread `pkg-config --libs --cflags libcurl` -fpermissive
+CXXFLAGS := -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=c++2a -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(EXTRA_CXX_FLAGS)
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
@@ -116,7 +116,7 @@ ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
     CXXFLAGS += -DGMENG_NO_CURSES
 endif
 
-IMGUI_SRC := 
+IMGUI_SRC :=
 ifeq ($(filter use-external,$(MAKECMDGOALS)), use-external)
 	CXXFLAGS += `pkg-config --libs --cflags sdl2 sdl2_ttf`
     CXXFLAGS += -DGMENG_SDL
@@ -281,6 +281,10 @@ setup:
 		echo "[gmeng-setup] installing libasound2 & libasound2-dev...";\
 		apt-get -y install libasound2;\
 		apt-get -y install libasound2-dev;\
+		echo "[gmeng-setup] installing lua...";\
+		apt-get -y install lua5.4;\
+		echo "[gmeng-setup] installing sdl2...";\
+		apt-get -y install sdl2 sdl2_ttf sdl2_image;\
 		echo;\
 	fi
 	@if [ "$(UNAME_S)" = "Darwin" ]; then\
@@ -300,6 +304,9 @@ setup:
 		echo;\
 		echo "[gmeng-setup] installing libcurl4-openssl-dev...";\
 		brew install curl;\
+		echo "[gmeng-setup] installing lua...";\
+		brew install lua@5.4;\
+		brew link --force lua@5.4;\
 		echo "[gmeng-setup] installing libsdl2, sdl2_ttf, sdl2_image...";\
 		brew install sdl2 sdl2_ttf sdl2_image;\
 		echo;\

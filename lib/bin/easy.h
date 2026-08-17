@@ -28,6 +28,8 @@
 #define vgm_textures Gmeng::vgm_defaults::vg_textures
 #define vgm_rmodels Gmeng::vgm_defaults::vg_rmodels
 
+/// Loads a directory containing texture and model
+/// files into Gmeng's VisualCache Graphics Manager.
 #define vgm_load Gmeng::_uread_into_vgm
 
 /// gets a texture from the VGM with the specified name

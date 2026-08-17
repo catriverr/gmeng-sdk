@@ -33,7 +33,6 @@
 #include "utils/global.h"
 /// Gmeng::Assert utility
 #include "utils/assert.h"
-
 /// gm_log() logging utility
 #include "utils/log.h"
 
@@ -291,7 +290,7 @@ namespace Gmeng {
 
 	enum CONSTANTS {
 		/// integer values
-        UNITMAP_SIZE = 32767,
+        UNITMAP_SIZE = 32767 * 2,
 		vl_nomdl_id = 0x0FFFF0, vl_notxtr_id = 0x0FFFF1, vl_nochunk_id = 0x0FFFF2,
 		// C_PlugEvent is event type of 'plugin event',
         // C_InputEvent is event type of 'keyboard/mouse input'
@@ -695,7 +694,7 @@ namespace Gmeng {
             /// color of the special unit. If `special` is
             /// enabled, `special_clr` will set its foreground
             /// color (24-bit RGB derived from `gmeng::color32_t`).
-            uint32_t special_clr = 0;
+            int special_clr = 0;
             /// @deprecated gmeng 1.1 - G_Entity entity instance within the unit.
             /// kept for backwards compatibility but is unused since gmeng 4.0.
 			Objects::G_Entity entity={};
@@ -1524,7 +1523,7 @@ struct TerminalSize {
 };
 
 /// LMAO cross-platform as if this engine will run on windows any time soon
-TerminalSize get_terminal_size() {
+static TerminalSize get_terminal_size() {
     TerminalSize size{0, 0};
 
 #ifdef _WIN32
@@ -1600,7 +1599,7 @@ static void set_terminal_size(int width, int height) {
     std::cout << "\033[8;" << height << ";" << width << "t" << std::flush;
 }
 
-void resize_terminal(int columns, int rows, bool force = false) {
+static void resize_terminal(int columns, int rows, bool force = false) {
     if (!Gmeng::global.window_control) return;
     char* term_prog = getenv("TERM_PROGRAM");
     char* term = getenv("TERM");
@@ -1650,7 +1649,7 @@ namespace fs = std::filesystem;
 
 /// (Gmeng) installs a font to the user's fonts directory
 /// if the font is not already installed.
-bool g_install_font(const std::string& fontFilePath) {
+static bool g_install_font(const std::string& fontFilePath) {
     // get user's home directory (~)
     const char* homeDir = std::getenv("HOME");
     if (!homeDir) {
@@ -1815,7 +1814,7 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
 /// This installs the truetype font Hacker Nerd Font Mono,
 /// Sets up the required Apple Terminal Profile for games
 /// and ensures `make setup was successful`
-bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
+static bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
     __annot__(patch_argv_global, "sets up Gmeng for MacOS & Apple Terminal");
     __functree_call__(gmeng_macos_terminal_setup);
 
@@ -2110,6 +2109,10 @@ static int restart_program() {
 };
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
+
+/// Gmeng LUA scripts utility
+#include "utils/scripts.h"
+
 #include "src/textures.cpp"
 #include "src/gmeng.cpp"
 #include "src/renderer.cpp"
@@ -2128,6 +2131,8 @@ static int restart_program() {
 #endif
 #include "utils/util.cpp"
 #include "src/audio.cpp"
+
+#include "utils/serialization.cpp"
 
 namespace g = Gmeng;
 namespace gm = Gmeng;

@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
         { "USE_NCURSES", "true", BOOLEAN }, { "USE_EXTERNAL", "false", BOOLEAN },
       },
       {
-        { "TARGET_NAME", "all", STRING }, { "DEBUG_MODE", "false", BOOLEAN }
+        { "TARGET_NAME", "all", STRING }, { "DEBUG_MODE", "false", BOOLEAN}
       },
       {
         { " <OK>", "", CLICK }, { " <CANCEL>", "", CLICK }
@@ -331,7 +331,7 @@ int main(int argc, char** argv) {
                     if (ch == KEY_BACKSPACE || ch == 127 || ch == 263) {
                         if (current->value.length() > 0) current->value.pop_back();
                     } else {
-                        if (current->value.length() < 17) current->value += ch;
+                        if (current->value.length() < 25) current->value += ch;
                     };
                     refresh_selections();
                     break;
