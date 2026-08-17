@@ -20,8 +20,8 @@ jobs:
         brew install ncurses
         git submodule update --init --recursive
     - name: make engine
-      run: make no-ncurses all
+      run: make no-ncurses all NOSOL=true
     - name: make tests
-      run: make no-ncurses test2
+      run: make no-ncurses test2 NOSOL=true
     - name: make debug
-      run: make no-ncurses debug
+      run: make no-ncurses debug NOSOL=true

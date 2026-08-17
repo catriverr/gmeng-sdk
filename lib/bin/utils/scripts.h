@@ -1,4 +1,7 @@
 #pragma once
+
+#ifndef GMENG_NO_SOL
+
 #include "../gmeng.h"
 #include <sol/sol.hpp>
 
@@ -208,5 +211,6 @@ static int Gmeng::Scripts::init_sol2() {
     lua.set_function("g_find_modifier", &g_find_modifier);
     return 0;
 };
-
 static int sol2_init_state = Gmeng::Scripts::init_sol2();
+
+#endif // GMENG_NO_SOL

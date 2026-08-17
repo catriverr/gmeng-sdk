@@ -48,6 +48,10 @@ $(info buildoptions selected.)
 endif
 endif
 
+ifeq ($(NOSOL),true)
+	CXXFLAGS += -DGMENG_NO_SOL
+endif
+
 ifeq ($(filter compile-windows, $(MAKECMDGOALS)),compile-windows)
 ifeq ($(wildcard buildoptions.mk),)
 $(error create a file named `buildoptions.mk` and add the line `TARGET_NAME := your_game_code.cpp`.)
