@@ -203,7 +203,8 @@ static int Gmeng::Scripts::init_sol2() {
         "prog_argv", &__global_object__::prog_argv,
         "window_control", &__global_object__::window_control,
         "terminal_has_sgr_pixel_support", &__global_object__::terminal_has_sgr_pixel_support,
-        "terminal_has_kgp_pixel_support", &__global_object__::terminal_has_kgp_pixel_support
+        "terminal_has_kgp_pixel_support", &__global_object__::terminal_has_kgp_pixel_support,
+        "terminal_has_keyboard_support", &__global_object__::terminal_has_keyboard_support
     );
 
     gmeng_lua_namespace.set("global", &Gmeng::global);
