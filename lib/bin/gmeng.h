@@ -1,12 +1,14 @@
 #pragma once
 #include <cerrno>
 #include <codecvt>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <fstream>
 #include <iterator>
+#include <string_view>
 #include <thread>
 #include <chrono>
 #include <vector>
@@ -25,7 +27,7 @@
 #include <cxxabi.h> // function call tracing
 
 
-
+/// base object types
 #include "src/objects.cpp"
 /// class initialization
 #include "utils/setup_class.h"
@@ -35,6 +37,10 @@
 #include "utils/assert.h"
 /// gm_log() logging utility
 #include "utils/log.h"
+/// terminal size utility
+#include "utils/ioctl.h"
+/// SGR-Pixel mouse reporting utility
+#include "utils/sgr_pixel.h"
 
 #include <filesystem>
 #if _WIN32 == false
@@ -109,35 +115,7 @@ static std::string get_username() {
 
 
 #include "utils/functree.h"
-
-
-
-/// Creates a Kitty terminal config that is
-/// compatible with Gmeng's requirements.
-void kitty_create_config(std::string fname) {
-    std::ofstream f(fname);
-
-    if (!f.is_open()) std::cerr << "error writing";
-    else {
-        f << "allow_remote_control yes\n";
-        f << "font_size 18.0\n";
-
-        f.close();
-        std::cout << "written to " << fname;
-    };
-
-};
-
-/// Kitty terminal : resizes the window.
-/// Requires an unknown amount of grace milliseconds.
-void kitty_resize_window(int width, int height) {
-    std::system(("kitten @ resize-os-window --width " + std::to_string(width) + " --height " + std::to_string(height)).c_str());
-};
-
-/// Kitty terminal : sets font size.
-void kitty_set_font_size(int size) {
-    std::system(("kitten @ set-font-size " + std::to_string(size)).c_str());
-};
+#include "utils/kitty.h"
 
 
 
@@ -178,7 +156,7 @@ static std::vector<Thing> repeatThing(Thing obj, int times) {
 /// If the checker function returns true, the vector is split.
 /// Returns a vector of a vector of things.
 template<typename Thing>
-static std::vector<std::vector<Thing>> splitThing(std::vector<Thing> obj, std::function<bool(Thing)> checker) {
+static std::vector<std::vector<Thing>> splitThing(std::vector<Thing>& obj, std::function<bool(Thing)> checker) {
     std::vector<std::vector<Thing>> Things;
     int vec_c = 0;
     for (int i = 0; i < obj.size(); i++) {
@@ -533,7 +511,7 @@ namespace Gmeng {
 
         // Constructor
         color32_t(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0)
-            : r(r), g(g), b(b) {}
+            : r(r), g(g), b(b) {};
 
         // Convert to Vec3 (float RGB in range [0.0f, 1.0f])
         Vec3 to_vec3() const {
@@ -558,14 +536,14 @@ namespace Gmeng {
     };
 
     /// converts a color32_t to a uint32_t object
-    uint32_t uint32_from_color32(const color32_t& color) {
+    inline uint32_t uint32_from_color32(const color32_t& color) {
         return (static_cast<uint32_t>(color.r) << 16) |
                (static_cast<uint32_t>(color.g) << 8)  |
                (static_cast<uint32_t>(color.b));
     }
 
     /// converts a Vec3 or color32_t to color_t (legacy color_8)
-    color_t conv_rgb_col8(const Vec3 rgb) {
+    inline color_t conv_rgb_col8(const Vec3& rgb) {
         // Threshold the RGB channels to 0 or 1 based on mid value
         int r = rgb.x > 0.5f ? 1 : 0;
         int g = rgb.y > 0.5f ? 1 : 0;
@@ -670,15 +648,9 @@ namespace Gmeng {
             /// and entities can collide with this specific
             /// unit within its larger container (Models, Entities.)
             bool collidable = true;
-            /// @deprecated gmeng 1.1 - whether the unit is the player entity
-            /// kept for backwards compatibility but is unused since gmeng 4.0.
-            bool is_player = false;
             /// @deprecated gmeng 1.1 - whether the unit is part of an entity.
             /// kept for backwards compatibility but is unused since gmeng 4.0.
             bool is_entity = false;
-            /// @deprecated gmeng 1.1 - G_Player player instance within the unit.
-            /// kept for backwards compatibility but is unused since gmeng 4.0.
-            Objects::G_Player player={};
             /// whether the Unit is transparent. If set
             /// to true, the unit is treated as nonexistent,
             /// and will not have collision enabled even if
@@ -695,15 +667,13 @@ namespace Gmeng {
             /// enabled, `special_clr` will set its foreground
             /// color (24-bit RGB derived from `gmeng::color32_t`).
             int special_clr = 0;
-            /// @deprecated gmeng 1.1 - G_Entity entity instance within the unit.
-            /// kept for backwards compatibility but is unused since gmeng 4.0.
-			Objects::G_Entity entity={};
             /// character string of the special unit. If
             /// `special` is set, this item will be displayed
             /// in a 2x1 rectangular full-size character occupying
             /// the next Y coordinate's same X position.
-            std::string special_c_unit = "";
+            char special_c_unit = ' ';
 
+            ~Unit() = default;
 	};
 
     /// Blob : Render blob that contains a vector of units
@@ -722,6 +692,18 @@ namespace Gmeng {
         /// of the blob is present.
         std::vector<Gmeng::Unit> units;
 
+        /// Recolors the Blob to the specified color.
+        inline void recolor( uint32_t color ) {
+            for ( auto& un : this->units )
+                un.color = color;
+        };
+        /// Recolors units within the Blob that are colored
+        /// `color` with the color specified with `to`.
+        inline void recolor( uint32_t color, uint32_t to ) {
+            for ( auto& un : this->units ) {
+                if ( un.color == color ) un.color = to;
+            };
+        };
     };
 
     /// Texture : Gmeng Implementation for textures.
@@ -741,6 +723,8 @@ namespace Gmeng {
                          collidable, name );
     };
 
+    /// type decl.
+    class Level;
 
     /// Sets the Units of g_tx to the Units of g_tx2, copying
     /// the second texture's image data into the first. This
@@ -768,7 +752,7 @@ namespace Gmeng {
         /// one being the fact that most of the time,
         /// modifiers are either enums (glorified integers)
         /// or integer values by nature anyways.
-        int value = 0;
+        int value = -1;
 	};
 
     /// ModifierList : Container for modifiers
@@ -779,19 +763,53 @@ namespace Gmeng {
         /// List of modifiers within the list.
 		std::vector<modifier> values = {};
 
+        /// Sorts the vector for binary-search operations,
+        /// this makes access to values much faster.
+        void sort() {
+            std::sort(values.begin(), values.end(), [](const auto& a, const auto& b) {
+                return a.name < b.name;
+            });
+        };
+
+        /// Erases a modifier with the given key. If a modifier
+        /// with the given key is not found, no item is erased.
+        /// If a modifier is found, the array is sorted after
+        /// deleting the modifier.
+        ///
+        /// This method will only delete the first instance of
+        /// a modifier with a given key. It needs to be reexecuted
+        /// n times if there are n amount of instances of the modifier.
+        void erase(std::string_view key) {
+            auto it = std::lower_bound(values.begin(), values.end(), key,
+                [](const auto& val, std::string_view k) {
+                    return val.name < k;
+                });
+
+            if ( it != values.end() && it->name == key )
+                this->values.erase(it), this->sort();
+        };
+
         /// Returns the value of a modifier with the key
-        /// provided. The function will return the first
+        /// provided. The function will return an unknown
         /// instance of the value, so if there are multiple
-        /// stacked within the list only the first one will
-        /// be returned. If no instances of a modifier with
-        /// the given key is found, `-1` is returned.
-        int get_value(std::string key) {
-            for (const auto& val : values)
-                if (val.name == key) return val.value;
+        /// stacked within the list any one may be returned.
+        /// If no instances of a modifier with the given key
+        /// is found, `-1` is returned.
+        int get_value(std::string_view key) const {
+
+            auto it = std::lower_bound(values.begin(), values.end(), key,
+                [](const auto& val, std::string_view k) {
+                    return val.name < k;
+                });
+
+            if (it != values.end() && it->name == key) {
+                return it->value;
+            }
+
             return -1;
         };
 
-        /// Sets the vawlue of a modifier with the key
+        /// Sets the value of a modifier with the key
         /// provided. The function will only set the first
         /// instance of the value, so if there are multiple
         /// stacked within the list only the first one will
@@ -800,14 +818,43 @@ namespace Gmeng {
         ///
         /// This function does NOT create a new entry if
         /// a modifier with the key provided exists.
-        void set_value(std::string key, int value) {
-            for (auto& val : values)
-                if (val.name == key) { val.value = value; break; };
+        void set_value(std::string_view key, int value) {
+            /// Binary search to find where the key should be
+            auto it = std::lower_bound(values.begin(), values.end(), key,
+                [](const auto& val, std::string_view k) {
+                    return val.name < k;
+                });
+
+            /// If the key is found, set it.
+            if (it != values.end() && it->name == key) {
+                it->value = value;
+            };
         };
+
+        /// Adds a modifier to the list. If there is already
+        /// a modifier with the same key, this function does
+        /// NOT modify the value. In every case, this function
+        /// will add the new modifier to the end of the list.
+        /// Even if there is already a modifier with the same key.
+        void add_value(modifier mod) {
+            this->values.push_back( mod );
+            this->sort();
+        };
+        /// Adds a modifier to the list. If there is already
+        /// a modifier with the same key, this function does
+        /// NOT modify the value. In every case, this function
+        /// will add the new modifier to the end of the list.
+        /// Even if there is already a modifier with the same key.
+        void add_value(std::string key, int value) {
+            modifier mod { key, value };
+            this->add_value( mod );
+            this->sort();
+        };
+
 	};
 
     /// @deprecated Gmeng 1.1 Renderer Options.
-	struct RendererOptions {
+    struct RendererOptions {
 		public:
         /// Whether the system should count
         /// single-unit objects. Useful for
@@ -826,7 +873,7 @@ namespace Gmeng {
     /// will be reflected after `get_lvl_view` and before
     /// `emplace_lvl_camera` is called. Modifying them
     /// directly will only reflect for a single frame.
-	template<std::size_t d_width, std::size_t d_height>
+	template<std::size_t d_width = 0, std::size_t d_height = 0>
 	class DisplayMap {
 		public:
 		/// Height of the DisplayMap.
@@ -839,11 +886,16 @@ namespace Gmeng {
         /// will be reflected after `get_lvl_view` and before
         /// `emplace_lvl_camera` is called. Modifying them
         /// directly will only reflect for a single frame.
-		Gmeng::Unit unitmap[CONSTANTS::UNITMAP_SIZE] = {};
+        std::vector<Gmeng::Unit> unitmap = std::vector<Gmeng::Unit>(CONSTANTS::UNITMAP_SIZE);
         /// Pool size of the unitmap. Differs from `CONSTANTS::UNITMAP_SIZE`.
         /// This property calculates (at compile-time) the byte size of the
         /// unitmap in accordance to the byte size of one `Gmeng::Unit` instance.
         int pool_size = (sizeof unitmap / sizeof(Gmeng::Unit));
+        /// Data of raw framebuffer. Used & updated if the Kitty Terminal
+        /// Graphics Protocol is supported. This is used to display raw
+        /// framebuffers to the terminal program's screen, which is much
+        /// faster and more efficient than drawing ASCII colorcodes.
+        uint8_t* framebuffer = NULL;
 	};
     /// @deprecated gmeng 1.1 renderer. Kept for backwards compatibility. Unused.
     ///
@@ -911,193 +963,8 @@ inline std::string _uthread_id(const std::thread& thread) {
     return std::to_string(hashValue);
 };
 
-/// splits a text into characters but includes colorcodes in chars.
-std::vector<std::string> split_with_ansi(const std::string& input)
-{
-    std::vector<std::string> result;
-    std::string pending_ansi;
+#include "utils/ansi.h"
 
-    auto read_ansi = [&](size_t& i) {
-        size_t start = i++;
-        if (i >= input.size()) return;
-
-        if (input[i] == '[') // CSI
-        {
-            ++i;
-            while (i < input.size() &&
-                   (input[i] < '@' || input[i] > '~'))
-                ++i;
-            if (i < input.size()) ++i;
-        }
-        else if (input[i] == ']') // OSC
-        {
-            ++i;
-            while (i < input.size() &&
-                   !(input[i] == '\x07' ||
-                     (input[i] == '\x1B' && i + 1 < input.size() && input[i + 1] == '\\')))
-                ++i;
-            if (i < input.size())
-            {
-                if (input[i] == '\x1B') i += 2;
-                else ++i;
-            }
-        }
-        else // single-char ESC
-        {
-            ++i;
-        }
-
-        pending_ansi.append(input, start, i - start);
-    };
-
-    for (size_t i = 0; i < input.size();)
-    {
-        if (input[i] == '\x1B')
-        {
-            read_ansi(i);
-        }
-        else
-        {
-            std::string s;
-            s.reserve(pending_ansi.size() + 1);
-            s += pending_ansi;
-            pending_ansi.clear();
-
-            s += input[i++];
-            result.push_back(std::move(s));
-        }
-    }
-
-    // Trailing ANSI → attach to last character
-    if (!pending_ansi.empty() && !result.empty())
-    {
-        result.back() += pending_ansi;
-    }
-
-    return result;
-}
-
-/// Returns whether the character is
-/// the start to an ANSI escape code sequence (`\x1B`)
-inline bool is_ansi_start(char c) noexcept
-{
-    return c == '\x1B';
-}
-
-/// Returns an index to a logical index (index in a string EXCLUDING ansi escape codes)
-/// as a physical index (index in a string INCLUDING ansi escape codes).
-/// If the index cannot be found, `std::string::npos` is returned.
-size_t logical_to_physical_index(const std::string& s, size_t logical_index)
-{
-    size_t logical = 0;
-    size_t i = 0;
-    const size_t n = s.size();
-
-    while (i < n)
-    {
-        if (is_ansi_start(s[i]))
-        {
-            ++i;
-            if (i >= n) break;
-
-            // CSI: ESC [
-            if (s[i] == '[')
-            {
-                ++i;
-                while (i < n && (s[i] < '@' || s[i] > '~'))
-                    ++i;
-                if (i < n) ++i;
-            }
-            // OSC: ESC ]
-            else if (s[i] == ']')
-            {
-                ++i;
-                while (i < n &&
-                       !(s[i] == '\x07' ||
-                        (s[i] == '\x1B' && i + 1 < n && s[i + 1] == '\\')))
-                    ++i;
-                if (i < n)
-                {
-                    if (s[i] == '\x1B') i += 2;
-                    else ++i;
-                }
-            }
-            // Single-character ESC
-            else
-            {
-                ++i;
-            }
-        }
-        else
-        {
-            if (logical == logical_index)
-                return i;
-
-            ++logical;
-            ++i;
-        }
-    }
-
-    return std::string::npos;
-}
-
-
-/// strips all ANSI escape codes / color codes from a text.
-/// Used for getting the actual length of strings without accounting
-/// for colorcodes.
-std::string strip_ansi(const std::string& input)
-{
-    std::string out;
-    out.reserve(input.size());
-
-    for (size_t i = 0; i < input.size();)
-    {
-        if (input[i] == '\x1B') // ESC
-        {
-            ++i;
-            if (i >= input.size()) break;
-
-            // CSI: ESC [
-            if (input[i] == '[')
-            {
-                ++i;
-                while (i < input.size() &&
-                       (input[i] < '@' || input[i] > '~'))
-                {
-                    ++i;
-                }
-                if (i < input.size()) ++i;
-            }
-            // OSC: ESC ]
-            else if (input[i] == ']')
-            {
-                ++i;
-                while (i < input.size() &&
-                       !(input[i] == '\x07' ||
-                        (input[i] == '\x1B' && i + 1 < input.size() && input[i + 1] == '\\')))
-                {
-                    ++i;
-                }
-                if (i < input.size())
-                {
-                    if (input[i] == '\x1B') i += 2;
-                    else ++i;
-                }
-            }
-            // Other ESC sequences
-            else
-            {
-                ++i;
-            }
-        }
-        else
-        {
-            out += input[i++];
-        }
-    }
-
-    return out;
-}
 
 #define v_intl int
 #define v_static_cast static_cast
@@ -1110,7 +977,7 @@ std::string strip_ansi(const std::string& input)
 
 /// converts a uint32_t integer containing
 /// an RGB value (NOT! RGBA) to a color32_t value.
-Gmeng::color32_t Gmeng::color32_from_uint32(uint32_t rgb) {
+inline Gmeng::color32_t Gmeng::color32_from_uint32(uint32_t rgb) {
     return {
         static_cast<uint8_t>((rgb >> 16) & 0xFF), // Red   (bits 16-23)
         static_cast<uint8_t>((rgb >> 8) & 0xFF),  // Green (bits 8-15)
@@ -1322,12 +1189,12 @@ static void init_logc(int ms = 250) {
                 ("Global Variables\n\t- restarted_instance: " + std::string(Gmeng::global.restarted_instance ? "true" : "false" ) + "\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n"));
     } else {
         /// print restart message
-        gm_log("-- RESTARTED GMENG INSTANCE --\n");
+        gm_log("-- RESTARTED --\n");
     };
 
-    if (!Gmeng::global.shush) Gmeng::create_thread([&]() {
+    if (!Gmeng::global.shush) /*Gmeng::create_thread([&]() {
             __functree_call__(_glog_thread_create);
-/*        for ( ;; ) {
+            for ( ;; ) {
             if (!Gmeng::global.dev_console) continue;
             if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
                Gmeng::completelog << Gmeng::logstream.str();
@@ -1337,11 +1204,10 @@ static void init_logc(int ms = 250) {
             };
             _udraw_display(Gmeng::logc);
             std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        }*/
+        }
         /// close log file
-    });
+    })*/;
 };
-
 
 #include "types/termui.h"
 
@@ -1466,11 +1332,10 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
         std::cout << " do not run this game with it.\n\n";
         std::cout << "Recommended Terminal Programs:";
         std::cout << "\n- windows: Windows Terminal\n";
-        std::cout << "- macOS: Apple Terminal (if using macOS Tahoe or later)\n";
-        std::cout << "- macOS: iTerm2 (if using an older version of macOS than Tahoe [26.0])\n";
+        std::cout << "- macOS: Kitty\n";
         std::cout << "- linux / Windows Subsystem for linux: the default tty will suffice.\n";
         std::cout << "\nPress CTRL+C to quit.\n";
-        std::cout << "\nPress any key to continue anyway.";
+        std::cout << "\nPress [enter] to continue anyway.";
         cin.get();
     } },
     { "windows", []() {
@@ -1489,7 +1354,7 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
                   << " "  << "However, the system could not bind to a port in the 7388-7488 range.\n"
                   << "\n" << Gmeng::boldcolor << "The port range of 7388 to 7488 must have at least one open port for GMENG to create a server instance.\n" << Gmeng::resetcolor
                   << " "  << "Please empty one of these ports to run a server.\n"
-                  << "\n" << "Press any key to exit.\n";
+                  << "\n" << "Press [enter] to exit.\n";
         cin.get();
     } },
     { "init_from_main", []() {
@@ -1501,7 +1366,7 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
                   << "\n" << "when initializing gmeng, run gmeng function 'patch_argv_global' within your c main() function."
                   << "\n" << "If gmeng is not initialized properly, you will break various engine functionality.\n";
 
-        std::cout << "\nPress CTRL+C to exit or any key to continue.\n";
+        std::cout << "\nPress CTRL+C to exit or [enter] to continue.\n";
         cin.get();
     } },
     { "no_truecolor", []() {
@@ -1510,39 +1375,10 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
         std::cout << "\nUsual culprit is TMUX. Apple Terminal, iTerm and other ttys usually support truecolor by default, but TMUX overrides it.\n";
         std::cout << "\nIf you wish to use tmux with truecolor (RGB support) see " << Gmeng::colors[Gmeng::BLUE] << "gmeng.org/?doc=truecolor" << Gmeng::resetcolor << ".\n";
 
-        std::cout << "\nPress CTRL+C to exit or any key to continue.\n";
+        std::cout << "\nPress CTRL+C to exit or [enter] to continue.\n";
         cin.get();
     } }
 };
-
-struct TerminalSize {
-    int width; int height;
-
-    bool operator==( const TerminalSize& other ) const = default;
-
-};
-
-/// LMAO cross-platform as if this engine will run on windows any time soon
-static TerminalSize get_terminal_size() {
-    TerminalSize size{0, 0};
-
-#ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-        size.width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-        size.height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-    }
-#else
-    struct winsize w;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
-        size.width = w.ws_col;
-        size.height = w.ws_row;
-    }
-#endif
-
-    return size;
-}
-
 
 // internal warning method.
 // displays warnings related to functions of the engine.
@@ -1552,7 +1388,7 @@ static void _gmeng_show_warning(std::string warning_, char* filename, int fileli
     printf("\033c"); // clear screen
     auto term_size = get_terminal_size();
     /// print warning tabtitle
-    std::string warn_tab_text = "gmeng_show_warning(" + v_str(fileline) + ") " + _uget_thread() + ".gmeng:" + warning_ + "(0) :: " + filename + ":" + v_str( fileline ) + " @ " + std::string( func_caller );
+    std::string warn_tab_text = "gmeng_show_warning: " + warning_ + ", " + get_filename(filename) + ":" + v_str( fileline ) + " @ " + std::string( func_caller );
     while( warn_tab_text.size() < term_size.width ) warn_tab_text += " "; // fill tab width
     std::cout << Gmeng::bgcolors_bright[Gmeng::WHITE] + Gmeng::colors[Gmeng::BLACK] + warn_tab_text << '\n' << Gmeng::resetcolor;
 
@@ -1569,7 +1405,7 @@ static void _gmeng_show_warning(std::string warning_, char* filename, int fileli
         std::cout << "\n\nan internal subsystem of gmeng (" << get_filename(filename) << ':' << fileline << " & " << TRACEFUNC_STR <<  ")\n";
         std::cout << "has invoked a warning for '" << warning_ << "',\n";
 
-        std::cout << "\npress CTRL+C to quit or any other key to continue anyway.\n";
+        std::cout << "\npress CTRL+C to quit or [enter] to continue anyway.\n";
 
         std::cin.get();
     };
@@ -1616,10 +1452,11 @@ static void resize_terminal(int columns, int rows, bool force = false) {
         std::system(script.c_str());
     }
     /// Kitty
-    else if ( term != nullptr && std::string(term) == "xterm-kitty" ) {
+    else if ( term != nullptr && std::string(term) == ("xterm-kitty") ) {
         if (force) kitty_resize_window(columns,rows);
     };
 }
+
 
 static void set_terminal_title(const std::string& title) {
     // \033]0; starts the title sequence
@@ -1691,7 +1528,7 @@ static bool g_install_font(const std::string& fontFilePath) {
 /// Returns the directory in which the current
 /// executable is in. Absolute directory only,
 /// calls realpath().
-std::string get_executable_directory() {
+static std::string get_executable_directory() {
     char rawPath[PATH_MAX];
     uint32_t size = sizeof(rawPath);
 
@@ -2022,7 +1859,7 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
     };
 
 #ifdef __APPLE__
-    if ( std::string( getenv("TERM") ) != "xterm-kitty" ) {
+    /*if ( std::string( getenv("TERM") ) != "xterm-kitty" ) {
         /// Launch Gmeng MacOS setup (setup will exit immediately if the game directory was already set-up)
         bool setup = gmeng_macos_terminal_setup(argc, argv);
         if (!setup) {
@@ -2042,7 +1879,10 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
             INF("[apple_setup] error (" + v_str(force_profile) +") nonzero return value from enforce_macos_terminal_profile. cannot proceed.\n");
             exit(1);
         };
-    } else if (!IS_USING_GMENG_APPLETERMINAL_THEMED) {
+    }*/
+
+    /// Since 13.4.0: force kitty terminal.
+    if (!IS_USING_GMENG_APPLETERMINAL_THEMED) {
         std::string exc_path = get_executable_directory();
         std::system(("kitty --config \"" + exc_path + "/assets/gmeng_kitty.conf\" " + argv[0] + " --profile").c_str());
         exit(0);
@@ -2114,13 +1954,11 @@ static int restart_program() {
 #include "utils/scripts.h"
 
 #include "src/textures.cpp"
+#include "utils/text.h"
 #include "src/gmeng.cpp"
-#include "src/renderer.cpp"
-#include "types/map.h"
 #if _WIN32 == false
 #include "utils/network.cpp"
 #ifndef GMENG_NO_CURSES
-    /// for github build workflow
     #include "types/interface.h"
     #include "utils/interface.cpp"
 #endif

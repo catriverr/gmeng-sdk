@@ -1,7 +1,10 @@
+#pragma once
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <vector>
+
+#include "../gmeng.h"
 
 #ifdef __GMENG_INIT__
 #ifndef __GMENG_MAP_INIT__
@@ -82,18 +85,19 @@ namespace Gmeng {
 					if ( indx == 0+1 ) { cur_unit.color = std::stoi(param);  };
 					if ( indx == 1+1 ) { cur_unit.collidable = stob(param);  };
 					if ( indx == 2+1 ) { cur_unit.is_entity = stob(param);   };
-					if ( indx == 3+1 ) { cur_unit.is_player = stob(param);   };
+					if ( indx == 3+1 ) {/*cur_unit.is_player = stob(param);*/};
 					if ( indx == 4+1 ) { cur_unit.special = stob(param);     };
 					if ( indx == 5+1 ) { cur_unit.special_clr = stoi(param); };
 					if ( indx == 6+1 ) { cur_unit.special_c_unit = param;    };
 					indx++;
 				};
-				if (indx < 7) throw std::invalid_argument("unitmap at "+__f+" invalid"); 
+				if (indx < 7) throw std::invalid_argument("unitmap at "+__f+" invalid");
 				map.display_map.unitmap[i] = cur_unit;
 				i++;
 			};
 			return map;
 		};
+
 		inline Gmeng::ModifiedWorldData GetInfo(std::string __wf, std::string __pf) {
 			std::string w_cntnt = g_readFile(__wf); std::string p_cntnt = g_readFile(__pf);
 			Gmeng::ModifiedWorldData __pd = Gmeng::MapParser::ParseWorldInfo(w_cntnt, p_cntnt);

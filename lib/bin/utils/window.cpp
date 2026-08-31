@@ -686,50 +686,6 @@ struct GmengImGuiInfoWindow {
 
         ImGui::Separator();
 
-        SDL_Texture* obj;
-
-        ImGui::SetNextItemOpen(true);
-        if (ImGui::CollapsingHeader("preview" )) {
-            Gmeng::sImage img;
-            img.width = ev->level->base.width;
-            img.height = ev->level->base.height;
-            img.content.clear();
-
-            for (auto& un : ev->level->renderscale)
-                if (!un.is_entity)
-                    img.content.push_back((Gmeng::color_t) un.color);
-
-            Gmeng::sImage preview = stretchImage(img, ImGui::GetWindowWidth() - 16, 200);
-
-            ImGui_CenteredText("renderscale preview");
-
-            size_t new_hash = hash_pixels(preview.content);
-
-            // Check if texture needs to be recreated
-            if (!preview_texture ||
-                preview_width != preview.width ||
-                preview_height != preview.height ||
-                preview_hash != new_hash) {
-
-                if (preview_texture) {
-                    SDL_DestroyTexture(preview_texture);
-                    preview_texture = nullptr;
-                }
-
-                preview_texture = make_texture(renderer, preview);
-                preview_width = preview.width;
-                preview_height = preview.height;
-                preview_hash = new_hash;
-            }
-
-            if (preview_texture) {
-                ImGui::Image((ImTextureID)preview_texture, ImVec2(preview_width, preview_height));
-            }
-
-            ImGui::Separator();
-        };
-
-
         ImGui::End();
         graphg_++;
     };
@@ -1730,29 +1686,7 @@ struct GmengImGuiLevel {
     }
 
     void GmengImGuiTextureEditor::Save(const std::string& fname) {
-        std::ofstream file(fname);
-        if (!file.is_open()) return;
-
-        file << "name=" << tex.name
-             << ",width=" << tex.width
-             << ",height=" << tex.height
-             << ",collision=" << (tex.collidable ? "true" : "false") << "\n";
-
-        for (const auto& unit : tex.units) {
-            if (unit.transparent) {
-                file << "__gtransparent_unit__\n";
-            } else {
-                std::string s_char = unit.special_c_unit.empty() ? "X" : unit.special_c_unit;
-                file << unit.color << " "
-                     << (unit.special ? "true" : "false") << " "
-                     << unit.special_clr << " "
-                     << s_char << "\n";
-            }
-        }
-
-        file << "; gmeng_texture_editor[12.0.0] Save() -> from g_command `edit_texture`\n";
-        file.close();
-        gm_log("wrote " + fname + " texturedata (" $(tex.units.size()) " units)");
+        Gmeng::save_texture( fname, tex );
     }
 
     void GmengImGuiTextureEditor::Load(const std::string& fname) {
@@ -1825,10 +1759,9 @@ void GmengImGuiTextureEditor::Draw() {
             ImGui::Checkbox("enabled", &current_brush.special);
             ImGui::InputInt("color", &(current_brush.special_clr));
 
-            char charBuf[16];
-            strncpy(charBuf, current_brush.special_c_unit.c_str(), sizeof(charBuf));
+            char charBuf[16] = { current_brush.special_c_unit, '\0' };
             if (ImGui::InputText("character", charBuf, sizeof(charBuf))) {
-                current_brush.special_c_unit = charBuf;
+                current_brush.special_c_unit = charBuf[0];
             }
             ImGui::Separator();
 
@@ -1984,10 +1917,10 @@ void GmengImGuiTextureEditor::Draw() {
                     };
 
                     // If special flags are raised and zoom allows, show the special char
-                    if (unit.special && zoom >= 15.0f && !unit.special_c_unit.empty()) {
-                        ImVec2 text_size_sp = ImGui::CalcTextSize(unit.special_c_unit.c_str());
+                    if (unit.special && zoom >= 15.0f && unit.special_c_unit != ' ') {
+                        ImVec2 text_size_sp = ImGui::CalcTextSize((unit.special_c_unit + (std::string)"").c_str());
                         ImVec2 text_pos_sp(p_min.x + (zoom - text_size_sp.x) * 0.5f, p_min.y + (zoom - text_size_sp.y) * 0.5f);
-                        draw_list->AddText(text_pos_sp, IM_COL32(255, 255, 255, 255), unit.special_c_unit.c_str());
+                        draw_list->AddText(text_pos_sp, IM_COL32(255, 255, 255, 255), ((std::string)"" + unit.special_c_unit).c_str());
                     }
                 }
 

@@ -1,10 +1,11 @@
 {
     "clangd.enabled": true,
     "clangd.fallbackFlags": [
-        "-std=c++23",
+        "-std=gnu++23",
         "-I${workspaceFolder}/include",
         "-I${workspaceFolder}/include/imgui",
         "-I${workspaceFolder}/include/asio",
+        "-I${workspaceFolder}/include/sol",
         "-Wno-format-security",
         "-Wno-mixed-indent",
         "-D_THREAD_SAFE",
@@ -25,10 +26,10 @@
         "-Iinclude/",
         "-Iinclude/imgui",
         "-Iinclude/asio",
-        "-Linclude/asio",
-        "-DGMENG_SDL=false"
+        "-Linclude/asio"
     ],
     "clangd.arguments": [
-        "--background-index=true"
+        "--background-index=true",
+        "--j=4"
     ]
 }

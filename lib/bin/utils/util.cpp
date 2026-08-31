@@ -18,7 +18,7 @@ namespace Gmeng::Util {
                 .collidable = true,
                 .special = true,
                 .special_clr = 4,
-                .special_c_unit = "?"
+                .special_c_unit = '?'
             });
             else final += cam.draw_unit(txt.units.at(i));
         };
@@ -32,10 +32,10 @@ namespace Gmeng::Util {
     };
 
     /// replaces the colors of a texture (color1 -> color2)
-    void texture_replace_color(texture& tx, color_t color1, color_t color2) {
+    void texture_replace_color(texture& tx, color32_t color1, color32_t color2) {
         for (int i = 0; i < tx.width*tx.height && i < tx.units.size(); i++) {
             auto d = tx.units.at(i);
-            if (d.color == color1) d.color = color2;
+            if (d.color == uint32_from_color32(color1)) d.color = uint32_from_color32(color2);
             tx.units[i] = d;
         };
     };

@@ -1,7 +1,7 @@
-#include "lib/bin/easy.h"
-#include "lib/bin/gmeng.h"
-#include "lib/bin/utils/util.cpp"
-#include "lib/bin/utils/serialization.cpp"
+#include "../easy.h"
+#include "../gmeng.h"
+#include "../utils/util.cpp"
+#include "../utils/serialization.cpp"
 #include <csignal>
 #include <fstream>
 
@@ -16,8 +16,8 @@ int main() {
     lvl.base.height = g.height;
     lvl.base.width = g.width;
 
-    lvl.name = "zortingen";
-    lvl.desc = "sidikli bilge 73";
+    lvl.name = "level"$(g_mkid())"";
+    lvl.desc = "no_description";
 
     lvl.display.viewpoint = { {0, 0}, { 170, 40 } };
     lvl.display.width = 170;

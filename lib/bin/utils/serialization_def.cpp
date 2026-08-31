@@ -1,5 +1,7 @@
 #pragma once
 #include "../gmeng.h"
+#include <cstdlib>
+#include <cstring>
 
 
 /// Serializes a Unit object, and writes it to a stream.
@@ -10,9 +12,7 @@ void serialize_unit(const Gmeng::Unit& unit, std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&unit.special), sizeof(unit.special));
     stream.write(reinterpret_cast<const char*>(&unit.special_clr), sizeof(unit.special_clr));
 
-    size_t special_c_unit_size = unit.special_c_unit.size();
-    stream.write(reinterpret_cast<const char*>(&special_c_unit_size), sizeof(special_c_unit_size));
-    stream.write(unit.special_c_unit.c_str(), special_c_unit_size);
+    stream.write(&unit.special_c_unit, sizeof(unit.special_c_unit));
 }
 
 /// Reads a Unit object from a stream.
@@ -24,10 +24,12 @@ void deserialize_unit(Gmeng::Unit& unit, std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&unit.special_clr), sizeof(unit.special_clr));
 
 
-    size_t special_c_unit_size;
-    stream.read(reinterpret_cast<char*>(&special_c_unit_size), sizeof(special_c_unit_size));
-    unit.special_c_unit.resize(special_c_unit_size);
-    stream.read(&unit.special_c_unit[0], special_c_unit_size);
+    ///size_t special_c_unit_size;
+    ///stream.read(reinterpret_cast<char*>(&special_c_unit_size), sizeof(special_c_unit_size));
+    ///std::string abc;
+    ///abc.resize(special_c_unit_size);
+    ///stream.read(&abc[0], special_c_unit_size);
+    stream.read(&unit.special_c_unit, sizeof(unit.special_c_unit));
 }
 
 

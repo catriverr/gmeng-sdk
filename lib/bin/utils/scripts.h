@@ -141,7 +141,6 @@ static int Gmeng::Scripts::init_sol2() {
     gmeng_lua_namespace.new_usertype<Gmeng::Unit>("Unit",
         "color", &Unit::color,
         "collidable", &Unit::collidable,
-        "is_player", &Unit::is_player,
         "is_entity", &Unit::is_entity,
         "transparent", &Unit::transparent,
         "special", &Unit::special,
@@ -202,7 +201,9 @@ static int Gmeng::Scripts::init_sol2() {
         "pwd", &__global_object__::pwd,
         "prog_argc", &__global_object__::prog_argc,
         "prog_argv", &__global_object__::prog_argv,
-        "window_control", &__global_object__::window_control
+        "window_control", &__global_object__::window_control,
+        "terminal_has_sgr_pixel_support", &__global_object__::terminal_has_sgr_pixel_support,
+        "terminal_has_kgp_pixel_support", &__global_object__::terminal_has_kgp_pixel_support
     );
 
     gmeng_lua_namespace.set("global", &Gmeng::global);

@@ -11,4 +11,6 @@ extern "C" int gmeng_script_command(EventLoop* ev) {
     /// Initial logging
     GAME_LOG("the NOBLE gmeng:scripts:devc_util");
     GAME_LOG("successfully attached to the Gmeng instance.");
+
+    return 0;
 };

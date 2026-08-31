@@ -1,7 +1,7 @@
 # Compiler and flags
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
-CXXFLAGS := -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=c++2a -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(EXTRA_CXX_FLAGS)
+CXXFLAGS := -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=gnu++23 -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(ADD_FLAGS)
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
 
@@ -10,7 +10,7 @@ OUTFILE := -o gmeng
 
 # Compiler to Windows
 WINDOWS_CXX := i686-w64-mingw32-g++ # MinGW compiler for unix-to-windows cross compile.
-WINDOWS_CXXFLAGS := -std=c++20 -Wno-write-strings -Wno-return-type -static -static-libgcc -static-libstdc++ -lpthread -pthread -lwinmm
+WINDOWS_CXXFLAGS := -std=c++23 -Wno-write-strings -Wno-return-type -static -static-libgcc -static-libstdc++ -lpthread -pthread -lwinmm
 
 USE_NCURSES := true
 USE_EXTERNAL := false
@@ -45,6 +45,7 @@ $(error run `make configure` to use `make compile`.)
 else
 include buildoptions.mk
 $(info buildoptions selected.)
+CXXFLAGS += $(EXTRA_CXX_FLAGS)
 endif
 endif
 
@@ -94,11 +95,11 @@ endif
 
 
 ifeq ($(UNAME_S), Darwin)
-	CXXFLAGS += -framework ApplicationServices -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+	CXXFLAGS += -framework CoreGraphics -framework ApplicationServices -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 endif
 
 ifeq ($(UNAME_S), Linux)
-	CXXFLAGS += -Wno-write-strings -lasound
+	CXXFLAGS += -Wno-write-strings -lX11 -lasound
 	USE_NCURSES := false
 endif
 
@@ -106,7 +107,9 @@ ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
 #    CXXFLAGS += -fsanitize=address
 	CXXFLAGS += -g
 else
-	CXXFLAGS += -O3
+ifneq ($(NO_OPTIMIZATION), true)
+	CXXFLAGS += -O3 -ffast-math
+endif
 endif
 
 

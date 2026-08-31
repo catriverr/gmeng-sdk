@@ -15,6 +15,34 @@
 
 
 namespace Gmeng {
+
+    inline bool save_texture( std::string fname, Gmeng::texture& tex, TRACEFUNC ) {
+        std::ofstream file(fname);
+        if (!file.is_open()) return false;
+
+        file << "name=" << tex.name
+             << ",width=" << tex.width
+             << ",height=" << tex.height
+             << ",collision=" << (tex.collidable ? "true" : "false") << "\n";
+
+        for (const auto& unit : tex.units) {
+            if (unit.transparent) {
+                file << "__gtransparent_unit__\n";
+            } else {
+                char s_char = unit.special_c_unit == ' ' ? 'X' : unit.special_c_unit;
+                file << unit.color << " "
+                     << (unit.special ? "true" : "false") << " "
+                     << unit.special_clr << " "
+                     << s_char << "\n";
+            }
+        }
+
+        file << "; gmeng " << Gmeng::version << ": save_texture, origin: " << TRACEFUNC_STR;
+        file.close();
+        gm_log("wrote " + fname + " texturedata (" $(tex.units.size()) " units)");
+        return true;
+    };
+
     inline void set_texturemap(Gmeng::texture &g_tx, Gmeng::texture &g_tx2) {
         __functree_call__(Gmeng::set_texturemap);
         int indx = 0;
@@ -74,13 +102,12 @@ namespace Gmeng {
                 std::vector<std::string> unit_ln = g_splitStr(ln, " ");
                 Gmeng::Unit cur_unit; int l_i = 0;
                 for ( const auto& param : unit_ln ) {
-                    if (l_i == 0 && param == "__gtransparent_unit__") { cur_unit.transparent = true; break; }; // no value is pushed back since this is a parameter loop, doing so would push the current_unit value twice to the vector.
+                    if (l_i == 0 && param == "__gtransparent_unit__") { cur_unit.collidable = true; cur_unit.transparent = true; break; }; // no value is pushed back since this is a parameter loop, doing so would push the current_unit value twice to the vector.
                     cur_unit.collidable = texture.collidable;
-                    cur_unit.is_entity = false; cur_unit.is_player = false;
                     if ( l_i == 0 ) { cur_unit.color = std::stoi(param);       };
-                    if ( l_i == 1 ) { cur_unit.special = stob(param);          };
+                    if ( l_i == 1 ) { cur_unit.special = stob(param);               };
                     if ( l_i == 2 ) { cur_unit.special_clr = std::stoi(param); };
-                    if ( l_i == 3 ) { cur_unit.special_c_unit = param;         };
+                    if ( l_i == 3 ) { cur_unit.special_c_unit = param[0];           };
                     l_i++;
                 };
                 texture.units.push_back(cur_unit);

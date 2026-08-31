@@ -133,9 +133,16 @@ void deserialize_modifier_list(Gmeng::ModifierList& list, std::istream& in) {
     size_t list_size;
     in.read(reinterpret_cast<char*>(&list_size), sizeof(list_size));
 
-    list.values.resize(list_size);
-    for (Gmeng::modifier& mod : list.values) {
+    /// Since 13.4.0: instead of resizing and deleting all previously
+    /// set modifiers, we use the default set_value methods in ModifierList instead.
+
+    //list.values.resize(list_size);
+    for (int i = 0; i < list_size; i++) {
+        Gmeng::modifier mod;
         deserialize_modifier(mod, in);
+        /// if the value isn't -1, there is a value at that modifier key.
+        if ( list.get_value( mod.name ) != -1 ) list.set_value( mod.name, mod.value );
+        else list.add_value( mod );
     }
 };
 

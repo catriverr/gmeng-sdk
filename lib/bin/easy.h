@@ -3,6 +3,7 @@
 
 #include "src/textures.cpp"
 #include "src/renderer.cpp"
+#include <algorithm>
 
 /// GMENG EASY ANNOTATIONS
 /// FOR EASIER USAGE OF THE ENGINE
@@ -65,25 +66,35 @@
 
 /// 13.1.0-d GMENG CAMERA ADD_DRAW VALUES
 
-/// no-fill-only-bordered-rectangle-creator
-/// TODO: FIXME: this is broken
+/// probably inefficient as fuck
 static Gmeng::Blob<> blob_rectangle_no_fill(const std::size_t width = 0, const std::size_t height = 0, Gmeng::color32_t color = (uint32_t)Gmeng::WHITE) {
-    Gmeng::Blob<> blob { width, height };
+Gmeng::Blob<> blob { width, height };
 
-    for ( int i = 0; i < width; i++ )
-        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32( color ) } );
+    if (width == 0 || height == 0) return blob;
 
-    for ( int y = 1; y < height-1; y++ ) {
-        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32(color) } );
+    const std::size_t total_size = width * height;
 
-        for ( int x = 0; x < width-2; x++ )
-            blob.units.push_back( Gmeng::Unit { .transparent = true } );
+    const Gmeng::Unit solid_unit { Gmeng::uint32_from_color32(color) };
 
-        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32(color) } );
-    };
+    blob.units.resize(total_size, { .transparent = true });
 
-    for ( int j = 0; j < width; j++ )
-        blob.units.push_back( Gmeng::Unit { .color=uint32_from_color32( color ) } );
+    for (std::size_t x = 0; x < width; ++x) {
+        blob.units[x] = solid_unit;
+    }
+
+    if (height > 1) {
+        const std::size_t bottom_start = (height - 1) * width;
+        for (std::size_t x = 0; x < width; ++x) {
+            blob.units[bottom_start + x] = solid_unit;
+        }
+    }
+
+    for (std::size_t y = 1; y < height - 1; ++y) {
+        blob.units[y * width] = solid_unit;
+        if (width > 1) {
+            blob.units[y * width + width - 1] = solid_unit;
+        }
+    }
 
     return blob;
 };
@@ -94,5 +105,6 @@ static Gmeng::Blob<> blob_rectangle_no_fill(const std::size_t width = 0, const s
     std::vector<Gmeng::Unit>                   \
     (WIDTH*HEIGHT, { .color=( COLOR ) }) }
 
+/// Gmeng : Basic rectangular border blob (single-color)
 #define BLOB_RECTANGLE_BORDER( WIDTH, HEIGHT, COLOR ) \
     blob_rectangle_no_fill( WIDTH, HEIGHT, COLOR )

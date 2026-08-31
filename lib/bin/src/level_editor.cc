@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     auto lvl = std::make_unique<Gmeng::Level>();
     read_level_data(level_file, *lvl);
 
-    lvl->display.viewpoint = { { 0, 0 }, { 100, 100 } };
+    lvl->display.viewpoint = { { 0, 0 }, { (int)lvl->base.width, (int)lvl->base.height } };
 
     Gmeng::EventLoop ev;
     ev.level = lvl.get(); // Pass the pointer to the heap object
@@ -67,9 +67,12 @@ int main(int argc, char* argv[]) {
         Gmeng::sImage _source;
         _source.width = vp_width(lvl->display.viewpoint);
         _source.height = vp_height(lvl->display.viewpoint);
+        _source.content.resize( _source.width*_source.height );
 
-        for ( auto unit : renderscale )
-            if (!unit.is_entity) _source.content.push_back( (color_t) unit.color );
+        int i = 0;
+        for ( auto& v_unit : renderscale )
+            for (auto& unit : v_unit)
+                _source.content[i++] = ( (color_t) unit.color );
 
         Gmeng::sImage source = stretchImage(_source, win->frame_width, win->frame_height);
         win->main_camera(source);

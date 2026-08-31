@@ -151,11 +151,11 @@ int main(int argc, char** argv) {
                     for (int e = 0; e < 100; e++) {
                         color_t color = (color_t)(e%8);
                         auto tim = GET_TIME();
-                        texture_replace_color(level->base.lvl_template, prev_color, color);
+                        texture_replace_color(level->base.lvl_template, (uint32_t)prev_color, (uint32_t)color);
                         prev_color = color;
                         ev.call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
                     };
-                    texture_replace_color(level->base.lvl_template, prev_color, BLUE);
+                    texture_replace_color(level->base.lvl_template, (uint32_t)prev_color, (uint32_t)BLUE);
                 };
                 break;
             default:

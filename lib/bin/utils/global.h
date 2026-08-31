@@ -25,7 +25,7 @@
 
 #endif
 
-#define time_rn std::chrono::system_clock::now().time_since_epoch()
+#define time_rn std::chrono::steady_clock::now().time_since_epoch()
 #define GET_TIME() ( std::chrono::duration_cast<std::chrono::milliseconds>(time_rn).count() )
 
 /// Gmeng : Returns a 7-digit random number.
@@ -118,11 +118,20 @@ namespace Gmeng {
 
         bool window_control;
 
+        bool terminal_has_sgr_pixel_support;
+        bool terminal_has_kgp_pixel_support;
+        bool terminal_has_keyboard_support;
+
         GMENG_INIT_TYPE( indexes, containers, dev_console, debugger,
                          log_stout, dev_mode, dont_hold_back, shush,
                          weird_ass, restarted_instance, ignore_assert,
                          raw_arguments, executable, raw_executable_name,
-                         user, pwd, prog_argc, prog_argv, window_control )
+                         user, pwd, prog_argc, prog_argv, window_control,
+
+                         terminal_has_sgr_pixel_support,
+                         terminal_has_kgp_pixel_support,
+                         terminal_has_keyboard_support
+                       );
 
     };
     /// GMENG's global variables
@@ -130,7 +139,10 @@ namespace Gmeng {
         .dev_console = true, .debugger = false,
         .log_stout = __GMENG_LOG_TO_COUT__, .dev_mode = false,
         .dont_hold_back = false, .shush = false,
-        .weird_ass = false, .window_control = false
+        .weird_ass = false, .window_control = true,
+        .terminal_has_sgr_pixel_support = false,
+        .terminal_has_kgp_pixel_support = false,
+        .terminal_has_keyboard_support  = false,
     };
 };
 
