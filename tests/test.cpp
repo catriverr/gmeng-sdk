@@ -91,42 +91,7 @@ int test_caketxtr() {
 };
 
 int test_chunkvpoint() {
-    Gmeng::Level level_test = {
-        .base = {
-            .lvl_template = gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "allah"),
-            .width = 88,
-            .height = 44
-        },
-        .name = v_str(g_mkid())
-    };
-    Gmeng::Renderer::Model test_model = Gmeng::Renderer::generate_empty_model(10, 5);
-    Gmeng::Renderer::Model test_model_2 = {
-        .position = { 0, 6 }
-    };
-    test_model_2.attach_texture(gm::vd_find_texture(Gmeng::vgm_defaults::vg_textures, "01_cake_txtr"));
-    test_model.name = v_str(g_mkid());
-    test_model.position = { 0,0 };
-    level_test.load_chunk({
-        .vp = { { 0, 0 }, { 88, 22 } },
-        .models = {
-            test_model
-        },
-    });
-    level_test.load_chunk({
-        .vp = { { 0, 23 }, { 88, 44 } },
-        .models = {
-            test_model_2
-        }
-    });
-    level_test.display.set_resolution(88, 22);
-    level_test.draw_camera(0);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    level_test.draw_camera(1);
-    std::cout << "starting test for __viewpoint_vector_move_camera__" << '\n';
-    /// bit to check text_data
-    gm::global.dev_console = true;
-    _udraw_display(Gmeng::logc);
-    gm::global.dev_console = false;
+
     return 0;
 };
 
@@ -180,7 +145,7 @@ int test_vwhole_renderer() {
     lvl.display.set_resolution(Gmeng::_vcreate_vp2d_deltax(def_vp), Gmeng::_vcreate_vp2d_deltay(def_vp));
     lvl.display.viewpoint = def_vp1;
     lvl.display.camera.set_modifier("cubic_render", true);
-    std::vector<gmeng::Unit> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl, true);
+    std::vector<std::vector<gmeng::Unit>> _renderscale = Gmeng::_vget_renderscale2dpartial_scalar(lvl, true);
     //g_sleep(ms(5009));
     std::cout << "renderscale done" << '\n';
     std::string _lvlview = Gmeng::get_lvl_view(lvl, _renderscale, true);
@@ -199,7 +164,8 @@ int test_vwhole_renderer() {
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x += 1;
         lvl.display.viewpoint.end.x   += 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        auto lvl_view = get_lvl_view(lvl, _renderscale,true);
+        Gmeng::emplace_lvl_camera(lvl, lvl_view);
         lvl.display.camera.reset_cur();
 
         std::cout << lvl.display.camera.draw() << '\n';
@@ -212,7 +178,8 @@ int test_vwhole_renderer() {
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.x -= 1;
         lvl.display.viewpoint.end.x   -= 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        auto lvlv = get_lvl_view(lvl, _renderscale,true);
+        Gmeng::emplace_lvl_camera(lvl, lvlv);
         lvl.display.camera.reset_cur();
 
         std::cout << lvl.display.camera.draw() << '\n';
@@ -225,7 +192,8 @@ int test_vwhole_renderer() {
         if (paused) { c_counter_t =0; continue; };
         lvl.display.viewpoint.start.y += 1;
         lvl.display.viewpoint.end.y   += 1;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        auto lvlv = get_lvl_view(lvl, _renderscale,true);
+        Gmeng::emplace_lvl_camera(lvl, lvlv);
         lvl.display.camera.reset_cur();
 
         std::cout << lvl.display.camera.draw() << '\n';
@@ -240,7 +208,8 @@ int test_vwhole_renderer() {
         lvl.display.viewpoint.end.y   += 1;
         lvl.display.viewpoint.start.x += 2;
         lvl.display.viewpoint.end.x   += 2;
-        Gmeng::emplace_lvl_camera(lvl, get_lvl_view(lvl, _renderscale,true));
+        auto aav = get_lvl_view(lvl, _renderscale,true);
+        Gmeng::emplace_lvl_camera(lvl, aav);
         lvl.display.camera.reset_cur();
         std::cout << lvl.display.camera.draw() << '\n';
         g_sleep(ms(def_ms));
