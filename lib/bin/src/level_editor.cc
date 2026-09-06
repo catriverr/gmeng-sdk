@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
     auto win = std::make_unique<Gmeng::GameWindow>("GMENG Preview", 1920, 915);
     Gmeng::Renderer::drawpoint last_pos = { 0, 0 };
 
-    ev.add_hook({ FIXED_UPDATE }, [&ev, &win](Level* lvl, EventInfo*) {
+    ev.add_hook({ UPDATE }, [&ev, &win](Level* lvl, EventInfo*) {
         auto renderscale = get_renderscale( *lvl );
 
         Gmeng::sImage _source;

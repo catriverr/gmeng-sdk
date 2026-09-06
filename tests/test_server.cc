@@ -1,6 +1,7 @@
 #include "../lib/bin/src/server.cpp"
 #include "../lib/bin/easy.h"
 
+#include <functional>
 #include <system_error>
 
 using namespace asio::ip;
@@ -14,6 +15,8 @@ void on_message( Gmeng::GameServer* server, Gmeng::GameServer::ClientMessage& me
 };
 
 int main(int argc, char** argv) {
+
+
     patch_argv_global( argc, argv );
     vgm_load("envs/models");
 

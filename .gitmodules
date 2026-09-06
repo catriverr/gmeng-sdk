@@ -13,3 +13,6 @@
 [submodule "include/sol"]
 	path = include/sol
 	url = https://github.com/ThePHD/sol2.git
+[submodule "include/ImGuiColorTextEdit"]
+	path = include/ImGuiColorTextEdit
+	url = https://github.com/BalazsJako/ImGuiColorTextEdit

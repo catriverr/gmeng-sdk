@@ -3,13 +3,16 @@
 #include <cmath>
 #include <csignal>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <array>
 #include <cstring>
+#include <sys/signal.h>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -452,10 +455,10 @@ namespace Gmeng {
         std::size_t h = _h;
         // frame time, calculated internally
         // time in milliseconds for frame generation
-        uint32_t frame_time = 0;
+        float frame_time = 0;
         // draw time, currently not internally calculated
         // time in milliseconds for frame drawing (to the output)
-        uint32_t draw_time = 0;
+        float draw_time = 0;
         // entity count, set by external Level controller class.
         // will be 0 if used without external controller classes.
         uint32_t entity_count;
@@ -539,7 +542,7 @@ namespace Gmeng {
         std::map<int, std::string> overrides;
         /// extra drawlist, for adding render blobs to the
         /// camera with single-frame instances.
-        std::vector< std::tuple< Objects::coord, Gmeng::Blob<> > > frame_draw_list;
+        std::vector< std::tuple< Objects::coord, Gmeng::Blob > > frame_draw_list;
 
         GMENG_INIT_TYPE(w, h, frame_time, draw_time,
                               entity_count, model_count,
@@ -788,7 +791,7 @@ namespace Gmeng {
         ///
         /// Gmeng's Easy Header ( `lib/bin/easy.h` ) provides basic
         /// geometric shape constructors for rectangles and circles.
-        inline void add_draw( Objects::coord position, const Gmeng::Blob<>& blob ) {
+        inline void add_draw( Objects::coord position, const Gmeng::Blob& blob ) {
             this->frame_draw_list.push_back( { position, blob } );
         };
 
@@ -820,7 +823,7 @@ namespace Gmeng {
                 /// Get the font blob of the character to add to the draw list.
                 /// This will throw a std::out_of_range exception if it encounters
                 /// a character that isn't in the English latin script or punctuation.
-                Gmeng::Blob<>& char_blob = gmeng_terminal_font_get_char( chr );
+                Gmeng::Blob& char_blob = gmeng_terminal_font_get_char( chr );
                 char_blob.recolor( color );
                 /// Add the character blob to the drawlist.
                 this->add_draw({
@@ -1109,8 +1112,11 @@ namespace Gmeng::TerminalUtil {
     void disable_mouse_tracking() {
         if ( Gmeng::global.terminal_has_sgr_pixel_support )
             sgr_pixel_disablemouse();
-        else // default fallback for 1006h mode (no pixels, inaccurate)
-            std::cout << "\033[?1006l\033[?1003l\n" << std::flush;
+        else { // default fallback for 1006h mode (no pixels, inaccurate)
+            char sequence[] = "\033[?1006l\033[?1003l\n";
+            write(STDOUT_FILENO, sequence, sizeof(sequence)-1);
+            fflush(stdout);
+        };
     };
 
     struct termios orig_termios;
@@ -1215,6 +1221,7 @@ namespace Gmeng {
     } EventInfo;
 
     EventInfo NO_EVENT_INFO = EventInfo { Gmeng::UNKNOWN, 0, -1, -1, false };
+    EventInfo UPDATE_INFO   = EventInfo { Gmeng::UPDATE,  0, -1, -1, false };
     EventInfo INIT_INFO     = EventInfo { Gmeng::INIT,    0, -1, -1, false };
 
     /// EventHook handler function type
@@ -1222,7 +1229,7 @@ namespace Gmeng {
     /// EventHook handler type for event_loop
     struct EventHook {
       public:
-        int id; vector<Event> events;
+        int id = g_mkid(); vector<Event> events;
         handler_function_type handler;
         bool locked;
 
@@ -1232,7 +1239,20 @@ namespace Gmeng {
     /// Individual hooks defined in this dictionary
     /// can be disabled by external event hooks via
     /// (EventInfo*) info->prevent_default(true).
-    vector<EventHook> DEFAULT_EVENT_HOOKS = {};
+    unordered_map<Event, vector<EventHook>> DEFAULT_EVENT_HOOKS = {
+        { FIXED_UPDATE,
+          {
+            EventHook {
+                .events  = { FIXED_UPDATE },
+                .handler = [](Level* level, EventInfo* info) {
+                    for ( auto& entity : level->entities )
+                        if ( entity != nullptr && entity->active )
+                            entity->_animate( NULL, level->display.fixed_update_fps );
+                }
+            }
+          }
+        }
+    };
 
     /// Gmeng EventLoop Object.
     /// EventLoop allows for a continuous running with very in-depth
@@ -1282,7 +1302,7 @@ namespace Gmeng {
         unordered_map<Event, std::vector<EventHook>> hooks;
         /// Default Event Hooks of the Loop. Can be cancelled by
         /// external hooks to prevent default behaviour.
-        vector<EventHook> defaults = Gmeng::DEFAULT_EVENT_HOOKS;
+        unordered_map<Event, vector<EventHook>> defaults = Gmeng::DEFAULT_EVENT_HOOKS;
 
         /// Modifier of whether the EventLoop is cancelled or not.
         /// If cancelled is `true`, the game exits.
@@ -1396,8 +1416,6 @@ namespace Gmeng {
             for (auto& hook : this->hooks[ev]) {
                 /// check if the event handler is busy
                 if (hook.locked) continue;
-                /// if the event handler handles the specified event
-                if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) {
                     /// lock the handler, prevent being recalled
                     /// while the handler is busy.
                     hook.locked = true;
@@ -1405,7 +1423,6 @@ namespace Gmeng {
                     hook.handler( this->level, &info );
                     /// unlock the handler
                     hook.locked = false;
-                } else continue;
             };
 
             /// If the event has prevent_default enabled via &EventInfo.prevent_default = true,
@@ -1414,14 +1431,16 @@ namespace Gmeng {
 
             /// Search for default event handlers
             if ( !this->defaults.empty() )
-                for (auto& hook : this->defaults) {
-                    if ( std::find(hook.events.begin(), hook.events.end(), ev) != hook.events.end() ) { /// if the handler has the event
-                    if (global.dev_mode || global.debugger) gm_log("call to default event hook(id="$(hook.id)") for event " + get_event_name(ev));
+                for (auto& hook : this->defaults[ ev ]) {
+                    /// check if the event handler is busy
+                    if (hook.locked) continue;
+                        /// lock the handler, prevent being recalled
+                        /// while the handler is busy.
                         hook.locked = true;
-                        /// Runs the handler for the hook
+                        /// Runs the handler for the hook.
                         hook.handler( this->level, &info );
+                        /// unlock the handler
                         hook.locked = false;
-                    } else continue;
                 };
         };
 
@@ -1639,7 +1658,7 @@ static vector< std::tuple<string, int> > variables = {
 extern "C" int gmeng_script_command( Gmeng::EventLoop* );
 // NOBLE SCRIPT HELPER FOR GMENG
 //
-// Periodic, executed with FIXED_UPDATE
+// Periodic, executed with event UPDATE
 extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
 
 #endif
@@ -1657,6 +1676,21 @@ extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
 ///
 /// a do_event_loop() instance handles the internal workings of the engine automatically.
 static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::EventLoop*)>> > commands = {
+        { "resize", [](vector<string> params, Gmeng::EventLoop* ev) -> int{
+                params.erase(params.begin());
+
+                if ( params.size() < 2 ) {
+                    resize_usage:
+                    GAME_LOG("resize: resizes the terminal (in pixels)\nusage: resize <width> <height>");
+                    return 1;
+                };
+
+                    int start = std::stoi( params.at(0) );
+                    int end = std::stoi( params.at(1) );
+
+                    kitty_resize_window_pixels( start, end );
+                return 0;
+            } },
         { "setvp", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
                 params.erase( params.begin() );
 
@@ -1725,6 +1759,7 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
             return 0;
         } },
         { "force_update", [](vector<string>, Gmeng::EventLoop* ev) -> int {
+            ev->call_event( Gmeng::UPDATE, Gmeng::NO_EVENT_INFO );
             ev->call_event(Gmeng::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
             return 0;
         } },
@@ -1766,15 +1801,7 @@ static vector< std::tuple<string, std::function<int(vector<string>, Gmeng::Event
         } },
         { "exit", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
             GAME_LOG("quiting...");
-#ifndef GMENG_SDL
-            ev->level->display.set_cursor_visibility(true);
-#ifndef _WIN32
-            Gmeng::TerminalUtil::set_raw_mode(false);
-            Gmeng::TerminalUtil::set_non_blocking(false);
-            Gmeng::TerminalUtil::disable_mouse_tracking();
-#endif
-#endif
-            exit(0);
+            ev->cancel();
             return 0;
         } },
         { "showtype", [](vector<string> params, Gmeng::EventLoop* ev) -> int {
@@ -2103,9 +2130,9 @@ int gmeng_run_dev_command(Gmeng::EventLoop* ev, std::string command, bool noecho
     else if (state == -13) no_line = true; // don't draw vertical line seperator
 
     variables.at(0) = { "errorlevel", state }; // set the errorlevel value
-    ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO); // fixed update can be called afterwards
+    ev->call_event(UPDATE, Gmeng::NO_EVENT_INFO); // fixed update can be called afterwards
 
-    if ( command != "refresh" ) ev->call_event(FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+    if ( command != "refresh" ) ev->call_event(UPDATE, Gmeng::NO_EVENT_INFO);
 
     if (!no_line && noecho) _GAME_LOG(repeatString("*", GMENG_DEV_CONSOLE_WIDTH-4)); // vertical line seperator
     return state == -11151 ? 1 : (state == -13 ? 0 : state);
@@ -2159,11 +2186,11 @@ void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     std::string cmd = "";
 
 
-    if (info->EVENT == KEYPRESS) {
+    if (info->EVENT == KEYPRESS || info->EVENT == KEYREPEAT) {
         switch (info->KEYPRESS_CODE) {
             case 27: /// esc or shift+tab
                 break;
-            case '\n': /// enter
+            case gk_ENTER: /// enter
                 run = true;
                 cmd = dev_console_input;
                 dev_console_input = "";
@@ -2267,7 +2294,7 @@ void check_terminal_and_shell( Gmeng::EventLoop* ev ) {
 };
 
 #ifndef _WIN32
-#if GMENG_SDL == false
+#if GMENG_SDL != true
 
 static Objects::coord font_size = { 0, 0 };
 
@@ -2280,6 +2307,42 @@ void gmeng_handle_sigwinch(int) {
     gm_log("SIGWINCH received, window resized, reapplying...");
     font_size = get_font_size_values();
 };
+
+void gmeng_handle_sigsegv(int signal) {
+    /// we can't use std::cout or gm_log because we don't know what caused the segmentation fault,
+    /// we have to assume that almost all of the preexisting memory objects are corrupted.
+    const char msg[] = "\n[gmeng:signal_handler] caught SIGSEGV: (segmentation fault), quitting\n";
+    write(STDERR_FILENO, msg, sizeof(msg) - 1);
+
+    /// Deinitialize the keyboard so if the program uses the kitty keyboard protocol
+    /// they can actually type on their terminal properly.
+    gmeng_keyboard_deinit();
+    /// DEinitialize the mouse so mouse events don't write to the terminal causing
+    /// it to write garbage to the screen.
+    Gmeng::TerminalUtil::disable_mouse_tracking();
+
+    /// Unregister signal handler and re-raise to produce core dump / exit properly
+    std::signal(signal, SIG_DFL);
+    std::raise(signal);
+};
+
+void gmeng_handle_buserror(int signal) {
+    const char msg[] = "\n[gmeng:signal_handler] caught SIGBUS: (bus errror), quitting\n";
+    write(STDERR_FILENO, msg, sizeof(msg) - 1);
+
+    /// Deinitialize the keyboard so if the program uses the kitty keyboard protocol
+    /// they can actually type on their terminal properly.
+    gmeng_keyboard_deinit();
+    /// DEinitialize the mouse so mouse events don't write to the terminal causing
+    /// it to write garbage to the screen.
+    Gmeng::TerminalUtil::disable_mouse_tracking();
+
+    /// Unregister signal handler and re-raise to produce core dump / exit properly
+    std::signal(signal, SIG_DFL);
+    std::raise(signal);
+};
+
+#include "../utils/splashscreen.cc"
 
 /// Terminal-Based Event Loop handler. Default-provided by Gmeng.
 /// Since 8.0.0, this is the correct way for a Gmeng game to be ran.
@@ -2307,7 +2370,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     /// character or punctuation except the ones found on the ABC keyboard in macOS Settings.
     /// However, users can use this function to load a valid font into the map and it will
     /// be fully functional with that font. Font sizes are currently set by default but an
-    /// implementation of a function like Gmeng::Blob<>::stretch() may change this.
+    /// implementation of a function like Gmeng::Blob::stretch() may change this.
     gmeng_terminal_font_init();
 
     /// Initialize Gmeng's implementation for Kitty Terminal Graphics Protocol. This function
@@ -2324,7 +2387,9 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     /// the functionality for both W and A. This differs from the default terminal stdin
     /// read calls, which is just a raw, dumb input buffer. It is like playing a game
     /// on a text editor, waiting for key repeats and single-key text input.
-    gmeng_keyboard_init();
+    bool kb = gmeng_keyboard_init();
+
+    if ( !kb ) GAME_LOG("keyboard support is not enabled");
 
     /// Only one instance of an EventLoop can be valid. A game cannot run two different
     /// EventLoops, and neither can a single program. If a single program needs to run
@@ -2343,6 +2408,16 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     /// a loose thread within the user's program is cancelling it prematurely. Since this is a
     /// potential memory leak and is begging to create undefined behaviour, we cancel immediately.
     if (ev->cancelled) return 1;
+
+    ev->level->display.camera.clear_screen();
+
+    /// Show the Gmeng splashscreen to the display if the Kitty Terminal Graphics Protocol is
+    /// supported by the terminal. This can be bypassed via Gmeng::global.bypass_splashscreen.
+    if ( global.terminal_has_kgp_pixel_support && !global.bypass_splashscreen )
+        show_splash_screen( ev->level->display.camera.renderer );
+
+    ev->level->display.camera.clear_screen();
+
     /// The event loop is in order, call the INIT hook. This is required because variables within
     /// Gmeng that are set by `do_event_loop` up until this point contain some that are user-configured.
     /// For example, `gmeng_terminal_font_init` will initialize the default font, but the user
@@ -2354,17 +2429,26 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     /// correct initialization every time it uses them (which is both inefficient and bad design)
     /// or initializes itself completely and lets the user tweak its settings after the fact,
     /// which is what's done with the Gmeng::INIT event cast.
-    else ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
+    ev->call_event(Gmeng::INIT, Gmeng::INIT_INFO);
 
     /// SIGINT handler, in almost all cases this is `CTRL+C`.
     /// Gmeng will still force an EXIT event when this signal is received, but we do
     /// internal cleanup here (most importantly disabling mouse reporting) so the
     /// terminal does not output dirty characters to the terminal.
     signal(SIGINT, gmeng_handle_sigint);
+    /// SIGSEGV is segmentation fault (engine or the user fucked up big time),
+    /// we handle it by running gmeng_keyboard_deinit() so if the program uses
+    /// the kitty keyboard protocol they can actually type on their terminal.
+    signal(SIGSEGV, gmeng_handle_sigsegv);
+    /// SIGBUS is bus error, probably a memory size issue. we handle it and
+    /// re-cast the signal so the application exits according to a bus error
+    /// as it would have by its default behaviour.
+    signal(SIGBUS, gmeng_handle_buserror);
+    signal(SIGABRT, gmeng_handle_sigsegv);
 
-    int cl = std::max(ev->level->display.viewpoint.end.x - ev->level->display.viewpoint.start.x, 10)
+    int cl = (ev->level->display.camera.has_modifier("kitty_graphics")) ? 75 : std::max(ev->level->display.viewpoint.end.x - ev->level->display.viewpoint.start.x, 10)
                       + (ev->level->display.camera.has_modifier("draw_outline") ? 2 : 0);
-    int rw = std::max(ev->level->display.viewpoint.end.y - ev->level->display.viewpoint.start.y, 15)/2
+    int rw = (ev->level->display.camera.has_modifier("kitty_graphics")) ? 30 : std::max(ev->level->display.viewpoint.end.y - ev->level->display.viewpoint.start.y, 15)/2
                       + (ev->level->display.camera.has_modifier("draw_outline") ? 2 : 0);
 
     GMENG_DEV_CONSOLE_WIDTH = cl-10;
@@ -2380,7 +2464,9 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
 
     gm_log("attempting to resize terminal to (these + do_outline) cl="$(vpw)",rw="$(vph)"...");
-    resize_terminal(vpw + ( do_outline ? 2 : 0 ), vph/2 + ( do_outline ? 2 : 0 ), true);
+    if (!ev->level->display.camera.has_modifier("kitty_graphics"))
+        resize_terminal(vpw + ( do_outline ? 2 : 0 ), vph/2 + ( do_outline ? 2 : 0 ), true);
+    else resize_terminal( 75, 30, true );
 
     /// Y-coord increment by 1 pixel so we show odd viewpoint heights too.
     if ( (vph/2) % 2 != 0)
@@ -2422,18 +2508,39 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     /// input events without the need for ENTER to be pressed.
     TerminalUtil::set_raw_mode(true);
 
-    bool curstate = false;
-    state.console_open = curstate;
+    state.console_open = false;
 
+    /// This is a bad implementation, so, it's actually not used right now.
     std::unordered_map<std::shared_ptr<Gmeng::EntityBase>,
                        std::vector<std::shared_ptr<Gmeng::EntityBase>>> interaction_map;
 
 
-    /// handler thread for raw UPDATE
+    /// handler thread for UPDATE and FIXED_UPDATE
     create_thread([&] {
+        const float fixed_time_step = 1.0f / ev->level->display.fixed_update_fps;
+        float fixed_update_accumulator = 0.0f;
+
+        /// Start a single profile once so the value is not unitialized
+        ev->level->display.profiler.start_profile();
+
         while( !ev->cancelled ) {
-            ev->call_event( UPDATE, Gmeng::NO_EVENT_INFO );
-            if ( !dev_console_open ) ev->call_event( FIXED_UPDATE, Gmeng::NO_EVENT_INFO );
+            /// set the raw delta time of the frame to the camera's frame_time value
+            float& raw_delta_time = ev->level->display.camera.frame_time;
+            /// set the frame the of the camera (this converts float to uint32_t)
+            /// we still have the float value via display->duration.count() though.
+            raw_delta_time = ev->level->display.profiler.end_profile();
+            /// Start a frame time count with high_resolution_clock for
+            /// the next frame. Used to send a correct FIXED_UPDATE event.
+            ev->level->display.profiler.start_profile();
+
+            fixed_update_accumulator += (raw_delta_time > 0.25f) ? 0.25f : raw_delta_time;
+
+            while ( !dev_console_open && fixed_update_accumulator >= fixed_time_step ) {
+                ev->call_event( FIXED_UPDATE, Gmeng::UPDATE_INFO );
+                fixed_update_accumulator -= fixed_time_step;
+            };
+
+            if ( !dev_console_open ) ev->call_event( UPDATE, Gmeng::NO_EVENT_INFO );
         };
     });
 
@@ -2460,18 +2567,19 @@ int do_event_loop(Gmeng::EventLoop* ev) {
         };
 
     });
-#ifndef GMENG_COMPILING_SCRIPT
-    /// handler thread for all server utils.
-    /// not exactly for multiplayer, but for a server instance
-    /// that allows for external connection to the server.
-    /* disabled 12.0.0
-    create_thread([&]() -> void {
-        auto server_handle = noble_file_open("scripts/server.dylib");
+///#ifndef GMENG_COMPILING_SCRIPT
+///    /// handler thread for all server utils.
+///    /// not exactly for multiplayer, but for a server instance
+///    /// that allows for external connection to the server.
+///    /* disabled 12.0.0
+///    create_thread([&]() -> void {
+///        auto server_handle = noble_file_open("scripts/server.dylib");
+///
+///        int port = noble_function(server_handle, gmeng_script_command, ev);
+///        GAME_LOG("server at port "$(port)" was closed");
+///    });*/
+///#endif
 
-        int port = noble_function(server_handle, gmeng_script_command, ev);
-        GAME_LOG("server at port "$(port)" was closed");
-    });*/
-#endif
     bool resize_was_done = false;
     bool cubic_render = ev->level->display.camera.has_modifier("cubic_render");
     font_size = get_font_size_values();
@@ -2506,6 +2614,11 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     gm_log("ignoring this event.");
                     continue;
                 };
+
+                /// TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!
+                /// don't fire the mouse event if the
+                /// X/Y coordinates of the event are
+                /// larger than the display viewpoint.
 
                 Gmeng::Event event_tp = SELECT_MOUSE_EVENT(button);
                 DECIDE_IF_MOUSEUP_OR_MOUSEDOWN(event_tp, eventType);
@@ -2581,10 +2694,14 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                     KEYEVENT event;
                     /// Parse the key sequence and update the key states
                     gmeng_update_keys(buf, code, event);
+
+                    /// keycode is bigger than largest Extended ASCII character keycode
+                    if ( code > 255 ) continue;
+
                     /// Still cast the KEYPRESS / KEYRELEASE events to the event loop.
                     info = {
                         .EVENT = gmeng_keyevent( event ),
-                        .KEYPRESS_CODE = (char)code,
+                        .KEYPRESS_CODE = gmeng_toinput(code),
                         .MOUSE_X_POS = -1,
                         .MOUSE_Y_POS = -1,
                         .prevent_default = false
@@ -2612,7 +2729,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 
                         ev->call_event(Gmeng::MOUSE_CLICK_END_ANY, d);
                     };
-                    t_event = Gmeng::KEYPRESS;
+                    t_event = info.EVENT;
                 } else {
                     /// No kitty keyboard protocol support, KEYCODE is buf[0]; read from
                     /// the default tty stdin file, does not support individual key tracking.
@@ -2663,7 +2780,8 @@ int do_event_loop(Gmeng::EventLoop* ev) {
                 }, ev->level );
         };*/
 
-        if (!state.console_open) ev->call_event(info.EVENT, info), ev->call_event(Gmeng::FIXED_UPDATE, scope);
+        /// Since 13.5.1: FIXED_UPDATE now handled by UPDATE thread
+        if (!state.console_open) ev->call_event(info.EVENT, info);
         else gmeng_dev_console(ev, &info);
     };
     /// call EXIT
@@ -2693,6 +2811,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
 #include "../types/IconsFontAwesome7.h"
     #include "../utils/window.cpp"
 
+#include "../utils/hexcolors.cc"
 
 namespace Gmeng {
     GmengImGuiVGM* imgui_vgm_handler;
@@ -2733,6 +2852,8 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
 
     ImGui_ImplSDL2_InitForSDLRenderer(win->window, win->renderer);
     ImGui_ImplSDLRenderer2_Init(win->renderer);
+
+    imgui_style_global();
 
     gm_log("ImGui init complete");
 
@@ -2970,7 +3091,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
         if (vgm_open && dev_console_open) vgm_manager.Draw();
 
         /// Gmeng Level Inspector draw, handled by GmengImGuiLevel
-        if (level_inspector_open) level_inspector.Draw();
+        if (level_inspector_open) level_inspector.Draw(), script_manager.Draw();
 
         /// End ImGui Frame and Render it
         ImGui::Render();
@@ -2980,7 +3101,7 @@ int do_event_loop(Gmeng::GameWindow* win, Gmeng::EventLoop* ev, TRACEFUNC) {
         win->clear();
         auto m_time_frame_begin = GET_TIME();
         /// Actual Game Event Update, can draw the source image now.
-        ev->call_event(Gmeng::Event::FIXED_UPDATE, Gmeng::NO_EVENT_INFO);
+        ev->call_event(Gmeng::Event::UPDATE, Gmeng::NO_EVENT_INFO);
         /// Update frame time
         ev->level->display.camera.frame_time = GET_TIME() - m_time_frame_begin;
         /// End Render Phase, draw the screen

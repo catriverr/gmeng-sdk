@@ -1,8 +1,22 @@
 #include "../lib/bin/src/server.cpp"
 #include "../lib/bin/easy.h"
+#include <iostream>
+#include <string>
 
 using namespace asio::ip;
 using Gmeng::network_message;
+
+
+void process_input(Gmeng::ServerConnection& connection) {
+    std::cout << ">> " << std::flush;
+
+    std::string line;
+    std::getline(std::cin, line);
+    std::cout << "[client] sending command: " + line + "\n";
+    connection.write(line, [](network_message& message) {
+            std::cout << "\r[server] " << message.content << "\n>>" << std::flush;
+    });
+};
 
 int main(int argc, char** argv) {
     patch_argv_global(argc, argv);
@@ -15,15 +29,14 @@ int main(int argc, char** argv) {
         return 1;
     };
 
-    conn.write("first_message", [&](network_message& message) {
-        std::cout << "response1: " << message.content << '\n';
-
-        conn.write("second_message", [&](network_message& message) {
-            std::cout << "response2: " << message.content << '\n';
-        });
+    Gmeng::create_thread([&conn]() {
+        conn.poll();
     });
 
-    conn.poll();
+    std::string line;
+    std::cout << "gmeng test network client communicator\nenter commands to communicate with server\n\n";
 
-    conn.disconnect();
+    while (conn.connected) {
+        process_input(conn);
+    };
 };

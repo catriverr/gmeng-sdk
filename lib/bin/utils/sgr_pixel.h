@@ -94,7 +94,9 @@ static void sgr_pixel_enablemouse() {
 /// (chcp \033[?1016l escape code.)
 static void sgr_pixel_disablemouse() {
     // Turn both modes off
-    std::cout << "\033[?1003l\033[?1016l" << std::flush;
+    char msg[] = "\033[?1003l\033[?1016l";
+    write(STDOUT_FILENO, msg, sizeof(msg)-1);
+    fflush(stdout);
 }
 
 

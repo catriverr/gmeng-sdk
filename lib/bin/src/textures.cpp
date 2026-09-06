@@ -2,9 +2,7 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-#include <array>
 #include <vector>
-#include <algorithm>
 #include <fstream>
 
 #include "../gmeng.h"
@@ -56,7 +54,7 @@ namespace Gmeng {
         std::ifstream file(__fname); Gmeng::texture texture;
         if (!file.is_open()) {
             gm_log(Gmeng::colors[4] + "[gm0:core] Gmeng::LoadTexture(): could not load texturemap file " + __fname + ": e_file_unavailable");
-            return Gmeng::texture { Blob<0, 0> { 0, 0, {} }, false, "NO_CONTENT_FILE_INVALID" };
+            return Gmeng::texture { Blob { 0, 0, {} }, false, "NO_CONTENT_FILE_INVALID" };
         };
 
 
@@ -117,6 +115,23 @@ namespace Gmeng {
         gm_log("texture '" + texture.name + "' of size " + v_str(texture.width) + "x" + v_str(texture.height) + " compiled from source " + __fname);
         return texture;
     };
+};
+
+Gmeng::texture gmeng_create_highlighted_texture(const Gmeng::texture& tx, uint32_t color = Gmeng::RED) {
+    using namespace Gmeng;
+    texture result;
+    result.name = tx.name + "_highlighted";
+    result.units.resize( tx.width*tx.height );
+    for (int i = 0; i < tx.width*tx.height; i++) {
+        int y = i / tx.width, x = i % tx.width;
+        if (y == 0 || x == 0 ||
+            y == tx.height-1 || x == tx.width-1 ) result.units[i] = {
+            .color = color,
+            .collidable = true, .transparent = false, .special = false
+        };
+        else result.units[i] = tx.units[i];
+    };
+    return result;
 };
 
 #define __GMENG_TEXTUREMGR_INIT__ true

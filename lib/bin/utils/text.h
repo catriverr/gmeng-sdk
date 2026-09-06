@@ -11,7 +11,7 @@
 #include <ios>
 
 namespace Gmeng {
-    static std::unordered_map<char, Gmeng::Blob<>> CHARACTER_FONT_TEXTURES;
+    static std::unordered_map<char, Gmeng::Blob> CHARACTER_FONT_TEXTURES;
 };
 
 
@@ -108,7 +108,7 @@ constexpr Objects::coord texture_lookup(const char c) {
     return { -1, -1 };
 };
 
-static Gmeng::Blob<>& gmeng_terminal_font_get_char(char chr) {
+static Gmeng::Blob& gmeng_terminal_font_get_char(char chr) {
     auto& tx = Gmeng::CHARACTER_FONT_TEXTURES.at( toupper(chr) );
     return tx;
 };

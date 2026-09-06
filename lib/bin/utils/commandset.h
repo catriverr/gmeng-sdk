@@ -3,6 +3,7 @@
 #include "log.h"
 #include "global.h"
 #include "tracefunc.h"
+#include <functional>
 #include <string>
 #include <tuple>
 #include <type_traits>

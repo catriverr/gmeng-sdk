@@ -121,6 +121,8 @@ namespace Gmeng {
         bool terminal_has_sgr_pixel_support;
         bool terminal_has_kgp_pixel_support;
         bool terminal_has_keyboard_support;
+        bool no_advanced_keyboard;
+        bool bypass_splashscreen;
 
         GMENG_INIT_TYPE( indexes, containers, dev_console, debugger,
                          log_stout, dev_mode, dont_hold_back, shush,
@@ -130,7 +132,9 @@ namespace Gmeng {
 
                          terminal_has_sgr_pixel_support,
                          terminal_has_kgp_pixel_support,
-                         terminal_has_keyboard_support
+                         terminal_has_keyboard_support,
+                         no_advanced_keyboard,
+                         bypass_splashscreen
                        );
 
     };
@@ -143,6 +147,8 @@ namespace Gmeng {
         .terminal_has_sgr_pixel_support = false,
         .terminal_has_kgp_pixel_support = false,
         .terminal_has_keyboard_support  = false,
+        .no_advanced_keyboard = false,
+        .bypass_splashscreen = false
     };
 };
 

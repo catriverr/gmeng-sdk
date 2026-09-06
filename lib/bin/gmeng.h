@@ -59,15 +59,6 @@ using std::vector;
 using std::string;
 
 
-
-/// sets a timeout and asyncronously calls a callback once the time in milliseconds has passed
-void set_timeout(std::function<void()> cb, uint64_t delay_ms) {
-    (void)std::async(std::launch::async, [cb, delay_ms]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
-        cb();
-    });
-}
-
 #include "utils/tracefunc.h"
 
 /// Gets the current working directory
@@ -240,7 +231,7 @@ namespace Gmeng {
     /// "-d" suffix means the version is a developer version, high unstability level
     /// "-b" suffix means the version is a beta version, low unstability level but unpolished
     /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "13.4.0";
+    static std::string version = "13.5.0";
     enum color_t {
         WHITE  = 0,
         BLUE   = 1,
@@ -503,9 +494,12 @@ namespace Gmeng {
     }
 
     /// horrible type decl hack
+#pragma pack(push, 1)
     struct color32_t;
+#pragma pack(pop)
     Gmeng::color32_t color32_from_uint32(uint32_t rgb);
 
+    #pragma pack(push, 1)
     struct color32_t {
         uint8_t r, g, b;  // Red, Green, Blue channels in 0–255
 
@@ -532,11 +526,48 @@ namespace Gmeng {
             };
         };
 
+        bool operator==( const color32_t& other ) const = default;
         operator Vec3() const { return this->to_vec3(); };
+    };
+    #pragma pack(pop)
+
+    /// automatically converts gmeng's default color palette
+    /// values into packed RGB uint32_t values. Non-default
+    /// colors are not swapped and returned as is.
+    inline constexpr uint32_t GMENG_COL32( const uint32_t& col ) {
+        switch(col) {
+            case 0:
+                return 16777215;
+                break;
+            case 1:
+                return 8627608;
+                break;
+            case 2:
+                return 12106534;
+                break;
+            case 3:
+                return 8828021;
+                break;
+            case 4:
+                return 16009524;
+                break;
+            case 5:
+                return 13862555;
+                break;
+            case 6:
+                return 16366639;
+                break;
+            case 7:
+                return 2631720;
+                break;
+            default:
+                return col;
+        };
     };
 
     /// converts a color32_t to a uint32_t object
     inline uint32_t uint32_from_color32(const color32_t& color) {
+
         return (static_cast<uint32_t>(color.r) << 16) |
                (static_cast<uint32_t>(color.g) << 8)  |
                (static_cast<uint32_t>(color.b));
@@ -676,14 +707,22 @@ namespace Gmeng {
             ~Unit() = default;
 	};
 
+    struct BaseImageMethods {
+        virtual void resize( const std::size_t& width, const std::size_t& height ) = 0;
+        virtual void resize( float scale ) = 0;
+        virtual void recolor( uint32_t color ) = 0;
+        virtual void recolor( uint32_t color, uint32_t to ) = 0;
+
+        virtual ~BaseImageMethods() = default;
+    };
+
     /// Blob : Render blob that contains a vector of units
-    template<std::size_t w = 0, std::size_t h = 0>
-    struct Blob {
+    struct Blob : public BaseImageMethods {
       public:
         /// Width of the render blob.
-        std::size_t width = w;
+        std::size_t width = 0;
         /// Height of the render blob.
-        std::size_t height = h;
+        std::size_t height = 0;
         /// Unit vector of the render blob. The vector
         /// is treated as a 2D entity with a size of
         /// `VECTOR( WIDTH * HEIGHT )`, every time
@@ -692,24 +731,72 @@ namespace Gmeng {
         /// of the blob is present.
         std::vector<Gmeng::Unit> units;
 
+        Blob(std::size_t w, std::size_t h, std::vector<Gmeng::Unit> u = {})
+            : width(w), height(h), units(std::move(u)) {};
+        Blob() = default;
+
         /// Recolors the Blob to the specified color.
-        inline void recolor( uint32_t color ) {
+        inline void recolor( uint32_t color ) override {
             for ( auto& un : this->units )
                 un.color = color;
         };
         /// Recolors units within the Blob that are colored
         /// `color` with the color specified with `to`.
-        inline void recolor( uint32_t color, uint32_t to ) {
+        inline void recolor( uint32_t color, uint32_t to ) override {
             for ( auto& un : this->units ) {
                 if ( un.color == color ) un.color = to;
             };
+        };
+
+        /// Resizes the Blob and the vector of Units.
+        virtual void resize( const std::size_t& new_width, const std::size_t& new_height ) override {
+            this->_resize( new_width, new_height );
+        };
+
+        /// Resizes the Blob and the vector of Units.
+        virtual void resize( float scale ) override {
+            /// actually this is not the fastest way to do this
+            /// since if we have the scale the _resize() method
+            /// becomes a bit redundant but whatever
+            this->resize( width*scale, height*scale );
+        };
+
+      protected:
+        void _resize( const std::size_t& new_width, const std::size_t& new_height ) {
+            if ( new_width == width && new_height == height ) return;
+            std::vector<Gmeng::Unit> new_img;
+            new_img.resize( new_width*new_height );
+
+            /// We calculate the scale of the resize operation.
+            /// This returns something like 0.5 * current_size,
+            /// which we can just multiply coordinates with to get
+            /// the unit that coordinate would point to in the source image.
+            float scale_x = static_cast<float>(width) / new_width;
+            float scale_y = static_cast<float>(height) / new_height;
+
+            for ( std::size_t y = 0; y < new_height; ++y ) {
+                for ( std::size_t x = 0; x < new_width; ++x ) {
+                    std::size_t src_x = (int)( x * scale_x );
+                    std::size_t src_y = (int)( y * scale_y );
+
+                    /// Clamp the values
+                    if ( src_x >=  width ) src_x = width-1;
+                    if ( src_y >= height ) src_y = height-1;
+
+                    new_img[y * new_width + x] = this->units[ src_y * width + src_x ];
+                };
+            };
+            this->units = std::move( new_img );
+            /// set the new width & height values
+            width = new_width; height = new_height;
         };
     };
 
     /// Texture : Gmeng Implementation for textures.
     /// Works as an image, as the terminal does not support
     /// importing image files to draw, this is a custom implementation.
-    struct texture : public Blob<0, 0> {
+    struct texture : public Blob {
+      public:
         /// Collision property. If set to true,
         /// the texture (weirdly having this parameter)
         /// will not allow for phasing (multiple-item collision).
@@ -718,6 +805,26 @@ namespace Gmeng {
         /// Graphics Manager to sort and quickly access
         /// items within the texture dictionary.
         std::string name;
+
+        using Blob::resize;
+
+        texture() = default;
+        texture( const Blob& b, bool _collidable, std::string name ) :
+            collidable( _collidable ), name( name ) {
+                this->width  = b.width;
+                this->height = b.height;
+                this->units  = (b.units);
+
+            };
+
+        void resize(const std::size_t &new_width, const std::size_t &new_height) override {
+            this->_resize( new_width, new_height );
+            width = new_width; height = new_height;
+        };
+
+        void resize( float scale ) override {
+            this->resize( width*scale, height*scale );
+        };
 
         GMENG_INIT_TYPE( width, height, units,
                          collidable, name );
@@ -787,6 +894,10 @@ namespace Gmeng {
 
             if ( it != values.end() && it->name == key )
                 this->values.erase(it), this->sort();
+        };
+
+        bool has_value(std::string_view key) const {
+            return ( this->get_value(key) != -1 );
         };
 
         /// Returns the value of a modifier with the key
@@ -890,7 +1001,7 @@ namespace Gmeng {
         /// Pool size of the unitmap. Differs from `CONSTANTS::UNITMAP_SIZE`.
         /// This property calculates (at compile-time) the byte size of the
         /// unitmap in accordance to the byte size of one `Gmeng::Unit` instance.
-        int pool_size = (sizeof unitmap / sizeof(Gmeng::Unit));
+        int pool_size = unitmap.size();
         /// Data of raw framebuffer. Used & updated if the Kitty Terminal
         /// Graphics Protocol is supported. This is used to display raw
         /// framebuffers to the terminal program's screen, which is much
@@ -1147,7 +1258,7 @@ static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
 namespace Gmeng {
     /// i now realise this may not be very secure
     static std::vector<std::thread> v_threads;
-    static std::thread create_thread(std::function<void()> func) {
+    static std::thread create_thread(const std::function<void()>& func) {
         __functree_call__(Gmeng::create_thread);
         return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back());
     };
@@ -1815,9 +1926,20 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
         char *v_arg = argv[i];
         std::string argument (v_arg);
 
+#if GMENG_SDL != true
         /// For the game to launch using the correct apple terminal profile.
         if (argument == "--profile") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
         if (argument == "--no-window-control") { Gmeng::global.window_control = false; };
+        if (argument == "--debug-args") {
+            IS_USING_GMENG_APPLETERMINAL_THEMED = true;
+            Gmeng::global.window_control = false;
+            Gmeng::global.no_advanced_keyboard = true;
+            Gmeng::global.bypass_splashscreen = true;
+        };
+        if (argument == "--no-splashscreen") {
+            Gmeng::global.bypass_splashscreen = true;
+        };
+#endif
 
         if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
             __functree_call__(__gmeng__help__menu__);
@@ -1880,13 +2002,15 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
             exit(1);
         };
     }*/
-
+#if GMENG_SDL != true
     /// Since 13.4.0: force kitty terminal.
     if (!IS_USING_GMENG_APPLETERMINAL_THEMED) {
         std::string exc_path = get_executable_directory();
         std::system(("kitty --config \"" + exc_path + "/assets/gmeng_kitty.conf\" " + argv[0] + " --profile").c_str());
         exit(0);
     };
+#endif
+
 #endif
     set_terminal_title("GMENG " + Gmeng::version + " | build " + GMENG_BUILD_NO);
     init_logc();

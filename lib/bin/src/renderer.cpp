@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
-#include <array>
 #include <cstring>
 #include <vector>
 #include <algorithm>
@@ -24,6 +23,7 @@
 #include <functional>
 
 #include "../utils/gridmap.cc"
+#include "../utils/time.h"
 
 namespace fs = std::filesystem;
 
@@ -36,7 +36,10 @@ namespace Gmeng {
     /// Gmeng's Rendering Utilities
     namespace Renderer {
         /// viewpoint, 2 drawpoints with a start and end
-        struct viewpoint { drawpoint start; drawpoint end; };
+        struct viewpoint {
+            drawpoint start;
+            drawpoint end;
+        };
     };
 
     /// returns delta of a viewpoint's X coordinate
@@ -119,6 +122,7 @@ namespace Gmeng {
                   };
               };
             public:
+              texture highlighted_texture = { Blob(0, 0, {}), false, "#$!_NONE" };
               /// Whether or not the model is highlighted. Gmeng
               /// internally draws a box around the model if this
               /// parameter is set to true. Useful for debugging.
@@ -168,10 +172,31 @@ namespace Gmeng {
                   this->texture = generate_empty_texture(this->width, this->height);
               };
 
+              const Gmeng::texture& get_sprite(bool force_highlight = false) {
+                  if ( !this->highlighted && !force_highlight ) return this->texture;
+                  else {
+                      if ( this->highlighted_texture.name == "#$!_NONE" )
+                          this->highlighted_texture = gmeng_create_highlighted_texture(this->texture);
+                      return this->highlighted_texture;
+                  };
+              };
+
+              /// Resizes the Model (and its texture)
+              inline void resize( const std::size_t& new_width, const std::size_t& new_height ) {
+                  this->texture.resize( new_width, new_height );
+                  this->width = new_width; this->height = new_height;
+              };
+
+              /// Resizes the Model (and its texture)
+              inline void resize( const float& scale ) {
+                  this->texture.resize(width*scale, height*scale);
+                  this->width = width*scale; this->height = height*scale;
+              };
+
               /// Attaches a given texture to the model.
               ///
               /// @since 4.1-glvl
-              inline void attach_texture(Gmeng::texture __t) {
+              inline void attach_texture(const Gmeng::texture& __t) {
                   __functree_call__(Gmeng::Renderer::Model::attach_texture);
                   this->texture = __t; this->width = __t.width; this->height = __t.height;
               };
@@ -235,6 +260,18 @@ namespace Gmeng {
             /// Height of the level base as well as the maximum height
             /// of the parent level instance.
             std::size_t height;
+
+            void resize( float scale ) {
+                lvl_template.resize( scale );
+                this->width = width*scale;
+                this->height = height*scale;
+            };
+
+            void resize( const std::size_t& n_width, const std::size_t& n_height ) {
+                lvl_template.resize( n_width, n_height );
+                this->width = n_width;
+                this->height = n_height;
+            };
 
             GMENG_INIT_TYPE( lvl_template, width, height );
         };
@@ -391,6 +428,14 @@ namespace Gmeng {
                 /// This vector will usually be empty, it is not for usage in games.
                 /// use either Camera::display_map::unitmap or Level::renderscale.
                 vector<Unit> rendered_units;
+                /// Frame Profiler of the display, calculates frame and draw time
+                /// for the get_lvl_view and get_renderscale functions. Used for
+                /// sending a FIXED_UPDATE event.
+                FrameProfiler profiler;
+                /// FPS of the FIXED_UPDATE event call.
+                /// wrn: this object is not serialized into a .glvl file, must
+                /// be set from the game code. The default value is 60FPS.
+                unsigned int fixed_update_fps = 60;
 
                 GMENG_INIT_TYPE( camera, viewpoint, width, max_width,
                                  height, max_height, rendered_units );
@@ -584,8 +629,8 @@ namespace Gmeng {
     inline const Renderer::Model nomdl = {
         .id=CONSTANTS::vl_nomdl_id
     };
-    inline const texture notxtr = {
-        .name=v_str(CONSTANTS::vl_notxtr_id)
+    inline texture notxtr = {
+        Blob( 0, 0, {} ), false, v_str(CONSTANTS::vl_notxtr_id)
     };
 
     template<typename v_type>
@@ -614,10 +659,10 @@ namespace Gmeng {
         };
         return Gmeng::nomdl;
     };
-    inline texture vd_find_texture(v_dictl<texture> dict, v_title name) {
+    inline texture& vd_find_texture(v_dictl<texture>& dict, v_title name) {
         __functree_call__(Gmeng::vd_find_texture);
         int ccount = 0;
-        for (const auto& val : dict.v_getrelative()) {
+        for (auto& val : dict.v_getrelative()) {
             if (Gmeng::global.dont_hold_back) gm_log("gm::vd_find_texture() -> v_searchAddr: v_dictl<gm::texture> vgm_defaults asumed | addr: " + _uconv_1ihx(ccount) + " -> relative_value = " + val.data.name + " , search_value = " + name + " , match = " + std::string(val.data.name == name ? "yes" : "no"));
             if (val.data.name == name) return val.data;
             ccount++;
@@ -876,7 +921,7 @@ namespace Gmeng {
             get_derived_factory()[id] = []() { return std::make_unique<Derived>(); };
         };
       public:
-        /// PLEASE DONT TOUCH, USE OR RUN THIS METHOD IF YOU
+        /// DO NOT TOUCH, USE OR RUN THIS METHOD IF YOU
         /// ARE NOT AWARE OF WHAT IT WILL DO. YOU WILL BREAK
         /// YOUR ENTITY ID SYSTEM AND FUCK YOUR LEVEL UP.
         static int incr_id(int value = -1) {
@@ -932,8 +977,11 @@ namespace Gmeng {
         /// Can be used to send client updates in multiplayer scenarios.
         bool cached = false;
 
+        /// modifiers of the entity.
+        ModifierList modifiers;
+
         GMENG_INIT_TYPE( active, sprite, position, entity_id,
-                         interaction_proximity, cached );
+                         interaction_proximity, cached, modifiers );
 
         /// Entity creation
         EntityBase() = default;
@@ -967,6 +1015,8 @@ namespace Gmeng {
             out.write(reinterpret_cast<const char*>(&position.x), sizeof(position.x));
             out.write(reinterpret_cast<const char*>(&position.y), sizeof(position.y));
 
+            serialize_modifier_list( this->modifiers, out );
+
             serialize_texture(sprite, out);
         };
         /// default deserialization code for base entity objects.
@@ -977,6 +1027,8 @@ namespace Gmeng {
             // cant read-write drawpoints yet, so done manually
             in.read(reinterpret_cast<char*>(&position.x), sizeof(position.x));
             in.read(reinterpret_cast<char*>(&position.y), sizeof(position.y));
+
+            deserialize_modifier_list(this->modifiers, in);
 
             deserialize_texture(sprite, in);
         };
@@ -1026,9 +1078,9 @@ namespace Gmeng {
 
         /// Internal execution function for this->animate()
         /// for multiplayer-mode caching check
-        void _animate( EventLoop* ev ) {
+        void _animate( EventLoop* ev, int FPS = 60) {
             this->cached = false;
-            this->animate( ev );
+            this->animate( ev, FPS );
         };
 
         /// Method to be called when any interaction with
@@ -1052,7 +1104,7 @@ namespace Gmeng {
         /// the texture of an entity.
         ///
         /// NOT REQUIRED! Animated sprites are optional.
-        virtual void animate( EventLoop* ev = NULL ) { /* no default behaviour */ };
+        virtual void animate( EventLoop* ev = NULL, int FPS = 60 ) { /* no default behaviour */ };
     };
     /// sets off the derivatory id count from 0.
     int EntityBase::id_counter = 0;
@@ -1214,7 +1266,7 @@ namespace Gmeng {
     /// LightSource objects have a size of 1x1 units.
     class LightSource : public Entity<LightSource> {
       public:
-#define LIGHTSOURCE_TEXTURE_OBJECT texture{ Blob<0, 0> { 0, 0, {} }, true, \
+#define LIGHTSOURCE_TEXTURE_OBJECT texture{ Blob { 0, 0, {} }, true, \
         "LIGHT_SOURCE" };
         /// LightSource interactions do not happen.
         /// LightSources are not interactable entites,
@@ -1261,6 +1313,11 @@ namespace Gmeng {
         /// cache validation and updating if the lightsource's
         /// intensity changes from the inspector/commandline.
         int cached_intensity = -1;
+        /// cached color of the lightsource, for automatic
+        /// cache validation and updating if the lightsource
+        /// moves, the minimum brightness property changes, etc.
+        /// used for rendering in get_renderscale() for cache validation
+        color32_t cached_color = { 255, 255, 255 };
         /// validates the LightSource's cache by comparing the values to
         /// the object's non-cached properties. Such as:
         ///
@@ -1275,7 +1332,8 @@ namespace Gmeng {
             if ( this->cached_position != this->position ) this->cached = false;
             /// check intensity
             if ( this->cached_intensity != this->intensity ) this->cached = false;
-            /// TODO: add modulation color check
+            /// check cached color
+            if ( this->cached_color != this->color ) this->cached = false;
         };
         /// custom serialization function for
         /// LightSource objects since they contain
@@ -1321,7 +1379,7 @@ namespace Gmeng {
       public:
         std::string build = GMENG_BUILD_NO; std::string version = Gmeng::version;
 
-        texture sprite = { .name = "ENGINE_INFO" };
+        texture sprite = { Blob(0, 0, {}), true, "ENGINE_INFO" };
 
         bool active = false;
 
@@ -1400,7 +1458,20 @@ namespace Gmeng {
         bool always_animate = false;
         int animation_step = 0;
 
+        bool init = false;
+        uint64_t frame_index = 0;
+
         Gmeng::Renderer::drawpoint cached_pos = this->position;
+
+
+        void ae_init() {
+            if ( this->init ) return;
+            this->init = true;
+            this->modifiers.sort();
+
+            if ( !this->modifiers.has_value("fps") )
+                this->modifiers.add_value("fps", 60);
+        };
 
         /// Animation function. By default, this checks the cached
         /// position of the entity and if it has moved updates the
@@ -1409,17 +1480,27 @@ namespace Gmeng {
         ///
         /// In version 13.0.0, this will swap to a callback function instead
         /// so not all animations require their seperate entity types.
-        inline void animate(Gmeng::EventLoop*) override {
+        inline void animate(Gmeng::EventLoop* ev, int FPS = 60) override {
             if ( this->anim_textures.size() < 1 ) return;
+            if ( !this->init ) ae_init();
+
+
             if ( (animation_enabled && this->cached_pos != this->position) || this->always_animate ) {
 
                 this->cached_pos = this->position;
+                int entity_fps = this->modifiers.get_value("fps");
+
 
                 this->sprite = anim_textures.at( animation_step );
-
-                animation_step++;
+                /// frame_index = incremented every frame
+                /// FIXED_UPDATE_FPS = 60
+                /// ENTITY_FPS = 30
+                ///
+                /// value is if FRAME_INDEX % ( FIXED_UPDATE_FPS / ENTITY_FPS ) == 0
+                if ( frame_index % ( FPS / entity_fps ) == 0 ) animation_step++;
                 if ( animation_step >= anim_textures.size() ) animation_step = 0;
             } else this->sprite = anim_textures.at(animation_step );
+            frame_index++;
         };
 
         inline texture& draw( Gmeng::Renderer_Type ) override {
@@ -1617,7 +1698,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                     /// Add to model registry if it doesn't exist yet
                     /// (very inefficient to be setting and resetting
                     ///  a vector of models, needs to be fixed.)
-                    if (!this->modelmap.contains( _model.id )) this->modelmap[_model.id] = ( _model );
+                    if (!this->modelmap.contains( _model.id )) this->modelmap[_model.id] = &( _model );
                     /// if the model is not active, skip rendering it.
                     if (!_model.active) continue;
                     /// Check if the model is within the bounds
@@ -1641,16 +1722,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                     /// if the model is highlighted or the modifier
                     /// 'debug_render' is enabled at 2 or 1, highlight
                     /// the model's borders (or its body).
-                    if (debug_render_mode > 0 || _model.highlighted) {
-                        for (int i = 0; i < model.width*model.height; i++) {
-                            int y = i / model.width, x = i % model.width;
-                            if (y == 0 || x == 0 ||
-                                y == model.height-1 || x == model.width-1 ) model.texture.units[i] = {
-                                .color = (debug_render_mode == 2 ? YELLOW : RED),
-                                .collidable = true, .transparent = false, .special = false
-                            };
-                        };
-                    };
+                    const texture& sprite = model.get_sprite( debug_render_mode > 0 );
 
                     /// model position remapping. to prevent errors such as
                     /// segmentation faults & other crashes if the displacement of
@@ -1682,7 +1754,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
 
 
                     int lndx = 0;
-                    for ( const auto& unit : model.texture.units ) {
+                    for ( const auto& unit : sprite.units ) {
 
                         int _vdp_pos = ((displacement[lndx].y)*(vp_dx + 1))+displacement[lndx].x;
 
@@ -1804,7 +1876,7 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             /// Contains a copy of each model included in the level.
             /// Does not contain a copy of each individual model's derivatories,
             /// only models that weren't initialized before.
-            std::map<int, Renderer::Model> modelmap;
+            std::map<int, Renderer::Model*> modelmap;
             /// Available renderscale for the level.
             /// Not updated internally, is set by get_renderscale(),
             /// _vconcatenate_lvl_chunks() or _vget_renderscale2dpartial_scalar().
@@ -2430,14 +2502,6 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                 continue;
             };
 
-            /// entity rendering. also calls animate() for each entity.
-
-            /// call animate() for the entity to animate itself if it has
-            /// an animated sprite or texture. no internal limit here,
-            /// so if a bad entity is created it will crash the app.
-            /// Oh well!
-            entity->_animate( NULL );
-
             if ( efficient_render == 1 ) {
                 /// since 13.4.0: efficient render for Entities.
                 /// Increases draw times a lot see modifiers("efficient_render").
@@ -2934,8 +2998,6 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
             if (cubic_render) skip_y_position = dp.y+1; // v8.2.1-d / skip repeating already-drawn line
         };
 
-        auto time_fin = GET_TIME() - time_start;
-        level_t.display.camera.frame_time = time_fin;
         gm_log("get_lvl_view -> level view rendered");
         if (global.debugger) {
               gm_slog(GREEN, "RENDERER OUTPUT FOR get_lvl_view:", "deltaX: " + v_str(_vcreate_vp2d_deltax(level_t.display.viewpoint)) +"\n" + __final__);
@@ -3042,17 +3104,15 @@ inline textblob_t textarea(Gmeng::Camera<0, 0> cam, Renderer::drawpoint pos, std
 };
 
 inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
-    #ifndef GMENG_SDL
-        long long frame_time_a = GET_TIME();
+    #if GMENG_SDL != true
+
         /// Generate a priority drawable scale of the level
         /// (renderscale ignores objects that are too far out
         ///  of view from the display's viewpoint/resolution)
-        auto renderscale = Gmeng::get_renderscale(*level);
+        level->renderscale= Gmeng::get_renderscale(*level);
         /// converts the renderscale into a text blob so it can be
         /// drawn as raw text by the camera to the Terminal screen
-        std::string lvl_view = Gmeng::get_lvl_view(*level, renderscale);
-        /// set the frame the of the camera
-        level->display.camera.frame_time = GET_TIME() - frame_time_a;
+        std::string lvl_view = Gmeng::get_lvl_view(*level, level->renderscale);
 
         /// KGP_PIXEL_SUPPORT: Kitty Terminal Graphics Protocol
         /// if the terminal supports the protocol, we can render
@@ -3063,18 +3123,17 @@ inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
              this->camera.has_modifier("efficient_render") &&
              this->camera.has_modifier("kitty_graphics") ) {
             /// Resize the renderer with the viewpoint's width / height
+            /// (inefficient)
             this->camera.renderer.width  = Gmeng::vp_width ( this->viewpoint );
             this->camera.renderer.height = Gmeng::vp_height( this->viewpoint );
-            /// For draw_time calculation. drawing the frame takes longer
-            /// than generating the frame in the terminal since the raw
-            /// text contains a large chunk of colorcodes and escape sequences.
-            /// draw_time includes the frame_time as well.
-            long long draw_time_b = GET_TIME();
             /// Present the image using the protocol. The camera instance already
             /// has a terminal_graphics_manager, so we can just send present().
             this->camera.renderer.present( this->camera.display_map.framebuffer );
-            /// Set the actual draw time
-            level->display.camera.draw_time = GET_TIME() - draw_time_b;
+            /// For draw_time calculation. drawing the frame takes less time
+            /// than generating the frame in the Kitty Graphics Protocol.
+            /// Draw time includes the frame_time and is the best way
+            /// to measure the Frames Per Second via 1000/draw_time.
+            this->camera.draw_time = 1000 * this->camera.frame_time;
         } else {
             /// Places the level view into the camera so its draw()
             /// function consumes the data and can write it to the screeen.
@@ -3085,7 +3144,6 @@ inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level) {
             /// text contains a large chunk of colorcodes and escape sequences.
             /// draw_time includes the frame_time as well.
             long long draw_time_b = GET_TIME();
-
 
             /// checks draw_info for displaying debug information to the screen.
             if (level->display.camera.modifiers.get_value("draw_info") == 1)

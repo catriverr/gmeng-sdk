@@ -148,10 +148,10 @@ static int Gmeng::Scripts::init_sol2() {
         "special_c_unit", &Unit::special_c_unit
     );
 
-    gmeng_lua_namespace.new_usertype<Gmeng::Blob<0, 0>>("Blob",
-        "width", &Gmeng::Blob<0, 0>::width,
-        "height", &Gmeng::Blob<0, 0>::height,
-        "units", &Gmeng::Blob<0, 0>::units
+    gmeng_lua_namespace.new_usertype<Gmeng::Blob>("Blob",
+        "width", &Gmeng::Blob::width,
+        "height", &Gmeng::Blob::height,
+        "units", &Gmeng::Blob::units
     );
 
     gmeng_lua_namespace.new_usertype<Gmeng::texture>("texture",
@@ -204,7 +204,8 @@ static int Gmeng::Scripts::init_sol2() {
         "window_control", &__global_object__::window_control,
         "terminal_has_sgr_pixel_support", &__global_object__::terminal_has_sgr_pixel_support,
         "terminal_has_kgp_pixel_support", &__global_object__::terminal_has_kgp_pixel_support,
-        "terminal_has_keyboard_support", &__global_object__::terminal_has_keyboard_support
+        "terminal_has_keyboard_support", &__global_object__::terminal_has_keyboard_support,
+        "no_advanced_keyboard", &__global_object__::no_advanced_keyboard
     );
 
     gmeng_lua_namespace.set("global", &Gmeng::global);

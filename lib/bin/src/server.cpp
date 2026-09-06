@@ -1,11 +1,10 @@
 #pragma once
 
 
-#include <array>
 #include <chrono>
 #include <cstdio>
 #include <exception>
-#include <iterator>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -103,7 +102,7 @@ namespace Gmeng {
         /// Client instance for the Server.
         /// Contains its client_id, IP address,
         /// connection date and num_packets.
-        struct ServerClient {
+        struct ServerClient : public std::enable_shared_from_this<ServerClient> {
             /// Socket with the client.
             std::shared_ptr<asio::ip::tcp::socket> socket;
             /// Number of packets sent by the client.
@@ -115,10 +114,16 @@ namespace Gmeng {
             client_id id = -1;
             /// IP address (in string form) of the client.
             std::string address = "unknown";
+
+            ServerClient() = default;
+            ServerClient( decltype(socket) _socket, decltype(num_packets) _packets,
+                          decltype(connected_at) _connected_at, decltype(id) _id,
+                          decltype(address) _address) : socket(_socket), num_packets(_packets),
+                          connected_at( _connected_at ), id( _id ), address(_address) {};
             /// Sends a message to the client.
             /// set `response_of` to a valid message sent by the client to send a response,
             /// instead of a brand new message. This will fire the `response` callback of that message (client-side).
-            void send_message( std::string message, int response_of = -1, int id = g_mkid() ) {
+            void send_message( const std::string& message, int response_of = -1, int id = g_mkid() ) {
                 gm_log("sending message: " + message);
                 /// if the socket isn't open, don't write to it.
                 if (!this->socket->is_open()) return;
@@ -192,7 +197,7 @@ namespace Gmeng {
         /// with a callback to the parameter `user_callback`. Best
         /// to run in its own thread, and use the main program
         /// thread only for the game updates.
-        void run( std::function<void( GameServer*, ClientMessage& )> user_callback ) {
+        void run( const std::function<void( GameServer*, ClientMessage& )>& user_callback ) {
             gm_log("Server at port "$(this->port)" is alive");
 
             this->acceptor.non_blocking(true);
@@ -230,7 +235,8 @@ namespace Gmeng {
                 for (auto it = this->clients.begin(); it != this->clients.end(); ) {
                     char data[1024]; /// Buffer for incoming TCP stream chunk
                     std::error_code read_ec;
-
+                    /// skip inactive socket
+                    if ( !it->second.socket->is_open() ) continue;
                     /// read_some grabs whatever is currently in the OS buffer
                     size_t length = it->second.socket->read_some(asio::buffer(data), read_ec);
 
@@ -269,27 +275,20 @@ namespace Gmeng {
                             user_callback(this, msg);
                             ++it;
                         };
-                    }
+                    };
                 }
             };
             /// this->active has to be false, the while loop scope is closed.
             /// disconnect all clients. grace period of 300ms so other operations
             /// are closed.
-            std::this_thread::sleep_for( std::chrono::milliseconds(300) );
-            delete this;
-        };
-
-
-        ~GameServer() {
-            gm_log("disconnecting all clients...");
-            /// close all active connections
             for ( auto& client : this->clients ) {
-                std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
-                DEBUGGER gm_log("disconnecting client " + client.second.info_string());
-                /// protocol_command
                 client.second.send_message("disconnect");
-                client.second.socket->close();
             };
+
+            if (!this->context.stopped()) this->context.stop();
+            this->acceptor.close();
+            this->active = false;
+            Gmeng::game_server = nullptr;
         };
     };
 
@@ -343,7 +342,7 @@ namespace Gmeng {
         }
 
         /// Handles Gmeng websocket data protocol messages.
-        void handle_protocol( network_message& message ) {
+        void handle_protocol( const network_message& message ) {
             if ( message.response_of == -1 ) {
                 auto spl = g_splitStr( message.content, " " );
                 auto command = spl.at(0);
@@ -431,7 +430,7 @@ namespace Gmeng {
         };
 
         void disconnect() {
-            if (socket && connected) {
+            if (socket || connected) {
                 std::error_code ec;
                 auto err = socket->close(ec);
                 connected = false;
@@ -446,8 +445,8 @@ namespace Gmeng {
     /// Game Client for Multiplayer game instances.
     class GameClient {
       public:
-
-
+        /// Connects to a Gmeng GameServer instance at the provided ip address and port.
+        /// WARNING: IP_ADDRESS MUST BE AN IP ADDRESS! DOMAINS ARE NOT ACCEPTED.
         static ServerConnection connect(const std::string& ip_address, unsigned int port = 7388, TRACEFUNC) {
             ServerConnection conn;
             conn.context = std::make_shared<asio::io_context>();
@@ -459,7 +458,10 @@ namespace Gmeng {
             asio::ip::tcp::endpoint endpoint(asio::ip::make_address(ip_address, ec), port);
 
             if (!ec) {
-                (void)conn.socket->connect(endpoint, ec);
+                asio::error_code _ec = conn.socket->connect(endpoint, ec);
+                if ( ec ) {
+                    gm_log("unable to connect: " + ec.message());
+                };
             } else gm_log("unable to connect: " + ec.message());
 
             if (!ec) {
@@ -493,6 +495,7 @@ int set_network_protocol_commands() {
             { "disconnect", [](Gmeng::ServerConnection* client, vector<string>) -> int {
                 gm_log("protocol: disconnect() requested");
                 client->disconnect();
+                client->connected = false;
                 return 0;
             } },
         });

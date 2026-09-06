@@ -67,8 +67,8 @@
 /// 13.1.0-d GMENG CAMERA ADD_DRAW VALUES
 
 /// probably inefficient as fuck
-static Gmeng::Blob<> blob_rectangle_no_fill(const std::size_t width = 0, const std::size_t height = 0, Gmeng::color32_t color = (uint32_t)Gmeng::WHITE) {
-Gmeng::Blob<> blob { width, height };
+static Gmeng::Blob blob_rectangle_no_fill(const std::size_t width = 0, const std::size_t height = 0, Gmeng::color32_t color = (uint32_t)Gmeng::WHITE) {
+Gmeng::Blob blob { width, height };
 
     if (width == 0 || height == 0) return blob;
 
@@ -101,7 +101,7 @@ Gmeng::Blob<> blob { width, height };
 
 /// Gmeng : Basic rectangle blob (single-color)
 #define BLOB_RECTANGLE( WIDTH, HEIGHT, COLOR ) \
-    Gmeng::Blob<> { WIDTH, HEIGHT,             \
+    Gmeng::Blob   { WIDTH, HEIGHT,             \
     std::vector<Gmeng::Unit>                   \
     (WIDTH*HEIGHT, { .color=( COLOR ) }) }
 

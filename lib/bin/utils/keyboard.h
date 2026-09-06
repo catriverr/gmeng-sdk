@@ -3,6 +3,7 @@
 #include <charconv>
 #include <iostream>
 
+#include "../strings/contains.cc"
 
 #include <Carbon/Carbon.h>
 #include <CoreGraphics/CGEventTypes.h>
@@ -22,9 +23,9 @@
 
 namespace Gmeng {
     enum KEYEVENT {
-        gkEv_PRESS   = 0,
-        gkEv_REPEAT  = 1,
-        gkEv_RELEASE = 2
+        gkEv_PRESS   = 1,
+        gkEv_REPEAT  = 2,
+        gkEv_RELEASE = 3
     };
     enum KEY {
         /// Alphabet
@@ -73,7 +74,7 @@ namespace Gmeng {
         gk_TAB            =   9,
         gk_BACKSPACE      = 127,
         gk_SLASH          =  47,
-        gk_ENTER          =   0,
+        gk_ENTER          =  13,
         gk_BACKSLASH      =  92,
         gk_MINUS          =  45,
         gk_EQUALS         =  61,
@@ -119,7 +120,7 @@ inline Gmeng::getkey(KEYS key) {
 #include "global.h"
 
 inline bool Gmeng::getkey(Gmeng::KEY key) {
-    return Gmeng::key_states[key];
+    return Gmeng::key_states[(int)key];
 };
 
 /// Initializes the Kitty Keyboard Protocol (for keyUp and keyDown events.)
@@ -130,12 +131,16 @@ inline bool Gmeng::getkey(Gmeng::KEY key) {
 /// and 'false' if not. Supported terminals are currently limited to Kitty, but it is
 /// being worked on to import different terminals such as iTerm2 which supports the protocol as well.
 static bool gmeng_keyboard_init() {
+    /// keyboard system is disabled implicitly
+    if ( Gmeng::global.no_advanced_keyboard ) return false;
     const char* term = std::getenv("TERM");
     const char* term_prog = std::getenv("TERM_PROGRAM");
-    if ( term == nullptr                            ||
-         std::string(term)      != "xterm-kitty") return false;
-    if ( term_prog != nullptr && std::string(term_prog) != "iTerm.app" )
-        return false;
+
+    std::string terms = term != nullptr ? term : "";
+    std::string termps = term_prog != nullptr ? term_prog : "";
+
+    if ( !contains(terms,  "kitty") &&
+         !contains(termps, "iTerm") ) return false;
 
     printf("\x1b[>31u");
     fflush(stdout);
@@ -187,7 +192,7 @@ inline void gmeng_update_keys(char sequence[64], int& code, Gmeng::KEYEVENT& eve
     /// `event` == { 1 = press, 2 = repeat, 3 = release }
     gmeng_parse_kitty_input(sequence, code, event);
 
-    Gmeng::key_states[ (Gmeng::KEY)code ] = event != 3;
+    Gmeng::key_states[ code ] = event != 3;
 };
 
 #include "../types/event.h"
@@ -203,6 +208,62 @@ constexpr inline Gmeng::Event gmeng_keyevent( const Gmeng::KEYEVENT& kev ) {
         case Gmeng::KEYEVENT::gkEv_RELEASE:
             return Gmeng::KEYRELEASE;
     };
+};
+
+static char* default_keylocale = "com.apple.keylayout.US";
+
+static std::unordered_map<std::string, std::unordered_map<char, char>> SHIFTED_KEYLOCALES = {
+    { default_keylocale,
+        {
+            { '1', '!' },
+            { '2', '@' },
+            { '3', '#' },
+            { '4', '$' },
+            { '5', '%' },
+            { '6', '^' },
+            { '7', '&' },
+            { '8', '*' },
+            { '9', '(' },
+            { '0', ')' },
+            { '-', '_' },
+            { '=', '+' },
+            { '`', '~' },
+            { ',', '<' },
+            { '.', '>' },
+            { '/', '?' },
+            { ';', ':' },
+            { '\'', '"'},
+            { '[', '{' },
+            { ']', '}' },
+            { '\\', '|' }
+        }
+    }
+};
+
+static char* current_keylocale = default_keylocale;
+/// TODO: get_keylocale()
+
+inline char get_shifted_key(const char& keycode) {
+    if ( !SHIFTED_KEYLOCALES.contains(current_keylocale) ) {
+        if (!SHIFTED_KEYLOCALES[default_keylocale].contains(keycode)) return keycode;
+        else return SHIFTED_KEYLOCALES[default_keylocale][keycode];
+    } else {
+        if (!SHIFTED_KEYLOCALES[current_keylocale].contains(keycode)) return keycode;
+        else return SHIFTED_KEYLOCALES[default_keylocale][keycode];
+    };
+};
+
+
+/// Gmeng : converts a keystroke into the expected
+/// character from the keyboard.
+inline char gmeng_toinput(const char& keycode) {
+    auto shift = Gmeng::getkey( Gmeng::gk_LSHIFT ) || Gmeng::getkey( Gmeng::gk_RSHIFT );
+
+    if ( shift ) {
+        if ( toupper(keycode) == keycode ) {
+            return get_shifted_key(keycode);
+        } else return toupper(keycode);
+    } else return keycode;
 };
 
 #endif

@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <istream>
 #include <memory>
 
 #include "lib/bin/easy.h"
@@ -17,7 +16,7 @@ static EventLoop ev;
 
 
 
-    int defx = 75, defy = 60;
+    int defx = 960, defy = 540;
     int* DEF_DELTAX = &defx;
     int* DEF_DELTAY = &defy;
 
@@ -56,7 +55,6 @@ int main(int argc, char** argv) {
     _uread_into_vgm("envs/models");
     patch_argv_global(argc, argv); /// gmeng initialization
 
-    int health = 100, stamina = 100, money = 100;
 
 
     /// initially load state
@@ -71,11 +69,13 @@ int main(int argc, char** argv) {
     });
 
     ev.add_hook({ INIT }, [&](Level* level, EventInfo* info) {
-        std::cout << "Initialized the Game Event Hook (external hook received this event)\n";
-
-        renderscale = get_renderscale(*level);
 
         level->display.camera.clear_screen();
+
+        level->base.resize(2.0f);
+
+        level->display.viewpoint = { { 0, 0 }, { 960*2, 540*2 } };
+
 
         ev.call_event(FIXED_UPDATE, *info);
         level->display.set_cursor_visibility(false);
@@ -96,10 +96,29 @@ int main(int argc, char** argv) {
     uint32_t lcolor = 0;
 
     bool text_shown = false;
-    ev.add_hook( { FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
-        if (info->EVENT == MOUSE_MOVE) return;
-        if (info->EVENT == KEYPRESS) return;
+    ev.add_hook( { UPDATE }, [&](Level* level, EventInfo* info) {
 
+        if ( text_shown ) level->display.camera.add_text({ 0, 10 },
+            "color: " + v_str(lcolor) +
+            "\nmouse: " + Renderer::conv_dp( mouse_last_pos ) +
+            "\nframe: " + v_str(level->display.camera.frame_time ) +
+            "\ndraw:" + v_str(level->display.camera.draw_time) +
+            "\nFPS:" + v_str(1000.0f / level->display.camera.draw_time), RED);
+
+        if ( mouse_dragging ) {
+            if ( mouse_last_pos.x - drag_begin_pos.x > 0 &&
+                 mouse_last_pos.y - drag_begin_pos.y > 0  ) {
+                level->display.camera.add_draw( { drag_begin_pos.x, drag_begin_pos.y },
+                    BLOB_RECTANGLE_BORDER( mouse_last_pos.x-drag_begin_pos.x, mouse_last_pos.y-drag_begin_pos.y, (uint32_t)WHITE )
+                );
+            };
+        };
+
+        // draw frame
+        level->display.refresh(level);
+    });
+
+    ev.add_hook({ FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
         if (entity_spawned) {
             auto entity = std::find_if(level->entities.begin(), level->entities.end(), [&](const shared_ptr<EntityBase>& obj) { return obj->entity_id == id; })->get();
 
@@ -127,41 +146,8 @@ int main(int argc, char** argv) {
                 entity->position.x++;
                 if ( entity_in_x_center ) level->display.move_viewpoint_by( 1, 0 );
             };
-
         };
-
-        if ( text_shown ) level->display.camera.add_text({ 0, 10 },
-            "color: " + v_str(lcolor) +
-            "\nmouse: " + Renderer::conv_dp( mouse_last_pos ) +
-            "\nframe: " + v_str(level->display.camera.frame_time ) +
-            "\ndraw:" + v_str(level->display.camera.draw_time), RED);
-
-        if ( light_go_boom ) {
-            auto lightsource = std::find_if(level->entities.begin(), level->entities.end(),
-                    [&](std::shared_ptr<Gmeng::EntityBase> entity) -> bool {
-                        return entity->get_serialization_id() == -1;
-                    }).base();
-            if (lightsource == nullptr) { GAME_LOG("no lightsource"); return; };
-
-            auto ls_entity = std::dynamic_pointer_cast<Gmeng::LightSource>( *lightsource );
-
-            ls_entity->color = rainbow_next(ls_entity->color, clr_phase, clr_step, clr_size);
-            lcolor = uint32_from_color32(ls_entity->color);
-            ls_entity->cached = false;
-        };
-
-        if ( mouse_dragging ) {
-            int width = mouse_last_pos.x - drag_begin_pos.x;
-            int height = mouse_last_pos.y - drag_begin_pos.y;
-            if ( width > 0 && height > 0)
-                level->display.camera.add_draw( { drag_begin_pos.x, drag_begin_pos.y }, BLOB_RECTANGLE_BORDER((std::size_t)width, (std::size_t)height, (uint32_t)lcolor));
-        };
-
-        ui_element elem( 10, "~b~color:"$(lcolor)"\n~y~mouse: "$((int)mouse_dragging)"\n~g~last_click: " + Gmeng::Renderer::conv_dp( mouse_last_pos ) + "\n~y~begin_pos: " + Gmeng::Renderer::conv_dp(drag_begin_pos));
-        level->display.camera.ui_manager.add_element( elem );
-        // draw frame
-        level->display.refresh(level);
-      });
+    });
 
 
     ev.add_hook( { MOUSE_CLICK_LEFT_START, MOUSE_CLICK_LEFT_END, MOUSE_MOVE }, [&](Level* lvl, EventInfo* info) {
@@ -186,9 +172,6 @@ int main(int argc, char** argv) {
     } );
 
     ev.add_hook( { KEYPRESS }, [&](Level* level, EventInfo* info) {
-        /// problems in this right now.
-        GAME_LOG((std::string)"new keypress event: " + info->KEYPRESS_CODE);
-
         if ( info->KEYPRESS_CODE == 'h' ) test_go_boom = !test_go_boom;
         if ( info->KEYPRESS_CODE == 'q' ) {
             ev.cancel();
@@ -206,8 +189,29 @@ int main(int argc, char** argv) {
             light_go_boom = !light_go_boom;
         }
 
-        if ( info->KEYPRESS_CODE == 'y' ) {
+        if ( info->KEYPRESS_CODE == 'o' ) {
+            Gmeng::Animated_Entity tnt_entity;
+            tnt_entity.always_animate = true;
+            tnt_entity.position = { 0, 0 };
+            tnt_entity.anim_textures = {
+                vgm_texture("tnt_1"),
+                vgm_texture("tnt_2"),
+                vgm_texture("tnt_3"),
+                vgm_texture("tnt_4")
+            };
+            id = tnt_entity.entity_id;
+
+
+            for ( auto& tx : tnt_entity.anim_textures )
+                tx.resize(3.5f);
+
+            tnt_entity.modifiers.add_value("fps", 15);
+
+            level->entities.push_back( std::make_shared<Gmeng::Animated_Entity>(tnt_entity) );
             entity_spawned = true;
+        };
+
+        if ( info->KEYPRESS_CODE == 'y' ) {
             Gmeng::Animated_Entity animated_entity;
             animated_entity.always_animate = true;
 
@@ -217,9 +221,12 @@ int main(int argc, char** argv) {
                 vgm_texture( "space_shuttle_booster1" ),
                 vgm_texture( "space_shuttle_booster2" )
             };
+
+
             id = animated_entity.entity_id;
 
             level->entities.push_back( std::make_shared<Gmeng::Animated_Entity>(animated_entity) );
+            entity_spawned = true;
         };
 
         return;

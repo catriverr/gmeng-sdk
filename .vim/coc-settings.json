@@ -20,16 +20,10 @@
         "-I/opt/homebrew/Cellar/ncurses/6.5/include",
         "-I/opt/homebrew/",
         "-Wno-writable-strings",
-        "-Linclude",
-        "-Iinclude",
-        "-I./include",
-        "-Iinclude/",
-        "-Iinclude/imgui",
-        "-Iinclude/asio",
-        "-Linclude/asio"
+        "-I${workspaceFolder}/include",
+        "-L${workspaceFolder}/include"
     ],
     "clangd.arguments": [
-        "--background-index=true",
-        "--j=4"
+        "--background-index=true"
     ]
 }
