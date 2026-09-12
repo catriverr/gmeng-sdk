@@ -1,4 +1,4 @@
-# Compiler and flags
+#Compiler and flags
 CXX := g++
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Iinclude/sol/include -Linclude/sol/include -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=gnu++23 -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(ADD_FLAGS)
