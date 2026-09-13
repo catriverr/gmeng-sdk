@@ -6,6 +6,7 @@
         "-I${workspaceFolder}/include/imgui",
         "-I${workspaceFolder}/include/asio",
         "-I${workspaceFolder}/include/sol",
+        "-I${workspaceFolder}/include/sol/include",
         "-Wno-format-security",
         "-Wno-mixed-indent",
         "-D_THREAD_SAFE",

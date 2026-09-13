@@ -494,12 +494,9 @@ namespace Gmeng {
     }
 
     /// horrible type decl hack
-#pragma pack(push, 1)
     struct color32_t;
-#pragma pack(pop)
     Gmeng::color32_t color32_from_uint32(uint32_t rgb);
 
-    #pragma pack(push, 1)
     struct color32_t {
         uint8_t r, g, b;  // Red, Green, Blue channels in 0–255
 
@@ -529,36 +526,44 @@ namespace Gmeng {
         bool operator==( const color32_t& other ) const = default;
         operator Vec3() const { return this->to_vec3(); };
     };
-    #pragma pack(pop)
+
+    constexpr const uint32_t GMENG_COL_0_UINT32 = 16777215;
+    constexpr const uint32_t GMENG_COL_1_UINT32 = 8627608;
+    constexpr const uint32_t GMENG_COL_2_UINT32 = 12106534;
+    constexpr const uint32_t GMENG_COL_3_UINT32 = 8828021;
+    constexpr const uint32_t GMENG_COL_4_UINT32 = 16009524;
+    constexpr const uint32_t GMENG_COL_5_UINT32 = 13862555;
+    constexpr const uint32_t GMENG_COL_6_UINT32 = 16366639;
+    constexpr const uint32_t GMENG_COL_7_UINT32 = 2631720;
 
     /// automatically converts gmeng's default color palette
     /// values into packed RGB uint32_t values. Non-default
     /// colors are not swapped and returned as is.
-    inline constexpr uint32_t GMENG_COL32( const uint32_t& col ) {
+    inline constexpr const uint32_t& GMENG_COL32( const uint32_t& col ) {
         switch(col) {
             case 0:
-                return 16777215;
+                return GMENG_COL_0_UINT32;
                 break;
             case 1:
-                return 8627608;
+                return GMENG_COL_1_UINT32;
                 break;
             case 2:
-                return 12106534;
+                return GMENG_COL_2_UINT32;
                 break;
             case 3:
-                return 8828021;
+                return GMENG_COL_3_UINT32;
                 break;
             case 4:
-                return 16009524;
+                return GMENG_COL_4_UINT32;
                 break;
             case 5:
-                return 13862555;
+                return GMENG_COL_5_UINT32;
                 break;
             case 6:
-                return 16366639;
+                return GMENG_COL_6_UINT32;
                 break;
             case 7:
-                return 2631720;
+                return GMENG_COL_7_UINT32;
                 break;
             default:
                 return col;
@@ -1204,7 +1209,7 @@ static std::string colorformat(std::string data) {
 
 /// Parses string variables (VERSION and BUILD).
 /// str vars are accessed with the `$!__VARIABLE_NAME` syntax.
-static std::string parse_str_vars(std::string a) {
+static std::string parse_str_vars(const std::string& a) {
     std::string res = a;
     replace_all(res, "$!__VERSION", Gmeng::version);
     replace_all(res, "$!__BUILD", GMENG_BUILD_NO);

@@ -1597,7 +1597,7 @@ std::deque<std::string> get_last_n_lines(std::vector<std::string>& ss, int n) {
 #ifndef GMENG_COMPILING_SCRIPT
 /// Defines the GAME_LOG macro binding to lua-script.
 static int __gmeng_define_lua_gmeng_log_method = ([]() -> int {
-    Gmeng::Scripts::lua.set_function("GAME_LOG", [&](std::string message) {
+    Gmeng::Scripts::lua.set_function("GAME_LOG", [&](const std::string& message) {
         GAME_LOG( message );
     });
     return 0;
@@ -2156,6 +2156,8 @@ static bool state_changed = false;
 /// Runs the developer console for Gmeng.
 /// This utility is for Terminal-mode only.
 /// It should not be used with Gmeng SDL.
+///
+/// Kitty Terminal Graphics Protocol will be used if available.
 void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     if (!dev_console_open) return;
 
