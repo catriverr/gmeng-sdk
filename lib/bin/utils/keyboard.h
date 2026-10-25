@@ -171,6 +171,7 @@ static bool gmeng_keyboard_init() {
     fflush(stdout);
     Gmeng::global.terminal_has_keyboard_support = true;
 
+#ifndef GMENG_NO_SOL
     Gmeng::Scripts::gmeng_lua_namespace.new_enum("KEY",
         "gk_KEYS_START", Gmeng::KEY::gk_KEYS_START,
         "gk_A", Gmeng::KEY::gk_A,
@@ -256,7 +257,7 @@ static bool gmeng_keyboard_init() {
     );
 
     Gmeng::Scripts::gmeng_lua_namespace.set_function("getkey", &Gmeng::getkey);
-
+#endif
 
     return true;
 };
