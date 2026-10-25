@@ -30,6 +30,7 @@
 /// base object types
 #include "src/objects.cpp"
 /// class initialization
+#include "types/camera.h"
 #include "utils/setup_class.h"
 /// Gmeng::global utility
 #include "utils/global.h"
@@ -61,22 +62,6 @@ using std::string;
 
 #include "utils/tracefunc.h"
 
-/// Gets the current working directory
-static std::string get_cwd() {
-    char buffer[PATH_MAX];
-
-#ifdef _WIN32
-    if (GetCurrentDirectoryA(PATH_MAX, buffer)) {
-        return std::string(buffer);
-    }
-#else
-    if (getcwd(buffer, sizeof(buffer)) != nullptr) {
-        return std::string(buffer);
-    }
-#endif
-    return std::string();
-}
-
 
 /// flips a vector vertically (used for mirroring textures & other vectors 2d grids.)
 template<typename T> void flip_vector(std::vector<T>& data, int width, int height) {
@@ -90,24 +75,13 @@ template<typename T> void flip_vector(std::vector<T>& data, int width, int heigh
     }
 }
 
-/// returns the username of the current user
-static std::string get_username() {
-    const char* username = nullptr;
-#ifdef _WIN32
-    username = getenv("USERNAME");
-#else
-    username = getenv("USER");
-#endif
-    if (username) return std::string(username);
-    else return std::string();
-};
 
 #ifdef __GMENG_OBJECTINIT__
 
 
 #include "utils/functree.h"
 #include "utils/kitty.h"
-
+#include "types/modifier.h"
 
 
 /// Returns the address of any given object.
@@ -123,41 +97,7 @@ static bool file_exists(std::string f) {
     return std::filesystem::is_directory(f) || std::filesystem::exists(f);
 }
 
-/// Gmeng : Repeats a given string `times` number of times.
-/// The string is referenced but is not modified,
-/// the function returns the generated string.
-static std::string repeatString(const std::string& str, int times) {
-    //__functree_call__(repeatString);
-    std::string result = "";
-    for (int i = 0; i < times; i++) {
-        result += str;
-    }
-    return result;
-}
-
-/// Gmeng : Repeats any `Thing` of any type `times` number of times.
-template<typename Thing>
-static std::vector<Thing> repeatThing(Thing obj, int times) {
-    std::vector<Thing> Things;
-    for (int i = 0; i < times; i++) Things.push_back(obj);
-    return Things;
-};
-
-/// Gmeng : Splits a vector of any type with a user-provided `checker` function.
-/// If the checker function returns true, the vector is split.
-/// Returns a vector of a vector of things.
-template<typename Thing>
-static std::vector<std::vector<Thing>> splitThing(std::vector<Thing>& obj, std::function<bool(Thing)> checker) {
-    std::vector<std::vector<Thing>> Things;
-    int vec_c = 0;
-    for (int i = 0; i < obj.size(); i++) {
-        Thing lndx = obj[i];
-        if (vec_c == Things.size()) Things.push_back(std::vector<Thing>{});
-        if (!checker(lndx)) Things[vec_c].push_back(lndx);
-        else vec_c++;
-    };
-    return Things;
-};
+#include "utils/repeat.h"
 
 /// Gmeng : returns the hex value of an integer
 static std::string _uconv_1ihx(int value) {
@@ -167,6 +107,10 @@ static std::string _uconv_1ihx(int value) {
     return stream.str();
 }
 
+#include "types/vector.h"
+#include "types/color32.h"
+#include "types/unit.h"
+#include "types/texture.h"
 
 #define cpps(str) ( std::string(str) )
 using namespace std;
@@ -225,37 +169,9 @@ static void g_rmChar( string &str, char* charsToRemove ) {
    }
 }
 
+#include "src/version.h"
 
 namespace Gmeng {
-    /// current version of the engine.
-    /// "-d" suffix means the version is a developer version, high unstability level
-    /// "-b" suffix means the version is a beta version, low unstability level but unpolished
-    /// "-c" suffix means the version is a coroded version, low to medium unstability level but specific methods will not perform as expected
-    static std::string version = "13.5.0";
-    enum color_t {
-        WHITE  = 0,
-        BLUE   = 1,
-        GREEN  = 2,
-        CYAN   = 3,
-        RED    = 4,
-        PINK   = 5,
-        YELLOW = 6,
-        BLACK  = 7
-    };
-
-    /// RGB_UINT Colors
-    /// use as rgb_colors[ (color_t) ]
-    static int rgb_colors[9][3] = {
-        {255,255,255},
-        {131, 165, 152},
-        {184, 187, 38},
-        {134, 180, 117},
-        {244, 73, 52},
-        {211, 134, 155},
-        {249, 188, 47},
-        {40, 40, 40},
-        {249, 128, 25}
-    };
 
 	enum CONSTANTS {
 		/// integer values
@@ -307,533 +223,12 @@ namespace Gmeng {
 				g_joinStr(__e.params, "!:"));
 			};
 	};
-    /// X and Y position Coordinate object.
-	struct Coordinate {
-		int x = 0; int y = 0;
-	};
     /// Entire logs of the game, engine, dependencies.
     static std::stringstream completelog;
-    /// Default foreground colorcodes
-    /// to each Gmeng::color_t index.
-	static std::string colors[] = {
-		"\x1B[37m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
-	};
-    /// Default background colorcodes
-    /// to each Gmeng::color_t index.
-    static std::string bgcolors[] = {
-        "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
-    };
-    /// Default BOLD foreground colorcodes
-    /// to each Gmeng::color_t index.
-    static std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
-        "\x1B[107m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
-    };
-    /// Colorcodes from ANSI escape code to Gmeng::color_t index.
-	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
-    /// Resets all ANSI escape code sequences, effectively setting the color to normal.
-	static std::string resetcolor = "\033[22m\033[0m";
-    /// ANSI escape code sequence to make text bold.
-    /// Must be used before the colorcode, as this will
-    /// override it otherwise.
-    static std::string boldcolor = "\033[1m";
-    // unicode characters for the 'unit' pixel
-    // terminal-only - not used with sdl2 or ncurses
-    // for ncurses, see wc_unit
-    const char c_unit[4] = "\u2588";
-    /// Ceiling outer_unit. Half a character in height.
-    /// In monospaced fonts, this is a perfect 1x1 square.
-	const char c_outer_unit[4] = "\u2584";
-    /// Floor outer unit. Half a character in height.
-    /// In monospaced fonts, this is a perfect 1x1 square.
-	const char c_outer_unit_floor[4] = "\u2580";
 
-    //
-    // 2D Vector
-    //
-    struct Vec2 {
-        float x, y;
 
-        // Constructor
-        Vec2(float x = 0, float y = 0) : x(x), y(y) {}
 
-        // Vector addition
-        Vec2 operator+(const Vec2& other) const {
-            return Vec2(x + other.x, y + other.y);
-        }
 
-        // Vector subtraction
-        Vec2 operator-(const Vec2& other) const {
-            return Vec2(x - other.x, y - other.y);
-        }
-
-        // Scalar multiplication
-        Vec2 operator*(float scalar) const {
-            return Vec2(x * scalar, y * scalar);
-        }
-
-        // Scalar division
-        Vec2 operator/(float scalar) const {
-            return Vec2(x / scalar, y / scalar);
-        }
-
-        // Dot product
-        float dot(const Vec2& other) const {
-            return x * other.x + y * other.y;
-        }
-
-        // Length (magnitude)
-        float length() const {
-            return std::sqrt(dot(*this));
-        }
-
-        // Normalize to unit vector
-        Vec2 normalized() const {
-            float len = length();
-            return len > 0 ? *this / len : Vec2();
-        }
-    };
-
-    //
-    // 3D Vector
-    //
-    struct Vec3 {
-        float x, y, z;
-
-        Vec3(float x = 0, float y = 0, float z = 0)
-            : x(x), y(y), z(z) {}
-
-        Vec3 operator+(const Vec3& other) const {
-            return Vec3(x + other.x, y + other.y, z + other.z);
-        }
-
-        Vec3 operator-(const Vec3& other) const {
-            return Vec3(x - other.x, y - other.y, z - other.z);
-        }
-
-        Vec3 operator*(float scalar) const {
-            return Vec3(x * scalar, y * scalar, z * scalar);
-        }
-
-        Vec3 operator/(float scalar) const {
-            return Vec3(x / scalar, y / scalar, z / scalar);
-        }
-
-        // Dot product: returns scalar
-        float dot(const Vec3& other) const {
-            return x * other.x + y * other.y + z * other.z;
-        }
-
-        // Cross product: returns vector perpendicular to both
-        Vec3 cross(const Vec3& other) const {
-            return Vec3(
-                y * other.z - z * other.y,
-                z * other.x - x * other.z,
-                x * other.y - y * other.x
-            );
-        }
-
-        float length() const {
-            return std::sqrt(dot(*this));
-        }
-
-        Vec3 normalized() const {
-            float len = length();
-            return len > 0 ? *this / len : Vec3();
-        }
-    };
-
-    //
-    // 4D Vector
-    //
-    struct Vec4 {
-        float x, y, z, w;
-
-        Vec4(float x = 0, float y = 0, float z = 0, float w = 0)
-            : x(x), y(y), z(z), w(w) {}
-
-        Vec4 operator+(const Vec4& other) const {
-            return Vec4(x + other.x, y + other.y, z + other.z, w + other.w);
-        }
-
-        Vec4 operator-(const Vec4& other) const {
-            return Vec4(x - other.x, y - other.y, z - other.z, w - other.w);
-        }
-
-        Vec4 operator*(float scalar) const {
-            return Vec4(x * scalar, y * scalar, z * scalar, w * scalar);
-        }
-
-        Vec4 operator/(float scalar) const {
-            return Vec4(x / scalar, y / scalar, z / scalar, w / scalar);
-        }
-
-        float dot(const Vec4& other) const {
-            return x * other.x + y * other.y + z * other.z + w * other.w;
-        }
-
-        float length() const {
-            return std::sqrt(dot(*this));
-        }
-
-        Vec4 normalized() const {
-            float len = length();
-            return len > 0 ? *this / len : Vec4();
-        }
-    };
-
-    inline std::ostream& operator<<(std::ostream& os, const Vec2& v) {
-        return os << "Vec2(" << v.x << ", " << v.y << ")";
-    }
-
-    inline std::ostream& operator<<(std::ostream& os, const Vec3& v) {
-        return os << "Vec3(" << v.x << ", " << v.y << ", " << v.z << ")";
-    }
-
-    inline std::ostream& operator<<(std::ostream& os, const Vec4& v) {
-        return os << "Vec4(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
-    }
-
-    /// horrible type decl hack
-    struct color32_t;
-    Gmeng::color32_t color32_from_uint32(uint32_t rgb);
-
-    struct color32_t {
-        uint8_t r, g, b;  // Red, Green, Blue channels in 0–255
-
-        // Constructor
-        color32_t(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0)
-            : r(r), g(g), b(b) {};
-
-        // Convert to Vec3 (float RGB in range [0.0f, 1.0f])
-        Vec3 to_vec3() const {
-            return Vec3(
-                static_cast<float>(r) / 255.0f,
-                static_cast<float>(g) / 255.0f,
-                static_cast<float>(b) / 255.0f
-            );
-        }
-
-        /// initialize from legacy color
-        color32_t( uint32_t color_value ) {
-            if ( color_value <= 7 ) {
-                auto rgb_values = Gmeng::rgb_colors[ color_value ];
-                *this = { (uint8_t)rgb_values[0], (uint8_t)rgb_values[1], (uint8_t)rgb_values[2] };
-            } else {
-                *this = color32_from_uint32( color_value );
-            };
-        };
-
-        bool operator==( const color32_t& other ) const = default;
-        operator Vec3() const { return this->to_vec3(); };
-    };
-
-    constexpr const uint32_t GMENG_COL_0_UINT32 = 16777215;
-    constexpr const uint32_t GMENG_COL_1_UINT32 = 8627608;
-    constexpr const uint32_t GMENG_COL_2_UINT32 = 12106534;
-    constexpr const uint32_t GMENG_COL_3_UINT32 = 8828021;
-    constexpr const uint32_t GMENG_COL_4_UINT32 = 16009524;
-    constexpr const uint32_t GMENG_COL_5_UINT32 = 13862555;
-    constexpr const uint32_t GMENG_COL_6_UINT32 = 16366639;
-    constexpr const uint32_t GMENG_COL_7_UINT32 = 2631720;
-
-    /// automatically converts gmeng's default color palette
-    /// values into packed RGB uint32_t values. Non-default
-    /// colors are not swapped and returned as is.
-    inline constexpr const uint32_t& GMENG_COL32( const uint32_t& col ) {
-        switch(col) {
-            case 0:
-                return GMENG_COL_0_UINT32;
-                break;
-            case 1:
-                return GMENG_COL_1_UINT32;
-                break;
-            case 2:
-                return GMENG_COL_2_UINT32;
-                break;
-            case 3:
-                return GMENG_COL_3_UINT32;
-                break;
-            case 4:
-                return GMENG_COL_4_UINT32;
-                break;
-            case 5:
-                return GMENG_COL_5_UINT32;
-                break;
-            case 6:
-                return GMENG_COL_6_UINT32;
-                break;
-            case 7:
-                return GMENG_COL_7_UINT32;
-                break;
-            default:
-                return col;
-        };
-    };
-
-    /// converts a color32_t to a uint32_t object
-    inline uint32_t uint32_from_color32(const color32_t& color) {
-
-        return (static_cast<uint32_t>(color.r) << 16) |
-               (static_cast<uint32_t>(color.g) << 8)  |
-               (static_cast<uint32_t>(color.b));
-    }
-
-    /// converts a Vec3 or color32_t to color_t (legacy color_8)
-    inline color_t conv_rgb_col8(const Vec3& rgb) {
-        // Threshold the RGB channels to 0 or 1 based on mid value
-        int r = rgb.x > 0.5f ? 1 : 0;
-        int g = rgb.y > 0.5f ? 1 : 0;
-        int b = rgb.z > 0.5f ? 1 : 0;
-
-        // Encode RGB as 3-bit number
-        int encoded = (r << 2) | (g << 1) | b;
-
-        // Invert bits to match color_t enum (optional depending on mapping)
-        switch (encoded) {
-            case 0b000: return BLACK;   // 0
-            case 0b001: return BLUE;    // 1
-            case 0b010: return GREEN;   // 2
-            case 0b011: return CYAN;    // 3
-            case 0b100: return RED;     // 4
-            case 0b101: return PINK;    // 5 (red + blue)
-            case 0b110: return YELLOW;  // 6 (red + green)
-            case 0b111: return WHITE;   // 7
-            default:    return BLACK;   // fallback
-        }
-    }
-
-    /// unit color type. Can be legacy (0-8) colors,
-    /// or RGB.
-    struct unitcolor_t {
-
-        public:
-            // color type for units, 8-color for legacy (default)
-            // or rgb value.
-            enum unitcoltype {
-                COLOR_8, RGB
-            };
-            /// color option type, COLOR_8 default, RGB for uint32_t
-            unitcoltype type = COLOR_8;
-            /// value for COLOR_8 legacy.
-            /// '-1' if type != COLOR_8.
-            int c8_value = -1;
-            /// value for RGB.
-            /// '0, 0, 0' if type != RGB.
-            color32_t rgb_value = { 0, 0, 0 };
-
-            /// Legacy COLOR_8 color type operator.
-            int operator=( int value ) {
-                this->type = COLOR_8;
-                this->rgb_value = { 0, 0, 0 };
-                this->c8_value = value;
-
-                return this->c8_value;
-            };
-
-            color_t operator=( color_t value ) {
-                *this = (int)value;
-                return (color_t)this->c8_value;
-            };
-
-            color32_t operator=( color32_t value ) {
-                this->type = RGB;
-                this->c8_value = -1;
-                this->rgb_value = value;
-                return this->rgb_value;
-            };
-
-            operator int() const {
-                if ( this->c8_value == COLOR_8 )
-                    return this->c8_value;
-                else
-                    return conv_rgb_col8( this->rgb_value );
-            };
-
-            operator color_t() const {
-                return (color_t) ((int)this->c8_value);
-            };
-
-            operator color32_t() const {
-                return this->rgb_value;
-            };
-
-            unitcolor_t( int value ) {
-                *this = value;
-            };
-
-            unitcolor_t( color_t value ) {
-                *this = value;
-            };
-
-            unitcolor_t( color32_t value ) {
-                *this = value;
-            };
-    };
-
-    /// Unit : Gmeng Implementation for screen piece.
-    /// Works as a pixel, a fragment of a texture, model,
-    /// entity, or display map.
-	struct Unit {
-      public:
-            /// 24-bit representation of RGB derived
-            /// from `gmeng::color32_t`. values 0-7 are
-            /// reserved for Gmeng's default palette.
-			uint32_t color = 1;
-            /// whether the Unit can be collided with.
-            /// If set to true, collision is disabled
-            /// and entities can collide with this specific
-            /// unit within its larger container (Models, Entities.)
-            bool collidable = true;
-            /// @deprecated gmeng 1.1 - whether the unit is part of an entity.
-            /// kept for backwards compatibility but is unused since gmeng 4.0.
-            bool is_entity = false;
-            /// whether the Unit is transparent. If set
-            /// to true, the unit is treated as nonexistent,
-            /// and will not have collision enabled even if
-            /// its `collidable` property is set to true.
-            bool transparent = false;
-            /// whether the unit is special. Special units
-            /// will break `cubic_render` functionality and
-            /// display a full-height character in the size
-            /// of a 2x1 rectangle, but allow for displaying
-            /// custom items within 2 units. For esoteric
-            /// textures and models, this can come in handy.
-            bool special = false;
-            /// color of the special unit. If `special` is
-            /// enabled, `special_clr` will set its foreground
-            /// color (24-bit RGB derived from `gmeng::color32_t`).
-            int special_clr = 0;
-            /// character string of the special unit. If
-            /// `special` is set, this item will be displayed
-            /// in a 2x1 rectangular full-size character occupying
-            /// the next Y coordinate's same X position.
-            char special_c_unit = ' ';
-
-            ~Unit() = default;
-	};
-
-    struct BaseImageMethods {
-        virtual void resize( const std::size_t& width, const std::size_t& height ) = 0;
-        virtual void resize( float scale ) = 0;
-        virtual void recolor( uint32_t color ) = 0;
-        virtual void recolor( uint32_t color, uint32_t to ) = 0;
-
-        virtual ~BaseImageMethods() = default;
-    };
-
-    /// Blob : Render blob that contains a vector of units
-    struct Blob : public BaseImageMethods {
-      public:
-        /// Width of the render blob.
-        std::size_t width = 0;
-        /// Height of the render blob.
-        std::size_t height = 0;
-        /// Unit vector of the render blob. The vector
-        /// is treated as a 2D entity with a size of
-        /// `VECTOR( WIDTH * HEIGHT )`, every time
-        /// `vector.at(n) % WIDTH` is `0 (divisable)`,
-        /// the next `Y++` value within the `HEIGHT`
-        /// of the blob is present.
-        std::vector<Gmeng::Unit> units;
-
-        Blob(std::size_t w, std::size_t h, std::vector<Gmeng::Unit> u = {})
-            : width(w), height(h), units(std::move(u)) {};
-        Blob() = default;
-
-        /// Recolors the Blob to the specified color.
-        inline void recolor( uint32_t color ) override {
-            for ( auto& un : this->units )
-                un.color = color;
-        };
-        /// Recolors units within the Blob that are colored
-        /// `color` with the color specified with `to`.
-        inline void recolor( uint32_t color, uint32_t to ) override {
-            for ( auto& un : this->units ) {
-                if ( un.color == color ) un.color = to;
-            };
-        };
-
-        /// Resizes the Blob and the vector of Units.
-        virtual void resize( const std::size_t& new_width, const std::size_t& new_height ) override {
-            this->_resize( new_width, new_height );
-        };
-
-        /// Resizes the Blob and the vector of Units.
-        virtual void resize( float scale ) override {
-            /// actually this is not the fastest way to do this
-            /// since if we have the scale the _resize() method
-            /// becomes a bit redundant but whatever
-            this->resize( width*scale, height*scale );
-        };
-
-      protected:
-        void _resize( const std::size_t& new_width, const std::size_t& new_height ) {
-            if ( new_width == width && new_height == height ) return;
-            std::vector<Gmeng::Unit> new_img;
-            new_img.resize( new_width*new_height );
-
-            /// We calculate the scale of the resize operation.
-            /// This returns something like 0.5 * current_size,
-            /// which we can just multiply coordinates with to get
-            /// the unit that coordinate would point to in the source image.
-            float scale_x = static_cast<float>(width) / new_width;
-            float scale_y = static_cast<float>(height) / new_height;
-
-            for ( std::size_t y = 0; y < new_height; ++y ) {
-                for ( std::size_t x = 0; x < new_width; ++x ) {
-                    std::size_t src_x = (int)( x * scale_x );
-                    std::size_t src_y = (int)( y * scale_y );
-
-                    /// Clamp the values
-                    if ( src_x >=  width ) src_x = width-1;
-                    if ( src_y >= height ) src_y = height-1;
-
-                    new_img[y * new_width + x] = this->units[ src_y * width + src_x ];
-                };
-            };
-            this->units = std::move( new_img );
-            /// set the new width & height values
-            width = new_width; height = new_height;
-        };
-    };
-
-    /// Texture : Gmeng Implementation for textures.
-    /// Works as an image, as the terminal does not support
-    /// importing image files to draw, this is a custom implementation.
-    struct texture : public Blob {
-      public:
-        /// Collision property. If set to true,
-        /// the texture (weirdly having this parameter)
-        /// will not allow for phasing (multiple-item collision).
-        bool collidable = false;
-        /// Name of the texture. Used by the VisualCache
-        /// Graphics Manager to sort and quickly access
-        /// items within the texture dictionary.
-        std::string name;
-
-        using Blob::resize;
-
-        texture() = default;
-        texture( const Blob& b, bool _collidable, std::string name ) :
-            collidable( _collidable ), name( name ) {
-                this->width  = b.width;
-                this->height = b.height;
-                this->units  = (b.units);
-
-            };
-
-        void resize(const std::size_t &new_width, const std::size_t &new_height) override {
-            this->_resize( new_width, new_height );
-            width = new_width; height = new_height;
-        };
-
-        void resize( float scale ) override {
-            this->resize( width*scale, height*scale );
-        };
-
-        GMENG_INIT_TYPE( width, height, units,
-                         collidable, name );
-    };
 
     /// type decl.
     class Level;
@@ -849,125 +244,6 @@ namespace Gmeng {
     /// serialized binary-based files introduced in 10.0.0.
     extern Gmeng::texture LoadTexture(std::string __fname);
 
-    /// Modifier : a named in-game variable that can
-    /// be modified by the developer console. Used
-    /// for cases where in-game changes may be requested
-    /// by the player during runtime. Serialized into
-    /// binary with `serialize_modifier`.
-    struct modifier {
-	  public:
-        /// Name of the modifier. Accessable in
-        /// `Gmeng::ModifierList::modifiers.at( name )`.
-		std::string name = "v_unallocated_modifier";
-        /// Value of the modifier. Only integer values
-        /// are accepted, for multiple reasons, main
-        /// one being the fact that most of the time,
-        /// modifiers are either enums (glorified integers)
-        /// or integer values by nature anyways.
-        int value = -1;
-	};
-
-    /// ModifierList : Container for modifiers
-    /// concerning any structure. Used in multiple
-    /// internal classes like `Gmeng::Level` and `Gmeng::Camera`.
-	struct ModifierList {
-	  public:
-        /// List of modifiers within the list.
-		std::vector<modifier> values = {};
-
-        /// Sorts the vector for binary-search operations,
-        /// this makes access to values much faster.
-        void sort() {
-            std::sort(values.begin(), values.end(), [](const auto& a, const auto& b) {
-                return a.name < b.name;
-            });
-        };
-
-        /// Erases a modifier with the given key. If a modifier
-        /// with the given key is not found, no item is erased.
-        /// If a modifier is found, the array is sorted after
-        /// deleting the modifier.
-        ///
-        /// This method will only delete the first instance of
-        /// a modifier with a given key. It needs to be reexecuted
-        /// n times if there are n amount of instances of the modifier.
-        void erase(std::string_view key) {
-            auto it = std::lower_bound(values.begin(), values.end(), key,
-                [](const auto& val, std::string_view k) {
-                    return val.name < k;
-                });
-
-            if ( it != values.end() && it->name == key )
-                this->values.erase(it), this->sort();
-        };
-
-        bool has_value(std::string_view key) const {
-            return ( this->get_value(key) != -1 );
-        };
-
-        /// Returns the value of a modifier with the key
-        /// provided. The function will return an unknown
-        /// instance of the value, so if there are multiple
-        /// stacked within the list any one may be returned.
-        /// If no instances of a modifier with the given key
-        /// is found, `-1` is returned.
-        int get_value(std::string_view key) const {
-
-            auto it = std::lower_bound(values.begin(), values.end(), key,
-                [](const auto& val, std::string_view k) {
-                    return val.name < k;
-                });
-
-            if (it != values.end() && it->name == key) {
-                return it->value;
-            }
-
-            return -1;
-        };
-
-        /// Sets the value of a modifier with the key
-        /// provided. The function will only set the first
-        /// instance of the value, so if there are multiple
-        /// stacked within the list only the first one will
-        /// be modified. If no instances of a modifier with
-        /// the given key is found, nothing is modified.
-        ///
-        /// This function does NOT create a new entry if
-        /// a modifier with the key provided exists.
-        void set_value(std::string_view key, int value) {
-            /// Binary search to find where the key should be
-            auto it = std::lower_bound(values.begin(), values.end(), key,
-                [](const auto& val, std::string_view k) {
-                    return val.name < k;
-                });
-
-            /// If the key is found, set it.
-            if (it != values.end() && it->name == key) {
-                it->value = value;
-            };
-        };
-
-        /// Adds a modifier to the list. If there is already
-        /// a modifier with the same key, this function does
-        /// NOT modify the value. In every case, this function
-        /// will add the new modifier to the end of the list.
-        /// Even if there is already a modifier with the same key.
-        void add_value(modifier mod) {
-            this->values.push_back( mod );
-            this->sort();
-        };
-        /// Adds a modifier to the list. If there is already
-        /// a modifier with the same key, this function does
-        /// NOT modify the value. In every case, this function
-        /// will add the new modifier to the end of the list.
-        /// Even if there is already a modifier with the same key.
-        void add_value(std::string key, int value) {
-            modifier mod { key, value };
-            this->add_value( mod );
-            this->sort();
-        };
-
-	};
 
     /// @deprecated Gmeng 1.1 Renderer Options.
     struct RendererOptions {
@@ -983,36 +259,6 @@ namespace Gmeng {
 		std::string title = "";
 	};
 
-    /// DisplayMap, container for the unitmap within the
-    /// camera. Units are not raw, so they can be accessed
-    /// by external functions to be modified. Such changes
-    /// will be reflected after `get_lvl_view` and before
-    /// `emplace_lvl_camera` is called. Modifying them
-    /// directly will only reflect for a single frame.
-	template<std::size_t d_width = 0, std::size_t d_height = 0>
-	class DisplayMap {
-		public:
-		/// Height of the DisplayMap.
-        int __h = d_width;
-        /// Width of the DisplayMap.
-        int __w = d_height;
-        /// Contains the undrawn unitmap within the camera.
-        /// Units are not raw, so they can be accessed by
-        /// external functions to be modified. Such changes
-        /// will be reflected after `get_lvl_view` and before
-        /// `emplace_lvl_camera` is called. Modifying them
-        /// directly will only reflect for a single frame.
-        std::vector<Gmeng::Unit> unitmap = std::vector<Gmeng::Unit>(CONSTANTS::UNITMAP_SIZE);
-        /// Pool size of the unitmap. Differs from `CONSTANTS::UNITMAP_SIZE`.
-        /// This property calculates (at compile-time) the byte size of the
-        /// unitmap in accordance to the byte size of one `Gmeng::Unit` instance.
-        int pool_size = unitmap.size();
-        /// Data of raw framebuffer. Used & updated if the Kitty Terminal
-        /// Graphics Protocol is supported. This is used to display raw
-        /// framebuffers to the terminal program's screen, which is much
-        /// faster and more efficient than drawing ASCII colorcodes.
-        uint8_t* framebuffer = NULL;
-	};
     /// @deprecated gmeng 1.1 renderer. Kept for backwards compatibility. Unused.
     ///
     /// Gmeng 1.1 instances of this class will contain single-unit object counts,
@@ -1149,77 +395,9 @@ static void gm_nlog(std::string msg) {
     oss.str(); \
 })
 
-/// Replaces all occurences of a substring within
-/// a given string to a given substring.
-static std::string str_replace(const std::string& str, const std::string& from, const std::string& to) {
-    // __functree_call__(str_replace);
-    std::string result = str; std::size_t start_pos = 0;
-    while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
-        result.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-    }
-    return result;
-};
-
-/// foregroundcolor text identifiers.
-/// TODO: convert to `char` array.
-static std::vector<std::string> colornames = {
-    "w", "b", "g", "c", "r", "p", "y", "0", "_", "o", "1"
-    // white blue green cyan red pink yellow black
-};
-
-/// backgroundcolor text identifiers.
-static std::vector<std::string> bgcolornames = {
-    "Bw", "Bb", "Bg", "Bc", "Br", "Bp", "By", "B0", "Bw", "B1"
-    // white blue green cyan red pink yellow black
-};
-
-/// Formats a text with colorcodes. Converts `~<colorname>~` indexes
-/// into ANSI escape code sequences.
-/// Example:
-/// ```
-/// std::string f_string = "~g~green text ~n~normal text ~b~blue text ...";
-/// std::string formatted = colorformat(f_string);
-/// ```
-static std::string colorformat(std::string data) {
-    std::string formatted = data;
-    for (int i = 0; i < (sizeof(Gmeng::colors)/sizeof(*Gmeng::colors)); i++) {
-        formatted = str_replace(formatted, "~" + colornames[i] + "~", Gmeng::colors[i]);
-    };
-    for (int i = 0; i < (sizeof(Gmeng::bgcolors)/sizeof(*Gmeng::bgcolors)); i++) {
-        formatted = str_replace(formatted, "~" + bgcolornames[i] + "~", Gmeng::bgcolors[i]);
-    };
-    formatted = str_replace(formatted, "~h~", "\033[1m");
-    formatted = str_replace(formatted, "~n~", "\033[0m");
-    formatted = str_replace(formatted, "~i~", "\033[3m");
-    formatted = str_replace(formatted, "~u~", "\033[4m");
-    formatted = str_replace(formatted, "~st~", "\033[9m");
-    return formatted + "\033[0m";
-};
-
-/// Writes to the standard output with color formatting.
-/// See `colorformat()` to see ANSI escape code sequencing.
-#define SAY std::cout << colorformat
-/// Writes to the standard output with information formatting.
-/// See `colorformat()` to see ANSI escape code sequencing.
-#define INF std::cout << "\033[1m" + Gmeng::colors[Gmeng::BLUE] + "(i) >> \033[0m" + Gmeng::colors[Gmeng::WHITE] + colorformat
+#include "utils/colorformat.h"
 
 
-#include "strings/replace_all.cc"
-
-/// Parses string variables (VERSION and BUILD).
-/// str vars are accessed with the `$!__VARIABLE_NAME` syntax.
-static std::string parse_str_vars(const std::string& a) {
-    std::string res = a;
-    replace_all(res, "$!__VERSION", Gmeng::version);
-    replace_all(res, "$!__BUILD", GMENG_BUILD_NO);
-    return res;
-};
-
-/// Writes a parsed string to the standard output.
-/// Parsed strings include string variables. See `colorformat()` for
-/// ANSI escape sequencing and highlighting functionality.
-#define WRITE_PARSED(x) std::cout << colorformat(parse_str_vars(x))
 
 #include <iomanip>
 
@@ -1287,43 +465,6 @@ namespace Gmeng {
     };
 };
 
-static string boolstr(bool x) {
-    if (x == true) return "true";
-    else return "false";
-};
-
-static void init_logc(int ms = 250) {
-    __functree_call__(init_logc);
-    #if __GMENG_DISABLE_LOG__ == true
-        return;
-    #endif
-    if (!Gmeng::global.restarted_instance) {
-        /// initialize the log
-        __gmeng_write_log__("gmeng.log", "-- cleared previous log --\n", false);
-        gm_log("Gmeng "+Gmeng::version+" (build " + GMENG_BUILD_NO + ").\n\nGmeng is built and maintained by catriverr.\n\nDocumentation available in https://gmeng.org.\nGmeng is an open source project. https://gmeng.org/git.\nPlease report bugs or unexpected behaviour at https://gmeng.org/report.\n\nGmeng: Go-To Console Game Engine.\n\nSPAWN(1) = v_success / at " + get_curtime() + "/" + get_curdate() + "\ncontroller_t of termui/_udisplay_of(GMENG, window) handed over to: controller_t(gmeng::threads::get(0))\n");
-        gm_log("startup information:\n\n----------------------------------\nExecutable Name: " + Gmeng::global.executable + "\nCurrent Working Directory: " + Gmeng::global.pwd + "\nCurrent User: " + Gmeng::global.user + "\n----------------------------------\n" +
-                ("Global Variables\n\t- restarted_instance: " + std::string(Gmeng::global.restarted_instance ? "true" : "false" ) + "\n\t- devmode: " + boolstr(Gmeng::global.dev_mode) + "\n\t- debugger: " + boolstr(Gmeng::global.debugger) + "\n\t- silenced: " + boolstr(Gmeng::global.shush) + "\n\t- dont_hold_back: " + boolstr(Gmeng::global.dont_hold_back) + "\n----------------------------------\n"));
-    } else {
-        /// print restart message
-        gm_log("-- RESTARTED --\n");
-    };
-
-    if (!Gmeng::global.shush) /*Gmeng::create_thread([&]() {
-            __functree_call__(_glog_thread_create);
-            for ( ;; ) {
-            if (!Gmeng::global.dev_console) continue;
-            if (Gmeng::logstream.str().length() > Gmeng::logc.v_drawpoints.size()) {
-               Gmeng::completelog << Gmeng::logstream.str();
-               Gmeng::logstream.str(""); /// flush sstream
-               _uflush_display(Gmeng::logc, 5);
-               gm_log("t_display *job_flush -> flushed display at gm:thread" + _uget_thread() + " (detached from gm:thread0 / generated from gm:thread0) ; display memory address: " + _uconv_1ihx(_uget_addr(&Gmeng::logc)));
-            };
-            _udraw_display(Gmeng::logc);
-            std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        }
-        /// close log file
-    })*/;
-};
 
 #include "types/termui.h"
 
@@ -1387,164 +528,8 @@ static wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
     return concatenated;
 }
 
-static void repeat(int count, std::function<void()> func) {
-    for (int i = 0; i < count; i++) func();
-};
-
-static void repeat(int count, std::function<void(int count)> func) {
-    for (int i = 0; i < count; i++) func(i);
-};
-
-static wchar_t* repeat_wstring(wchar_t* wc, int times) {
-    if (times <= 0) {
-        return L"";
-    };
-    wchar_t* str = new wchar_t[times + 1];
-    for (int i = 0; i < times; ++i) {
-        str[i] = *wc;
-    }
-    str[times] = L'\0'; // Null-terminate the string
-
-    return str;
-};
-
-/// Repeats a wide string `times` amount of times
-static wchar_t* repeat_wstring(const wchar_t* wc, int times) {
-    if (times <= 0) {
-        return L"";
-    };
-    wchar_t* str = new wchar_t[times + 1];
-    for (int i = 0; i < times; ++i) {
-        str[i] = *wc;
-    }
-    str[times] = L'\0'; // Null-terminate the string
-
-    return str;
-};
-
-/// converts a wide string to a normal string.
-static std::string ws2s(const std::wstring& wstr) {
-    using convert_typeX = std::codecvt_utf8<wchar_t>;
-    std::wstring_convert<convert_typeX, wchar_t> converterX;
-    return converterX.to_bytes(wstr);
-};
 
 
-static std::map<std::string, std::function<void()>> gmeng_warnings =
-{
-    { "bad_terminal", []() {
-        /// TMUX slows down input handling
-        /// and writing to stdout extremely.
-        /// show warning against this.
-        /// Do not modify this warning.
-        std::cout << Gmeng::colors[Gmeng::YELLOW] << "WARNING!" << Gmeng::resetcolor;
-        std::cout << " " << "Gmeng (the engine this game runs on) has identified your terminal program/shell to be incompatible.\n"
-                  <<        "While this will not cause crashes, it will almost certainly cause display issues and bad input processing.\n\n";
-        std::cout << "\nTMUX is" << Gmeng::boldcolor << " ABSOLUTELY NOT RECOMMENDED " << Gmeng::resetcolor;
-        std::cout << "as it slows down input receiver signals, introduces massive input lag,\n";
-        std::cout << "is unable to handle multiple keypresses at once";
-        std::cout << " and slows down output writing by up to 5 times.\n\n";
-        std::cout << "If your terminal depends on tmux for color output,";
-        std::cout << " do not run this game with it.\n\n";
-        std::cout << "Recommended Terminal Programs:";
-        std::cout << "\n- windows: Windows Terminal\n";
-        std::cout << "- macOS: Kitty\n";
-        std::cout << "- linux / Windows Subsystem for linux: the default tty will suffice.\n";
-        std::cout << "\nPress CTRL+C to quit.\n";
-        std::cout << "\nPress [enter] to continue anyway.";
-        cin.get();
-    } },
-    { "windows", []() {
-        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << "Gmeng (the engine this game runs on) has identified your OS as WINDOWS." << '\n';
-        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << Gmeng::boldcolor << "This error is raised by the engine itself, not the game." << Gmeng::resetcolor << '\n';
-        std::cout << Gmeng::colors[Gmeng::RED] << "ERROR! " << Gmeng::resetcolor << "Currently, Gmeng only supports unix based operating systems. If you must use windows, install WSL. https://aka.ms/WSL" << '\n';
-        std::cout << '\n';
-        std::cout << Gmeng::colors[Gmeng::BLUE] << "ONGOING EFFORTS: PORTING GMENG TO WINDOWS :: " << Gmeng::colors[Gmeng::CYAN] << Gmeng::boldcolor << "https://github.com/catriverr/gmeng-sdk https://gmeng.org\n";
-        std::cout << Gmeng::resetcolor << "Contribute to the project.\n";
-    } },
-
-    { "port", []() {
-        std::cout << Gmeng::colors[Gmeng::RED] << "FAIL!" << Gmeng::resetcolor;
-        std::cout << " "  << "Gmeng (the engine this game runs on) has identified an external error in this game instance.\n"
-                  << "\n" << Gmeng::boldcolor << "This game (or the engine) has attempted to run the NOBLE script for client-side server instance handling." << Gmeng::resetcolor
-                  << " "  << "However, the system could not bind to a port in the 7388-7488 range.\n"
-                  << "\n" << Gmeng::boldcolor << "The port range of 7388 to 7488 must have at least one open port for GMENG to create a server instance.\n" << Gmeng::resetcolor
-                  << " "  << "Please empty one of these ports to run a server.\n"
-                  << "\n" << "Press [enter] to exit.\n";
-        cin.get();
-    } },
-    { "init_from_main", []() {
-        std::cout << Gmeng::colors[Gmeng::YELLOW] + "DEVELOPER ERROR!" << Gmeng::resetcolor;
-        std::cout << " "  << "Gmeng (the engine this game runs on) has identified a developer error in this game instance.\n"
-                  << "\n" << "this error is non-fatal, so it can be ignored, but various functionality may cause issues."
-                  << "\n" << "Please reach out to the developers of this game and notify them about gmeng:warning:init_from_main.\n"
-                  << "\n" << "note to developers of this game:\n"
-                  << "\n" << "when initializing gmeng, run gmeng function 'patch_argv_global' within your c main() function."
-                  << "\n" << "If gmeng is not initialized properly, you will break various engine functionality.\n";
-
-        std::cout << "\nPress CTRL+C to exit or [enter] to continue.\n";
-        cin.get();
-    } },
-    { "no_truecolor", []() {
-        std::cout << Gmeng::colors[Gmeng::YELLOW] + "WARNING! " << Gmeng::resetcolor;
-        std::cout << "Gmeng (the engine this game runs on) has identified that you have a non-truecolor shell.\n";
-        std::cout << "\nUsual culprit is TMUX. Apple Terminal, iTerm and other ttys usually support truecolor by default, but TMUX overrides it.\n";
-        std::cout << "\nIf you wish to use tmux with truecolor (RGB support) see " << Gmeng::colors[Gmeng::BLUE] << "gmeng.org/?doc=truecolor" << Gmeng::resetcolor << ".\n";
-
-        std::cout << "\nPress CTRL+C to exit or [enter] to continue.\n";
-        cin.get();
-    } }
-};
-
-// internal warning method.
-// displays warnings related to functions of the engine.
-// do not use this method for your game. implement your own
-// warning screen mechanisms.
-static void _gmeng_show_warning(std::string warning_, char* filename, int fileline, TRACEFUNC) {
-    printf("\033c"); // clear screen
-    auto term_size = get_terminal_size();
-    /// print warning tabtitle
-    std::string warn_tab_text = "gmeng_show_warning: " + warning_ + ", " + get_filename(filename) + ":" + v_str( fileline ) + " @ " + std::string( func_caller );
-    while( warn_tab_text.size() < term_size.width ) warn_tab_text += " "; // fill tab width
-    std::cout << Gmeng::bgcolors_bright[Gmeng::WHITE] + Gmeng::colors[Gmeng::BLACK] + warn_tab_text << '\n' << Gmeng::resetcolor;
-
-    if (gmeng_warnings.count(warning_) != 0) {
-        gmeng_warnings.find(warning_)->second();
-    } else {
-        /// default warning
-
-        std::cout << Gmeng::colors[Gmeng::RED];
-        std::cout << "GMENG WARNING!" << Gmeng::resetcolor;
-        std::cout << " <gmeng-default-warning-page>\n";
-        std::cout << "[gmeng is the engine that powers this game - this warning is produced by the engine itself]";
-
-        std::cout << "\n\nan internal subsystem of gmeng (" << get_filename(filename) << ':' << fileline << " & " << TRACEFUNC_STR <<  ")\n";
-        std::cout << "has invoked a warning for '" << warning_ << "',\n";
-
-        std::cout << "\npress CTRL+C to quit or [enter] to continue anyway.\n";
-
-        std::cin.get();
-    };
-};
-
-// internal warning method. displays warnings related to functions of the engine.
-// do not use this method for your game. implement your own warning screen mechanisms.
-#define gmeng_show_warning(x) _gmeng_show_warning( x, __FILE__, __LINE__ )
-
-
-static void gm_err(v_intl type, v_title err_title, TRACEFUNC) {
-    __functree_call__(gm_err);
-    _gm_log(func_caller_file, func_caller_line, func_caller, Gmeng::colors[Gmeng::RED] + "ERR! " + Gmeng::resetcolor + err_title);
-    switch (type) {
-        case 0: // v_gm_err case 0: continue running program
-            gmeng_show_warning( err_title );
-            break;
-        case 1: // v_gm_err case 1: exception (stop execution)
-            throw std::invalid_argument(Gmeng::colors[4] + "gm:0 *error >> " + err_title + v_nl + v_rcol);
-            break;
-    };
-    return;
-};
 
 static void set_terminal_size(int width, int height) {
     // The ANSI sequence to resize the window is \033[8;{height};{width}t
@@ -1573,12 +558,8 @@ static void resize_terminal(int columns, int rows, bool force = false) {
     };
 }
 
+#include "utils/warning.h"
 
-static void set_terminal_title(const std::string& title) {
-    // \033]0; starts the title sequence
-    // \007 (BEL character) ends the sequence
-    std::cout << "\033]0;" << title << "\007" << std::flush;
-};
 
 ///// __controller_satisfy__
 ///// OS Error for Windows
@@ -1641,34 +622,6 @@ static bool g_install_font(const std::string& fontFilePath) {
     }
 }
 
-/// Returns the directory in which the current
-/// executable is in. Absolute directory only,
-/// calls realpath().
-static std::string get_executable_directory() {
-    char rawPath[PATH_MAX];
-    uint32_t size = sizeof(rawPath);
-
-    if (_NSGetExecutablePath(rawPath, &size) != 0) {
-        // In the extremely rare case the path exceeds PATH_MAX, _NSGetExecutablePath
-        // updates 'size' to the required size (as defined in man 3 dyld), handling that dynamically here.
-        std::string dynamicPath(size, '\0');
-        if (_NSGetExecutablePath(&dynamicPath[0], &size) != 0) {
-            return ""; // Failed to get path
-        }
-        // Copy back to rawPath for realpath processing
-        std::strncpy(rawPath, dynamicPath.c_str(), PATH_MAX);
-    }
-
-    // Use realpath() to resolve absolute path, removing './', '../', and symlinks
-    char resolvedPath[PATH_MAX];
-    if (realpath(rawPath, resolvedPath) == nullptr) {
-        return ""; // Failed to resolve path
-    }
-
-    // extract the parent directory
-    std::filesystem::path fullPath(resolvedPath);
-    return fullPath.parent_path().string();
-}
 
 
 /// Forces the macos terminal to use the correct
@@ -1768,7 +721,7 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
 /// Sets up the required Apple Terminal Profile for games
 /// and ensures `make setup was successful`
 static bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
-    __annot__(patch_argv_global, "sets up Gmeng for MacOS & Apple Terminal");
+    __annot__(gmeng_macos_terminal_setup, "sets up Gmeng for MacOS & Apple Terminal");
     __functree_call__(gmeng_macos_terminal_setup);
 
     INF("you will be prompted to access the terminal's controls.\n");
@@ -1870,212 +823,7 @@ static bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
 
 #endif // __APPLE__
 
-
-/// Patches gmeng's 'global' variables required by the engine,
-/// used for stuff like parsing command-line arguments.
-/// Generally, this method should be run for almost
-/// every program depending on gmeng.
-///
-/// While edge cases are existent, if you do not extensively know
-/// what this method does, it is advised to run it in your
-/// `main()` function.
-static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
-    __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
-    __functree_call__(patch_argv_global);
-
-    #if _WIN32
-        print_windows_error_message();
-        return;
-    #endif
-
-        if ( std::string( func_caller ) != "main" ) {
-            gmeng_show_warning( "init_from_main" );
-        };
-
-        auto* colorterm = std::getenv("COLORTERM") ? std::getenv("COLORTERM") : "";
-
-        if ( std::string(colorterm) != "truecolor" ) {
-            gmeng_show_warning("no_truecolor");
-        };
-
-    Gmeng::global.pwd = get_cwd();
-    Gmeng::global.user = get_username();
-
-#if _WIN32 == false
-    Gmeng::global.prog_argc = argc;
-    Gmeng::global.prog_argv = argv;
-
-    Gmeng::global.executable = (std::string(argv[0]).substr(std::string(argv[0]).rfind("/") + 1)).c_str();
-    Gmeng::global.raw_executable_name = argv[0];
-
-    char *restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
-
-    std::vector<char *> v_argv;
-    for (int i = 0; i < argc; i++) {
-        v_argv.push_back(argv[i]);
-        Gmeng::global.raw_arguments += argv[i] + std::string(" ");
-    };
-
-    int has_restart_flag = std::count(v_argv.begin(), v_argv.end(), restart_flag);
-    bool restarted_instance = false;
-    if (has_restart_flag > 0) restarted_instance = true;
-
-    Gmeng::global.restarted_instance = restarted_instance;
-
-    if (!restarted_instance) Gmeng::outfile.open("gmeng.log");
-    else Gmeng::outfile.open("gmeng.log", std::ios::app);
-
-    bool IS_USING_GMENG_APPLETERMINAL_THEMED = false;
-
-    for (int i = 0; i < argc; i++) {
-        char *v_arg = argv[i];
-        std::string argument (v_arg);
-
-#if GMENG_SDL != true
-        /// For the game to launch using the correct apple terminal profile.
-        if (argument == "--profile") { IS_USING_GMENG_APPLETERMINAL_THEMED = true; };
-        if (argument == "--no-window-control") { Gmeng::global.window_control = false; };
-        if (argument == "--debug-args") {
-            IS_USING_GMENG_APPLETERMINAL_THEMED = true;
-            Gmeng::global.window_control = false;
-            Gmeng::global.no_advanced_keyboard = true;
-            Gmeng::global.bypass_splashscreen = true;
-        };
-        if (argument == "--no-splashscreen") {
-            Gmeng::global.bypass_splashscreen = true;
-        };
-#endif
-
-        if ( argument == "-help" || argument == "/help" || argument == "--help" || argument == "/?" || argument == "-?" ) {
-            __functree_call__(__gmeng__help__menu__);
-            struct winsize size;
-            ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-            int times = size.ws_col-11;
-
-            gm_log("command-line argument requested help menu");
-            SAY("~Br~\x0F~h~\x0F~y~GMENG " + (Gmeng::version) + "~n~ | " + Gmeng::colors[6] + "Terminal-Based 2D Game Engine~n~ | Help Menu\n");
-            SAY("~_~~st~" + repeatString("-", times+11) + "~n~\n");
-            SAY("~h~~r~Gmeng~n~ is a standalone terminal-based game engine, utilizing ~y~pthread~n~ and the ~b~C++ Standard library~n~.\n");
-            SAY("~_~Currently, Gmeng is only available to MacOS and Linux users while on its active development phase.\n");
-            SAY("~_~You may contribute to porting ~r~Gmeng~_~ to windows: ~b~https://github.com/catriverr/gmeng-sdk\n");
-            SAY("~b~~i~PARAMETERS ~st~" + repeatString("-", times) + "~n~\n");
-            SAY("\t    ~y~gmeng ~p~-devc \t\t~_~enables developer console\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-no-devc\t\t~_~disables developer console\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-devmode\t\t~_~enables developer diagnostics\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~--profile\t\t~_~asumes terminal is correct\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-log-to-cout\t\t~_~streams logs to stout\t\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-no-functree\t\t~_~disables the gmeng functree\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-debugger -debug\t~_~enables extensive debug logs\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-shut-the-fuck-up\t~_~silences all logging\t\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-functree-extensive\t~_~makes functree logs extensive\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("\t    ~y~gmeng ~p~-tell-me-everything\t~_~enables all logging methods\t~r~(DEFAULT=~p~false~r~)\n");
-            SAY("~b~" + repeatString(" ", 11) + "~st~" + repeatString("-", times) + "~n~\n");
-            exit(0);
-        };
-        if ( argument == "-devc" ) Gmeng::global.dev_console = true;
-        if ( argument == "-no-devc" || argument == "-shut-the-fuck-up" ) Gmeng::global.dev_console = false;
-        if ( argument == "-shut-the-fuck-up" ) Gmeng::global.shush = true;
-        if ( argument == "-debugger" || argument == "-debug" || argument == "--debugger" ) Gmeng::global.debugger = true;
-        if ( argument == "-log-to-cout" || argument == "-lc" ) Gmeng::global.log_stout = true;
-        if ( argument == "-devmode" ) Gmeng::global.dev_mode = true;
-        if ( argument == "-tell-me-everything" ) Gmeng::global.shush = false, Gmeng::global.dev_mode = true, Gmeng::global.dev_console = true, Gmeng::global.dont_hold_back = true, Gmeng::global.debugger = true;
-        if ( argument == "-no-functree" ) { Gmeng::functree_enabled = false; SAY("~b~\x0F~y~WARN! ~_~it is not recommended to disable the Gmeng Functree.\n"); };
-        if ( argument == "-functree-extensive" ) { Gmeng::functree_extensive = true; };
-        if ( argument == "-weird" ) Gmeng::global.weird_ass = true;
-        if ( argument == "-ignore-assert" ) Gmeng::global.ignore_assert = true;
-    };
-
-#ifdef __APPLE__
-    /*if ( std::string( getenv("TERM") ) != "xterm-kitty" ) {
-        /// Launch Gmeng MacOS setup (setup will exit immediately if the game directory was already set-up)
-        bool setup = gmeng_macos_terminal_setup(argc, argv);
-        if (!setup) {
-            INF("[apple_setup] error (0) nontrue return value from gmeng_macos_terminal_setup. cannot proceed.\n");
-            exit(1);
-        }
-
-        /// Force MacOS to use Apple Terminal
-
-        std::string exc_path = get_executable_directory();
-        int force_profile = enforce_macos_terminal_profile(exc_path + "/assets/gmeng.terminal", IS_USING_GMENG_APPLETERMINAL_THEMED);
-        /// return value (3) means the game has launched with the required gmeng profile.
-        if (force_profile == 3) exit(0);
-        /// return value (0) means the game is already using the required gmeng profile.
-        /// otherwise, error.
-        if (force_profile != 0) {
-            INF("[apple_setup] error (" + v_str(force_profile) +") nonzero return value from enforce_macos_terminal_profile. cannot proceed.\n");
-            exit(1);
-        };
-    }*/
-#if GMENG_SDL != true
-    /// Since 13.4.0: force kitty terminal.
-    if (!IS_USING_GMENG_APPLETERMINAL_THEMED) {
-        std::string exc_path = get_executable_directory();
-        std::system(("kitty --config \"" + exc_path + "/assets/gmeng_kitty.conf\" " + argv[0] + " --profile").c_str());
-        exit(0);
-    };
-#endif
-
-#endif
-    set_terminal_title("GMENG " + Gmeng::version + " | build " + GMENG_BUILD_NO);
-    init_logc();
-    gm_log("hello");
-#endif
-};
-
-
-
-
-/// Restarts the current executable/program.
-/// Requires `patch_argv_global()` to have been called.
-/// This method runs `execvp` from the `unistd.h` library
-/// to replace the current program image in the memory
-/// with a new instance of the current program, in `argv[0]`.
-static int restart_program() {
-    __annot__(restart_program, "Restarts the current executable.");
-    __functree_call__(restart_program);
-
-    std::string arg0 = Gmeng::global.raw_executable_name;
-
-    if (arg0.empty()) {
-        gm_log("cannot restart program: `Gmeng::global.raw_executable_name` is empty. `patch_argv_global()` must be called with the correct arguments before this function can be used");
-        return 1;
-    };
-
-    // add `restarted-instance` flag to argv if it does not exist
-    std::string restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
-    bool flag_exists = false;
-
-    for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
-        if (std::strcmp(Gmeng::global.prog_argv[i], restart_flag.c_str()) == 0) {
-            flag_exists = true;
-            break;
-        }
-    };
-
-
-    std::vector<std::string> new_argv;
-
-    if (!flag_exists) new_argv.push_back(restart_flag);
-
-    for (int i = 0; i < Gmeng::global.prog_argc; ++i) {
-        new_argv.push_back(Gmeng::global.prog_argv[i]);
-    };
-
-    std::vector<char*> prog_argv;
-    for ( auto v : new_argv )
-        prog_argv.push_back( const_cast<char*>( v.c_str() ) );
-
-
-    gm_log("restarting program...");
-
-    if (execvp(arg0.c_str(), prog_argv.data()) == -1) {
-        gm_log("cannot restart program: `execvp()` returned non-zero value (-1): " + std::to_string(errno));
-        return 2;
-    };
-
-    return 0;
-};
+#include "utils/startup.h"
 
 #define __GMENG_INIT__ true /// initialized first because the source files check this value before initialization
 
@@ -2085,6 +833,7 @@ static int restart_program() {
 #include "src/textures.cpp"
 #include "utils/text.h"
 #include "src/gmeng.cpp"
+
 #if _WIN32 == false
 #include "utils/network.cpp"
 #ifndef GMENG_NO_CURSES
@@ -2104,9 +853,5 @@ static int restart_program() {
 namespace g = Gmeng;
 namespace gm = Gmeng;
 namespace gmeng = Gmeng;
-
-static g::LinearRenderBufferPositionController lrbpc;
-static gm::HorizontalRenderBufferPositionController hrbpc;
-static gmeng::t_charpos a;
 
 #endif

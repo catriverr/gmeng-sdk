@@ -1,5 +1,5 @@
 # Compiler and flags
-CXX := g++
+CXX := g++ -DImDrawIdx="unsigned int" -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Iinclude/sol/include -Linclude/sol/include -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=gnu++23 -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(ADD_FLAGS)
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
@@ -124,16 +124,19 @@ ifeq ($(filter no-ncurses,$(MAKECMDGOALS)), no-ncurses)
 endif
 
 IMGUI_SRC :=
+
+CXXFLAGS += -Iinclude/imgui -Iinclude/imgui/backends
+IMGUI_SRC += include/imgui/imgui.cpp \
+include/imgui/imgui_draw.cpp \
+include/imgui/imgui_tables.cpp \
+include/imgui/imgui_widgets.cpp \
+
+
 ifeq ($(filter use-external,$(MAKECMDGOALS)), use-external)
 	CXXFLAGS += `pkg-config --libs --cflags sdl2 sdl2_ttf`
     CXXFLAGS += -DGMENG_SDL
-	CXXFLAGS += -Iinclude/imgui -Iinclude/imgui/backends
-	IMGUI_SRC += include/imgui/imgui.cpp \
-    include/imgui/imgui_draw.cpp \
-    include/imgui/imgui_tables.cpp \
-    include/imgui/imgui_widgets.cpp \
-    include/imgui/backends/imgui_impl_sdl2.cpp \
-    include/imgui/backends/imgui_impl_sdlrenderer2.cpp
+    IMGUI_SRC += include/imgui/backends/imgui_impl_sdl2.cpp \
+    			 include/imgui/backends/imgui_impl_sdlrenderer2.cpp
 endif
 
 
@@ -316,6 +319,8 @@ setup:
 		brew link --force lua@5.4;\
 		echo "[gmeng-setup] installing libsdl2, sdl2_ttf, sdl2_image...";\
 		brew install sdl2 sdl2_ttf sdl2_image;\
+		brew install kitty;\
+		brew install libomp;\
 		echo;\
 		echo "[gmeng-setup] Apple/ApplicationServices (default installed with macOS).";\
 		echo;\

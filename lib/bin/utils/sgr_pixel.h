@@ -85,16 +85,17 @@ static void sgr_pixel_enable_rawmode(bool state = true) {
 /// Enables SGR-Pixel mosue reporting
 /// (chcp \033[?1016h escape code.)
 static void sgr_pixel_enablemouse() {
+    // ?1004h : Focus tracking (Leaves window, enters window)
     // ?1003h : Any-Event Mouse Tracking (Clicks, Releases, Movement)
     // ?1016h : SGR-Pixel Mode (Outputs raw pixels instead of rows/cols)
-    std::cout << "\033[?1003h\033[?1016h" << std::flush;
+    std::cout << "\033[?1004h\033[?1003h\033[?1016h" << std::flush;
 }
 
 /// Disables SGR-Pixel mosue reporting
-/// (chcp \033[?1016l escape code.)
+/// (chcp \033[?1003l \033[?1016l escape code.)
 static void sgr_pixel_disablemouse() {
-    // Turn both modes off
-    char msg[] = "\033[?1003l\033[?1016l";
+    // Turn all modes off
+    char msg[] = "\033[?1004l\033[?1003l\033[?1016l";
     write(STDOUT_FILENO, msg, sizeof(msg)-1);
     fflush(stdout);
 }

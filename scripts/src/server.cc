@@ -26,6 +26,10 @@ extern "C" int gmeng_script_command(EventLoop* ev) {
 				s->active = false;
                 return;
             }
+            
+            if (message.content.starts_with("!")) {
+            	gmeng_run_dev_command(ev, message.content.substr(1));
+            };
         };
 
         /// Execution blocks here
@@ -41,5 +45,7 @@ extern "C" int gmeng_script_command(EventLoop* ev) {
 
     return 0;
 };
+
+
 
 

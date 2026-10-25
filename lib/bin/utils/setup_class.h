@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -99,3 +100,8 @@ public: \
     /* Default member initializer: Evaluates when the object is created */ \
     bool _gmeng_initializer = _gmeng_init_impl(#__VA_ARGS__, __VA_ARGS__);
 
+/// Gmeng : Defines a function pointer with the body of another function. It
+/// both point at the same function, but the newly created one can be assigned
+/// a different pointer to change what the function does, so basically code
+/// reloading without having to recompile the entire executable.
+#define GMENG_FUNCTION(new_name, target) __typeof__(target) *new_name = (target)

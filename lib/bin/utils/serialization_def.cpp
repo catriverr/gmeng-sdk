@@ -1,8 +1,12 @@
 #pragma once
-#include "../gmeng.h"
 #include <cstdlib>
 #include <cstring>
+#include <istream>
+#include <ostream>
 
+#include "../types/unit.h"
+#include "../types/texture.h"
+#include "../types/modifier.h"
 
 /// Serializes a Unit object, and writes it to a stream.
 void serialize_unit(const Gmeng::Unit& unit, std::ostream& stream) {
@@ -112,7 +116,7 @@ void deserialize_modifier_list(Gmeng::ModifierList& list, std::istream& in) {
         deserialize_modifier(mod, in);
         /// if the value isn't -1, there is a value at that modifier key.
         if ( list.get_value( mod.name ) != -1 ) list.set_value( mod.name, mod.value );
-        else list.add_value( mod );
+        else list._add_value( mod );
     }
 };
 

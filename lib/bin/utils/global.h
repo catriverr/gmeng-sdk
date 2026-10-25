@@ -116,13 +116,14 @@ namespace Gmeng {
         int prog_argc;
         char** prog_argv;
 
-        bool window_control;
+        bool window_control = false;
 
         bool terminal_has_sgr_pixel_support;
         bool terminal_has_kgp_pixel_support;
         bool terminal_has_keyboard_support;
         bool no_advanced_keyboard;
         bool bypass_splashscreen;
+        bool app_focused = true;
 
         GMENG_INIT_TYPE( indexes, containers, dev_console, debugger,
                          log_stout, dev_mode, dont_hold_back, shush,
@@ -134,7 +135,8 @@ namespace Gmeng {
                          terminal_has_kgp_pixel_support,
                          terminal_has_keyboard_support,
                          no_advanced_keyboard,
-                         bypass_splashscreen
+                         bypass_splashscreen,
+                         app_focused
                        );
 
     };
@@ -148,12 +150,13 @@ namespace Gmeng {
         .terminal_has_kgp_pixel_support = false,
         .terminal_has_keyboard_support  = false,
         .no_advanced_keyboard = false,
-        .bypass_splashscreen = false
+        .bypass_splashscreen = false,
+        .app_focused = false,
     };
 };
 
 /// Joins a string vector with a given delimeter.
-static std::string g_joinStr(std::vector<std::string> v, std::string delimiter) {
+static std::string g_joinStr(const std::vector<std::string>& v, const std::string& delimiter) {
 	std::string result;
     /// don't add the delimeter if there is only one item.
     if ( v.size() == 1 ) return v.at(0);
@@ -162,5 +165,36 @@ static std::string g_joinStr(std::vector<std::string> v, std::string delimiter) 
 	return result;
 };
 
+
+#include <mach-o/dyld.h>
+
+/// Returns the directory in which the current
+/// executable is in. Absolute directory only,
+/// calls realpath().
+static std::string get_executable_directory() {
+    char rawPath[PATH_MAX];
+    uint32_t size = sizeof(rawPath);
+
+    if (_NSGetExecutablePath(rawPath, &size) != 0) {
+        // In the extremely rare case the path exceeds PATH_MAX, _NSGetExecutablePath
+        // updates 'size' to the required size (as defined in man 3 dyld), handling that dynamically here.
+        std::string dynamicPath(size, '\0');
+        if (_NSGetExecutablePath(&dynamicPath[0], &size) != 0) {
+            return ""; // Failed to get path
+        }
+        // Copy back to rawPath for realpath processing
+        std::strncpy(rawPath, dynamicPath.c_str(), PATH_MAX);
+    }
+
+    // Use realpath() to resolve absolute path, removing './', '../', and symlinks
+    char resolvedPath[PATH_MAX];
+    if (realpath(rawPath, resolvedPath) == nullptr) {
+        return ""; // Failed to resolve path
+    }
+
+    // extract the parent directory
+    std::filesystem::path fullPath(resolvedPath);
+    return fullPath.parent_path().string();
+}
 
 #define GMENG_GLOBAL

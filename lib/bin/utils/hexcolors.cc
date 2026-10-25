@@ -16,7 +16,6 @@ constexpr uint32_t gmeng_hex_color( std::string hex_str ) {
 /// Example: HxCLR(#ffffff) -> 0xFFFFFF
 #define HxCLR(hexcolor) gmeng_hex_color(#hexcolor)
 
-#if GMENG_SDL == true
 #include "../../../include/imgui/imgui.h"
 
 constexpr ImU32 HexToImU32(std::string hexStr) {
@@ -57,11 +56,12 @@ constexpr ImU32 HexToImU32(std::string hexStr) {
 #define hex_vec4(hexcolor) ImGui::ColorConvertU32ToFloat4( hex_imu32(hexcolor) )
 
 void imgui_style_global() {
+    return;
     // Get the global style object
     ImGuiStyle& style = ImGui::GetStyle();
 
     // Modify specific colors (RGBA values between 0.0f and 1.0f)
-    style.Colors[ImGuiCol_WindowBg]      = hex_vec4(#2e222f);
+    //style.Colors[ImGuiCol_WindowBg]      = hex_vec4(#2e222f);
     style.Colors[ImGuiCol_Button]        = hex_vec4(#484a77);
     style.Colors[ImGuiCol_ButtonHovered] = hex_vec4(#4d65b4);
     style.Colors[ImGuiCol_ButtonActive]  = hex_vec4(#4d9be6);
@@ -69,18 +69,8 @@ void imgui_style_global() {
     style.Colors[ImGuiCol_FrameBg]       = hex_vec4(#525150aa);
     style.Colors[ImGuiCol_FrameBgActive] = hex_vec4(#7f708a);
 
-    style.Colors[ImGuiCol_TitleBg]          = hex_vec4(#3e3546);
-    style.Colors[ImGuiCol_TitleBgActive]    = hex_vec4(#905ea9);
-    style.Colors[ImGuiCol_TitleBgCollapsed] = hex_vec4(#3e3546aa);
-
-    style.Colors[ImGuiCol_ScrollbarBg]            = hex_vec4(#2e222f);
     style.Colors[ImGuiCol_ScrollbarGrab]          = hex_vec4(#625565);
     style.Colors[ImGuiCol_ScrollbarGrabHovered]   = hex_vec4(#7f708a);
     style.Colors[ImGuiCol_ScrollbarGrabActive]    = hex_vec4(#9babb2);
 
-    style.Colors[ImGuiCol_FrameBg]        = hex_vec4(#3e3546);
-    style.Colors[ImGuiCol_FrameBgHovered] = hex_vec4(#625565);
-    style.Colors[ImGuiCol_FrameBgActive]  = hex_vec4(#7f708a);
 };
-
-#endif

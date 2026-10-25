@@ -6,7 +6,10 @@
 #include "lib/bin/easy.h"
 
 #include "../lib/bin/utils/serialization.cpp"
+#include "lib/bin/src/objects.cpp"
 #include "lib/bin/src/renderer.cpp"
+#include "lib/bin/utils/global.h"
+#include "lib/bin/utils/kitty.h"
 
 using namespace Gmeng;
 using namespace Gmeng::Util;
@@ -52,7 +55,8 @@ Gmeng::color32_t rainbow_next(Gmeng::color32_t clr, int& transitionPhase, int& c
 }
 
 int main(int argc, char** argv) {
-    _uread_into_vgm("envs/models");
+
+    _uread_into_vgm(get_executable_directory() + "/envs/models");
     patch_argv_global(argc, argv); /// gmeng initialization
 
 
@@ -72,15 +76,14 @@ int main(int argc, char** argv) {
 
         level->display.camera.clear_screen();
 
-        level->base.resize(2.0f);
+        auto siz = kitty_get_terminal_size_in_pixels();
 
-        level->display.viewpoint = { { 0, 0 }, { 960*2, 540*2 } };
+        level->base.resize(std::get<0>(siz), std::get<1>(siz)-20);
 
+        level->display.viewpoint = { { 0, 0 }, { std::get<0>(siz), std::get<1>(siz)-20 } };
 
         ev.call_event(FIXED_UPDATE, *info);
         level->display.set_cursor_visibility(false);
-
-        //write_level_data("envs/proto_level.glvl", *level);
     });
 
     bool light_go_boom = false;
@@ -95,8 +98,19 @@ int main(int argc, char** argv) {
     Gmeng::Renderer::drawpoint mouse_last_pos = { -1, -1 };
     uint32_t lcolor = 0;
 
+    Gmeng::Renderer::viewpoint pos = { { 0,0 }, { 500,500 } };
+
     bool text_shown = false;
+    static char level_name[256] = "";
+    size_t length = ev.level->name.copy(level_name, sizeof(level_name) - 1);
+    level_name[length] = '\0';
+
+    int BLUR = 30;
+
+    texture obj = vgm_texture("allah");
+
     ev.add_hook( { UPDATE }, [&](Level* level, EventInfo* info) {
+        level->name = level_name;
 
         if ( text_shown ) level->display.camera.add_text({ 0, 10 },
             "color: " + v_str(lcolor) +
@@ -115,7 +129,11 @@ int main(int argc, char** argv) {
         };
 
         // draw frame
-        level->display.refresh(level);
+        level->display.refresh(level, [&pos, &BLUR](Level* lvl) {
+            if ( BLUR > 0 ) lvl->display.box(lvl->display.viewpoint, [&BLUR](Gmeng::Renderer::Display::DisplayController* ctrl) {
+                ctrl->blur(BLUR--);
+            });
+        });
     });
 
     ev.add_hook({ FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
@@ -131,18 +149,22 @@ int main(int argc, char** argv) {
                                     == entity_y_center_pos;
 
             if ( getkey( gk_W ) ) {
+                pos.move_by(0, -1);
                 entity->position.y--;
                 if ( entity_in_y_center ) level->display.move_viewpoint_by( 0, -1 );
             }
             if ( getkey( gk_S ) ) {
+                pos.move_by(0, 1);
                 entity->position.y++;
                 if ( entity_in_y_center ) level->display.move_viewpoint_by( 0, 1 );
             }
             if ( getkey( gk_A ) ) {
+                pos.move_by(-1, 0);
                 entity->position.x--;
                 if ( entity_in_x_center ) level->display.move_viewpoint_by( -1, 0 );
             }
             if ( getkey( gk_D ) ) {
+                pos.move_by(1, 0);
                 entity->position.x++;
                 if ( entity_in_x_center ) level->display.move_viewpoint_by( 1, 0 );
             };

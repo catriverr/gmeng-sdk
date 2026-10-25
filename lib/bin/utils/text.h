@@ -2,9 +2,14 @@
 /// font characters are at minimum 1x5 and maximum
 /// 5x6 width/height. See assets/term-font/<CHAR>.gt
 #pragma once
-#include "../gmeng.h"
+
 #include "../strings/contains.cc"
+#include "../types/texture.h"
+#include "../src/objects.cpp"
+#include "../src/textures.cpp"
+
 #include "log.h"
+
 #include <array>
 #include <filesystem>
 #include <cctype>
@@ -115,12 +120,12 @@ static Gmeng::Blob& gmeng_terminal_font_get_char(char chr) {
 
 static int gmeng_terminal_font_init( char* path = "assets/term-font" ) {
     __functree_call__( gmeng_terminal_font_init );
-    if ( !filesystem::exists(path ) ||
-         !filesystem::is_directory( path ) ) return 1;
+    if ( !std::filesystem::exists(path ) ||
+         !std::filesystem::is_directory( path ) ) return 1;
 
     gm_log("initializing...");
 
-    for ( const auto& entry : filesystem::directory_iterator( path ) ) {
+    for ( const auto& entry : std::filesystem::directory_iterator( path ) ) {
         if ( !entry.is_regular_file() ) continue; /// must be a file
         if ( !contains( entry.path().string(), ".gt" ) ) continue; /// must be *.gt
         if ( entry.path().filename().string().length() != 4 &&
@@ -139,7 +144,7 @@ static int gmeng_terminal_font_init( char* path = "assets/term-font" ) {
 
 /// Calculates the width and height of a given string. Accepts newline
 /// characters as well. Punctuation is auto-handled. All text is treated uppercase.
-static const Objects::coord gmeng_terminal_font_calculate_text_size(std::string_view text) {
+static const Objects::coord gmeng_terminal_font_calculate_text_size(std::string_view text, float scale = 1.0f) {
     Objects::coord size = { 0, 0 };
 
     int cur_line_width = 0;
@@ -158,6 +163,9 @@ static const Objects::coord gmeng_terminal_font_calculate_text_size(std::string_
     };
 
     if ( cur_line_width > size.x ) size.x = cur_line_width;
+
+    size.x *= scale;
+    size.y *= scale;
 
     return size;
 };

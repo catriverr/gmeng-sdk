@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../gmeng.h"
+#include <cstring>
 
 
 /// General Utilities for Gmeng
@@ -92,3 +93,4 @@ namespace Gmeng::Util {
         vp.start.y += times; vp.end.y += times;
     };
 };
+

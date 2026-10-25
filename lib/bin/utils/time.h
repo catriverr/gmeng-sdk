@@ -28,5 +28,22 @@ namespace Gmeng {
     };
 }
 
+#ifndef GMENG_NO_SOL
+
+#include "../utils/scripts.h"
+static int __gmeng_define_lua_profiler_method = ([]() -> int {
+    using namespace Gmeng;
+    using namespace Scripts;
+
+    gmeng_lua_namespace.new_usertype<FrameProfiler>("FrameProfiler",
+        "duration", &FrameProfiler::duration,
+        "start_profile", &FrameProfiler::start_profile,
+        "end_profile", &FrameProfiler::end_profile
+    );
+    return 0;
+})();
+#endif
+
+
 #undef ZERO_MS
 #undef ZERO_TP

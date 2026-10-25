@@ -6,8 +6,8 @@
 
 using namespace Gmeng;
 
-
 extern "C" int gmeng_script_command(EventLoop* ev) {
     ev->level->entities.at(0)->position.x = 0;
     return 0;
 };
+

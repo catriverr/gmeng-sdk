@@ -5,12 +5,19 @@
 #include <vector>
 #include <fstream>
 
-#include "../gmeng.h"
 
 #define stob(str) (str == std::string("1") || str.substr(1) == std::string("1") || str == std::string("true") || str.substr(1) == std::string("true"))
 #define cpps(str) ( std::string(str) )
 
+#include "../types/texture.h"
+#include "../utils/tracefunc.h"
 
+#include "../src/version.h"
+#include "../utils/global.h"
+#include "../utils/log.h"
+#include "../utils/functree.h"
+
+#include "../types/color32.h"
 
 namespace Gmeng {
 
@@ -68,7 +75,7 @@ namespace Gmeng {
             // textures as linked to a megatexture but scaled down.
             // (may be implemented in the future)
             if ( i != 0 && i == (texture.width*texture.height)+1 ) break;
-            if (startsWith(ln, ";")) continue; // comment
+            if (ln.starts_with(";")) continue; // comment
             if (ln.length() < 5) continue;
             // ln1: name=str,width=number,height=number
             // rest: Gmeng::Unit
