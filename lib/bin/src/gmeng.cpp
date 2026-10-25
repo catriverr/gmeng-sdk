@@ -22,7 +22,6 @@
 #include "../gmeng.h"
 #include "../utils/gridmap.cc"
 #include "imgui.h"
-#include "sol/types.hpp"
 
 #ifdef GMENG_SDL
 #include "SDL_keycode.h"
@@ -263,8 +262,7 @@ namespace Gmeng {
                 .handler = [](Level* level, EventInfo* info) {
                     for ( auto& entity : level->entities )
                         if ( entity != nullptr && entity->active ) {
-                            entity->_animate( NULL, level->display.fixed_update_fps );
-
+#ifndef GMENG_NO_SOL
                             for ( auto& routine : entity->routines ) {
                                 routine.progress += 1.0f / level->display.fixed_update_fps;
                                 if ( routine.progress >= routine.period ) {
@@ -277,6 +275,8 @@ namespace Gmeng {
                                     } else if (routine.executable) Scripts::lua[routine.entry_point]( entity );
                                 };
                             };
+#endif
+                            entity->_animate( NULL, level->display.fixed_update_fps );
                         }
                 }
             }
