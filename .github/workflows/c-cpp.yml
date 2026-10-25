@@ -18,6 +18,8 @@ jobs:
         export PKG_CONFIG_PATH="$(brew --prefix ncurses)/lib/pkgconfig"
         brew install pkg-config
         brew install ncurses
+        brew install libomp
+        brew link libomp
         git submodule update --init --recursive
     - name: make engine
       run: make no-ncurses all NOSOL=true

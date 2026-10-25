@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
