@@ -22,14 +22,14 @@
 
 namespace Gmeng {
     namespace Scripts {
-        static sol::state lua;
-        static sol::table gmeng_lua_namespace = lua["gmeng"].get_or_create<sol::table>();
-        static sol::table renderer_lua_namespace = lua["gmeng.renderer"].get_or_create<sol::table>();
-        static int init_sol2();
+        inline sol::state lua;
+        inline sol::table gmeng_lua_namespace = lua["gmeng"].get_or_create<sol::table>();
+        inline sol::table renderer_lua_namespace = gmeng_lua_namespace["renderer"].get_or_create<sol::table>();
+        int init_sol2();
     };
 };
 
-static int Gmeng::Scripts::init_sol2() {
+inline int Gmeng::Scripts::init_sol2() {
     using namespace Gmeng;
     using namespace Gmeng::Scripts;
     lua.open_libraries(sol::lib::base);

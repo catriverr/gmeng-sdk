@@ -419,7 +419,7 @@ static int GMENG_DEV_CONSOLE_HEIGHT = 30;
 /// { "hello_world", 0 },
 /// { "*hw", 1 }, // but the value of 'hw' would point to 'hello_world' as hello world is variables[1].
 /// hence the hw's value of 1.
-static vector< std::tuple<string, int> > variables = {
+inline vector< std::tuple<string, int> > variables = {
     { "errorlevel", 0 },
     { "*?", 0 }, // ptr to variables[0] (errorlevel)
     { "*!", 0 }, // ptr to variables[0] (errorlevel)
@@ -459,7 +459,7 @@ static bool state_changed = false;
 /// It should not be used with Gmeng SDL.
 ///
 /// Kitty Terminal Graphics Protocol will be used if available.
-void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
+inline void gmeng_dev_console(Gmeng::EventLoop* ev, Gmeng::EventInfo* info) {
     if (!dev_console_open) return;
 
     /// for handling the menu
@@ -707,6 +707,7 @@ int do_event_loop(Gmeng::EventLoop* ev) {
     ev->defaults = Gmeng::DEFAULT_EVENT_HOOKS;
     ev->logstream = GAME_LOGSTREAM;
     ev->logstream_str = &GAME_LOGSTREAM_STR;
+    ev->init();
 
     /// Call to the functree
     __functree_call__(do_event_loop);

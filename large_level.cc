@@ -5,11 +5,6 @@
 
 #include "lib/bin/easy.h"
 
-#include "../lib/bin/utils/serialization.cpp"
-#include "lib/bin/src/objects.cpp"
-#include "lib/bin/src/renderer.cpp"
-#include "lib/bin/utils/global.h"
-#include "lib/bin/utils/kitty.h"
 
 using namespace Gmeng;
 using namespace Gmeng::Util;
@@ -27,7 +22,7 @@ static EventLoop ev;
 void reset() {
     _uread_into_vgm("envs/models");
 
-    if (filesystem::exists("envs/city_level.glvl")) read_level_data("envs/city_level.glvl", level);
+    if (std::filesystem::exists("envs/city_level.glvl")) read_level_data("envs/city_level.glvl", level);
     level.display.viewpoint =  Gmeng::Renderer::viewpoint { { 0, 0 }, { *DEF_DELTAX, *DEF_DELTAY } };
 
     ev.level = &(level);
@@ -138,7 +133,7 @@ int main(int argc, char** argv) {
 
     ev.add_hook({ FIXED_UPDATE }, [&](Level* level, EventInfo* info) {
         if (entity_spawned) {
-            auto entity = std::find_if(level->entities.begin(), level->entities.end(), [&](const shared_ptr<EntityBase>& obj) { return obj->entity_id == id; })->get();
+            auto entity = std::find_if(level->entities.begin(), level->entities.end(), [&](const std::shared_ptr<EntityBase>& obj) { return obj->entity_id == id; })->get();
 
             int entity_x_center_pos = entity->position.x + (entity->sprite.width/2);
             int entity_y_center_pos = entity->position.y + (entity->sprite.height/2);

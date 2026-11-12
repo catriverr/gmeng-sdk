@@ -29,8 +29,9 @@
 
 /// base object types
 #include "src/objects.cpp"
-/// class initialization
+/// Gmeng::Camera type def
 #include "types/camera.h"
+/// class initialization
 #include "utils/setup_class.h"
 /// Gmeng::global utility
 #include "utils/global.h"
@@ -86,13 +87,13 @@ template<typename T> void flip_vector(std::vector<T>& data, int width, int heigh
 
 /// Returns the address of any given object.
 template<typename T>
-static uintptr_t _uget_addr(const T& obj) {
+inline uintptr_t _uget_addr(const T& obj) {
     //__functree_call__(_uget_addr);
     return (reinterpret_cast<uintptr_t>(&obj));
 };
 
 /// Gmeng : returns whether a file with the given filename exists.
-static bool file_exists(std::string f) {
+inline bool file_exists(std::string f) {
     __functree_call__(file_exists);
     return std::filesystem::is_directory(f) || std::filesystem::exists(f);
 }
@@ -100,7 +101,7 @@ static bool file_exists(std::string f) {
 #include "utils/repeat.h"
 
 /// Gmeng : returns the hex value of an integer
-static std::string _uconv_1ihx(int value) {
+inline std::string _uconv_1ihx(int value) {
     //__functree_call__(_conv_1ihx);
     std::stringstream stream;
     stream << "0x" << std::hex << value;
@@ -115,29 +116,29 @@ static std::string _uconv_1ihx(int value) {
 #define cpps(str) ( std::string(str) )
 using namespace std;
 using MouseClickCallback = std::function<void()>;
-static bool endsWith(const std::string& str, const char* suffix, unsigned suffixLen)
+inline bool endsWith(const std::string& str, const char* suffix, unsigned suffixLen)
 {
     return str.size() >= suffixLen && 0 == str.compare(str.size()-suffixLen, suffixLen, suffix, suffixLen);
 };
 
-static bool endsWith(const std::string& str, const char* suffix)
+inline bool endsWith(const std::string& str, const char* suffix)
 {
     return endsWith(str, suffix, std::string::traits_type::length(suffix));
 };
 
-static bool startsWith(const std::string& str, const char* prefix, unsigned prefixLen)
+inline bool startsWith(const std::string& str, const char* prefix, unsigned prefixLen)
 {
     return str.size() >= prefixLen && 0 == str.compare(0, prefixLen, prefix, prefixLen);
 };
 
-static bool startsWith(const std::string& str, const char* prefix)
+inline bool startsWith(const std::string& str, const char* prefix)
 {
     return startsWith(str, prefix, std::string::traits_type::length(prefix));
 };
 
 /// @deprecated sleeps the current thread for a given delay
 /// and calls a callbackfunction after that delay (in milliseconds).
-static void g_setTimeout(std::function<void()> callback, int delay) {
+inline void g_setTimeout(std::function<void()> callback, int delay) {
     __functree_call__(g_setTimeout);
     std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     callback();
@@ -145,7 +146,7 @@ static void g_setTimeout(std::function<void()> callback, int delay) {
 
 /// Gmeng : Reads a file and returns it as a string.
 /// lines are split with `\n` or `\r\n` (depending on the line feed)
-static std::string g_readFile(const string &fileName)
+inline std::string g_readFile(const string &fileName)
 {
     __functree_call__(g_readFile);
     ifstream ifs(fileName.c_str(), ios::in | ios::binary | ios::ate);
@@ -162,7 +163,7 @@ static std::string g_readFile(const string &fileName)
 /// Gmeng : Removes a group of characters from a given string.
 /// All occurences of the characters in the given char[] array
 /// are removed from the string. Since it is a reference, nothing is returned.
-static void g_rmChar( string &str, char* charsToRemove ) {
+inline void g_rmChar( string &str, char* charsToRemove ) {
     __functree_call__(g_rmChar);
    for ( unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
       str.erase( remove(str.begin(), str.end(), charsToRemove[i]), str.end() );
@@ -224,7 +225,7 @@ namespace Gmeng {
 			};
 	};
     /// Entire logs of the game, engine, dependencies.
-    static std::stringstream completelog;
+    inline std::stringstream completelog;
 
 
 
@@ -402,7 +403,7 @@ static void gm_nlog(std::string msg) {
 #include <iomanip>
 
 /// Returns the last line of a stringstream.
-static std::string get_last_line(std::stringstream& ss) {
+inline std::string get_last_line(std::stringstream& ss) {
     std::string s = ss.str();
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
         s.pop_back();
@@ -440,17 +441,27 @@ static void gm_slog(Gmeng::color_t color, std::string title, std::string text) {
 
 namespace Gmeng {
     /// i now realise this may not be very secure
-    static std::vector<std::thread> v_threads;
-    static std::thread create_thread(const std::function<void()>& func) {
+    inline std::vector<std::thread> v_threads;
+    inline std::thread create_thread(const std::function<void()>& func) {
         __functree_call__(Gmeng::create_thread);
-        return (Gmeng::v_threads.emplace_back(func)).detach(), std::move(Gmeng::v_threads.back());
+        return (
+            Gmeng::v_threads.emplace_back(func)).detach(),
+           std::move(Gmeng::v_threads.back()
+        );
     };
-    static void clear_threads() {
+    inline void clear_threads() {
         __annot__(Gmeng::clear_threads, "clears all used internal threads to prepare the environment for exiting.");
         __functree_call__(Gmeng::clear_threads);
-        v_threads.erase(std::remove_if(v_threads.begin(), v_threads.end(), [](const std::thread& t) { return !t.joinable(); }), v_threads.end());
+        v_threads.erase(
+        std::remove_if(v_threads.begin(),
+            v_threads.end(),
+            [](const std::thread& t) {
+            return !t.joinable();
+            }),
+        v_threads.end()
+        );
     };
-    static void join_threads() {
+    inline void join_threads() {
         __annot__(Gmeng::join_threads, "joins all used internal threads by Gmeng. Ran before a program closes.");
         __functree_call__(Gmeng::join_threads);
         for (auto& thread : Gmeng::v_threads) {
@@ -459,7 +470,10 @@ namespace Gmeng {
                 if (thread.joinable()) thread.join();
                 clear_threads();
             } catch (std::exception& e) {
-                std::cerr << (Gmeng::colors[4] + "join_threads() -> *error :: could not join thread, skipping... (pretty big internal error please report / see https://gmeng.org/bug-report)");
+                std::cerr <<
+                    (Gmeng::colors[4] +
+                     "join_threads() -> *error :: could not join thread, skipping... (pretty big internal error please report / see https://gmeng.org/bug-report)"
+                    );
                 gm_log(" :::: error cause -> " + std::string(e.what())); };
         };
     };
@@ -486,7 +500,7 @@ namespace Gmeng {
 
 
 /// Call to catchup with Gmeng's threads
-static void _gthread_catchup() {
+inline void _gthread_catchup() {
     __annotation__(_gthread_catchup, "Gmeng::_uthread catchup function, attaches to all threads and clears them.");
     __functree_call__(_gthread_catchup);
     gm_log("_gthread_catchup() -> waiting for " + v_str(Gmeng::v_threads.size()) + " threads to catch-up to thread:" + (_uget_thread()));
@@ -494,14 +508,14 @@ static void _gthread_catchup() {
 };
 
 /// Generates a hash
-static constexpr uint32_t _ghash(const char* data, size_t const size) noexcept {
+inline constexpr uint32_t _ghash(const char* data, size_t const size) noexcept {
     uint32_t hash = 5381;
     for(const char *c = data; c < data + size; ++c) hash = ((hash << 5) + hash) + (unsigned char) *c;
     return hash;
 }
 
 /// Concatenates two wchar_t* strings
-static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
+inline wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
     size_t len1 = wcslen(str1); size_t len2 = wcslen(str2);
     wchar_t* concatenated = new wchar_t[len1 + len2 + 1];
     wcscpy(concatenated, str1); wcscat(concatenated, str2);
@@ -509,7 +523,7 @@ static wchar_t* concat_wstr(const wchar_t* str1, const wchar_t* str2) {
 };
 
 /// Concatenates a wchar_t* string with a std::string
-static wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
+inline wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
     // Convert std::string to wide character string
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     std::wstring wstr2 = converter.from_bytes(str2);
@@ -531,12 +545,12 @@ static wchar_t* concat_wstr(const wchar_t* str1, const std::string& str2) {
 
 
 
-static void set_terminal_size(int width, int height) {
+inline void set_terminal_size(int width, int height) {
     // The ANSI sequence to resize the window is \033[8;{height};{width}t
     std::cout << "\033[8;" << height << ";" << width << "t" << std::flush;
 }
 
-static void resize_terminal(int columns, int rows, bool force = false) {
+inline void resize_terminal(int columns, int rows, bool force = false) {
     if (!Gmeng::global.window_control) return;
     char* term_prog = getenv("TERM_PROGRAM");
     char* term = getenv("TERM");
@@ -563,7 +577,7 @@ static void resize_terminal(int columns, int rows, bool force = false) {
 
 ///// __controller_satisfy__
 ///// OS Error for Windows
-static void print_windows_error_message() {
+inline void print_windows_error_message() {
     __functree_call__(print_windows_error_message);
     gmeng_show_warning("windows");
     exit(1);
@@ -571,7 +585,7 @@ static void print_windows_error_message() {
 
 /// sends \033[2J\003[H (ansi clear screen)
 /// to the terminal clearing the stdout.
-static void ansi_clear_screen() {
+inline void ansi_clear_screen() {
     std::cout << "\033[2J\033[H"; // ANSI clear screen
     std::cout.flush();
 }
@@ -583,7 +597,7 @@ namespace fs = std::filesystem;
 
 /// (Gmeng) installs a font to the user's fonts directory
 /// if the font is not already installed.
-static bool g_install_font(const std::string& fontFilePath) {
+inline bool g_install_font(const std::string& fontFilePath) {
     // get user's home directory (~)
     const char* homeDir = std::getenv("HOME");
     if (!homeDir) {
@@ -633,7 +647,7 @@ static bool g_install_font(const std::string& fontFilePath) {
 ///    [error] 1 -> the current executable path too long
 ///    [error] 2 -> fail while copying terminal profile to /tmp
 ///    [success] 3 -> terminal profile launched
-static int enforce_macos_terminal_profile(const std::string& templateProfilePath, bool already_set_up) {
+inline int enforce_macos_terminal_profile(const std::string& templateProfilePath, bool already_set_up) {
     // If the engine already detected the flag, we are good to go.
     if (already_set_up) {
         return 0;
@@ -720,7 +734,7 @@ static int enforce_macos_terminal_profile(const std::string& templateProfilePath
 /// This installs the truetype font Hacker Nerd Font Mono,
 /// Sets up the required Apple Terminal Profile for games
 /// and ensures `make setup was successful`
-static bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
+inline bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
     __annot__(gmeng_macos_terminal_setup, "sets up Gmeng for MacOS & Apple Terminal");
     __functree_call__(gmeng_macos_terminal_setup);
 
@@ -836,22 +850,21 @@ static bool gmeng_macos_terminal_setup(int argc, char* argv[], TRACEFUNC) {
 
 #if _WIN32 == false
 #include "utils/network.cpp"
-#ifndef GMENG_NO_CURSES
-    #include "types/interface.h"
-    #include "utils/interface.cpp"
-#endif
+///#ifndef GMENG_NO_CURSES
+///    #include "types/interface.h"
+///    #include "utils/interface.cpp"
+///#endif
 #if GMENG_SDL
     #include "types/window.h"
     #include "utils/window.cpp"
 #endif
 #endif
 #include "utils/util.cpp"
-#include "src/audio.cpp"
+
+#ifdef __APPLE__
+///#include "src/audio.cpp"
+#endif
 
 #include "utils/serialization.cpp"
-
-namespace g = Gmeng;
-namespace gm = Gmeng;
-namespace gmeng = Gmeng;
 
 #endif

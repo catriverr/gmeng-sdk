@@ -31,20 +31,20 @@ struct subarray_2d {
         };
     subarray_2d() = default;
 
-    inline constexpr bool exists() { return main_array != nullptr; };
+    bool exists() { return main_array != nullptr; };
 
-    inline constexpr T& operator[](size_t index) {
+    T& operator[](size_t index) {
         return this->main_array[(*this)(index)];
     };
 
-    inline constexpr const Gmeng::Renderer::drawpoint point(int index) const {
+    const Gmeng::Renderer::drawpoint point(int index) const {
         return {
             view.start.x + index % (int)view_stride,
             view.start.y + index / (int)view_stride
         };
     };
 
-    inline constexpr size_t operator()(size_t index) {
+    size_t operator()(size_t index) {
         int _x = index % view_stride;
         int _y = index / view_stride;
         int main_array_index = ( (view.start.y + _y) * stride ) + view.start.x + _x;
@@ -54,5 +54,5 @@ struct subarray_2d {
         return main_array_index; 
     };
 
-    inline constexpr T& at( size_t index ) { return (*this)[index]; };
+    T& at( size_t index ) { return (*this)[index]; };
 };

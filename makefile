@@ -1,11 +1,13 @@
 # Compiler and flags
-CXX := g++ -DImDrawIdx="unsigned int" -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp
+CXX := g++ -DImDrawIdx="unsigned int" -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include
+LDLIBS := -L/opt/homebrew/opt/libomp/lib -lomp
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Iinclude/sol/include -Linclude/sol/include -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=gnu++23 -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(ADD_FLAGS)
 VERSIONFLAGS := -DGMENG_BUILD_NO="UNKNOWN"
 OUTFILE := -o gmeng
+GXX_16 := g++-16
 
-
+MAC_FLAGS := $(shell SDK=$$(xcrun --show-sdk-path); echo "-isysroot $$SDK -F$$SDK/System/Library/Frameworks")
 
 
 # Compiler to Windows
@@ -95,7 +97,7 @@ endif
 
 
 ifeq ($(UNAME_S), Darwin)
-	CXXFLAGS += -framework CoreGraphics -framework ApplicationServices -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+# macos only settings
 endif
 
 ifeq ($(UNAME_S), Linux)
@@ -105,7 +107,7 @@ endif
 
 ifeq ($(filter debug,$(MAKECMDGOALS)), debug)
 #    CXXFLAGS += -fsanitize=address
-	CXXFLAGS += -g
+	CXXFLAGS += -DGMENG_DEBUG -g
 else
 ifneq ($(NO_OPTIMIZATION), true)
 	CXXFLAGS += -O3 -ffast-math
@@ -207,8 +209,7 @@ endif
 CXXFLAGS_MINIMAL := -Wno-all -std=c++2a -o config lib/bin/utils/configure.cc `pkg-config --cflags --libs ncursesw`
 
 level-editor:
-	$(CXX) lib/bin/src/level_editor.cc $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o editor
-
+	$(CXX) lib/bin/src/level_editor.cc $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o editor
 
 configure:
 	@echo GMENG BUILD DEPENDENCIES:
@@ -226,7 +227,7 @@ compile:
 	@echo TO CONFIGURE, USE make configure
 	@echo PROGRAM\: $(TARGET_NAME)
 	@echo TARGET WILL BE NAMED\: ./game.out
-	$(CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o game.out
+	$(CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o game.out
 
 compile-windows:
 	@echo CROSS COMPILING TO WINDOWS
@@ -237,21 +238,37 @@ compile-windows:
 	@echo COMPILING YOUR BUILDOPTIONS.MK
 	@echo TO CONFIGURE, EDIT THE FILE buildoptions.mk TO CHANGE YOUR TARGET
 	@echo EXECUTABLE WILL BE NAMED\: ./game.exe
-	$(WINDOWS_CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o game.exe
+	$(WINDOWS_CXX) $(TARGET_NAME) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(EXTRA_CXX_FLAGS) -o game.exe
 
+compile-file-obj:
+	@echo "Compiling object file: $(filename)"
+	@echo "Warning: Import 'lib/bin/src/gmeng_obj.cc' instead of any other gmeng header when compiling."
+	@echo "Warning: If you use a different header, you will get errors here."
+	$(CXX) -c $(filename) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o $(basename $(filename)).o
+
+with-engine:
+	@echo "Compiling with prebuilt engine binary: $(filename)"
+	@echo "Warning: To be able to compile with the engine, make sure to run the command make compile-engine first."
+	@echo "Warning: You only need to do this once. Afterwards, you can compile only your source file."
+	@echo "Warning: If you do not do this, you will get errors during compiling."
+	$(CXX) gmeng_engine.o $(filename) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o $(basename $(filename))
 
 compile-file:
 	@echo "Compiling file: $(filename)"
-	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o $(basename $(filename))
+	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o $(basename $(filename))
 
 compile-file-windows:
 	@echo "Cross compiling file: $(filename)"
-	$(WINDOWS_CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) -o $(basename $(filename))$(suffix .exe)
+	$(WINDOWS_CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(WINDOWS_CXXFLAGS) $(EXTRA_CXX_FLAGS) -o $(basename $(filename))$(suffix .exe)
 
 compile-script:
 	@echo "Compiling NOBLE prebuilt shared library: $(filename)"
-	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib)
+	$(CXX) $(filename) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -DGMENG_COMPILING_SCRIPT -shared -fPIC -o $(basename $(filename))$(suffix .dylib)
 	@echo "Written out to: $(basename $(filename))$(suffix .dylib)"
+
+compile-engine:
+	@echo "Compiling engine source..."
+	$(CXX) -c -femit-all-decls lib/bin/src/gmeng_obj.cc $(VERSIONFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS) $(LDLIBS) -o gmeng_engine.o
 
 build:
 	@echo "BUILDING YOUR GAME"
@@ -333,4 +350,4 @@ setup:
 	@echo "[gmeng-setup] setup process complete"
 
 # Phony targets
-.PHONY: setup build all level-editor compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows
+.PHONY: with-engine compile-engine setup build all level-editor compile-script test test2 debug no-ncurses warnings configure compile compile-windows compile-file compile-file-windows

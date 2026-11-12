@@ -626,7 +626,7 @@ namespace Gmeng {
         ///
         /// Gmeng's Easy Header ( `lib/bin/easy.h` ) provides basic
         /// geometric shape constructors for rectangles and circles.
-        inline void add_draw( Objects::coord position, const Gmeng::Blob& blob ) {
+        void add_draw( Objects::coord position, const Gmeng::Blob& blob ) {
             this->frame_draw_list.push_back( { position, blob } );
         };
 
@@ -635,7 +635,7 @@ namespace Gmeng {
         ///
         /// Gmeng's Easy Header ( `lib/bin/easy.h` ) provides basic
         /// geometric shape constructors for rectangles and circles.
-        inline void add_draw_after( const Objects::coord& position, const Gmeng::Blob& blob ) {
+        void add_draw_after( const Objects::coord& position, const Gmeng::Blob& blob ) {
             this->after_draw_list.push_back( { position, blob } );
         };
 
@@ -649,7 +649,7 @@ namespace Gmeng {
         /// are in a custom format. The default-provided font is at `assets/term-font`.
         /// See the directory's contents to understand how it is stored.
         /// Each character is a different gmeng texture object (Blob).
-        inline void add_text( Objects::coord position, const std::string& text, uint32_t color = WHITE ) {
+        void add_text( Objects::coord position, const std::string& text, uint32_t color = WHITE ) {
             /// offset from the original position. Every character writes to this.
             int x_offset_by = 0,
                 y_offset_by = 0;
@@ -727,7 +727,7 @@ namespace Gmeng {
         /// like the F3 menu in the minecraft engine.
         ///
         /// TERMINAL-MODE only.
-        inline void draw_info(int x = 0, int y = 0) {
+        void draw_info(int x = 0, int y = 0) {
             std::string vb_text = "~r~gmeng ~y~" + Gmeng::version + "~n~ - build id: ~b~" + GMENG_BUILD_NO + "~n~";
             std::string vb_text_formatted = colorformat(vb_text);
             int length = strip_ansi( vb_text_formatted ).length();

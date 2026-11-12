@@ -394,7 +394,7 @@ struct LevelBase {
             /// be made to the chunk after its addition.
             ///
             /// @since 4.1-glvl
-            inline int load_chunk(chunk chunk) {
+            int load_chunk(chunk chunk) {
                 __functree_call__(Gmeng::Level::load_chunk);
                 this->chunks.push_back(chunk);
                 return (this->chunks.size()-1);
@@ -404,7 +404,7 @@ struct LevelBase {
             /// at the given id.
             ///
             /// @since 4.1-glvl
-            inline vector<Unit> get_rendered_chunk(int id) {
+            vector<Unit> get_rendered_chunk(int id) {
                 __functree_call__(Gmeng::Level::get_rendered_chunk);
                 return this->render_chunk(this->chunks.at(id));
             };
@@ -413,7 +413,7 @@ struct LevelBase {
             /// renderer for the level. does not add to chunk map.
             ///
             /// @since 7.0.0-d
-            inline vector<Unit> v_render_chunk(chunk& chunk) {
+            vector<Unit> v_render_chunk(chunk& chunk) {
                 return this->render_chunk(chunk);
             };
 
@@ -429,7 +429,7 @@ struct LevelBase {
             /// Set `including_transparent` to true to include them.
             ///
             /// This method ignores inactive models.
-            inline vector<Renderer::Model*> find_models_at( Renderer::drawpoint dp, bool including_transparent = false ) {
+            vector<Renderer::Model*> find_models_at( Renderer::drawpoint dp, bool including_transparent = false ) {
                 vector<Renderer::Model*> models;
                 /// Search every chunk.
                 for ( auto& chunk : this->chunks ) {

@@ -56,7 +56,7 @@ namespace Gmeng {
             /// can not be used with this operator, you should first
             /// call viewpoint[ subpoint_or_dependant ] and pass its
             /// return value to the viewpoint() operator().
-            constexpr const bool operator()(const Renderer::drawpoint& p) const {
+            const bool operator()(const Renderer::drawpoint& p) const {
                 return ( p.x >= start.x && p.x <= end.x &&
                          p.y >= start.y && p.y <= end.y );
             };
@@ -68,11 +68,11 @@ namespace Gmeng {
             ///     V[{ 5, 5 }] = { 10, 10 }
             ///
             /// THIS DOES NOT PERFORM BOUNDS CHECKING.
-            constexpr const Renderer::drawpoint operator[](const Renderer::drawpoint& p) const {
+            const Renderer::drawpoint operator[](const Renderer::drawpoint& p) const {
                 return { p.x + start.x, p.y + start.y };
             };
 
-            inline constexpr void move_by( int by_x, int by_y ) {
+            inline void move_by( int by_x, int by_y ) {
                 int vp_width_start_x  = this->start.x+by_x,
                     vp_height_start_y = this->start.y+by_y,
                     vp_width_end_x    = this->end.x+by_x,

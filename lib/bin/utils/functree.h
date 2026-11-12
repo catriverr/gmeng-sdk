@@ -12,17 +12,17 @@
 #include <filesystem>
 
 namespace Gmeng {
-    static std::map<std::string, std::string> func_annotations;
-    static std::ofstream funclog("gmeng-functree.log");
-    static bool functree_init = false;
-    volatile static bool functree_enabled = true;
-    volatile static bool functree_extensive = false;
-    static std::vector<std::string> func_last(5000);
-    static std::stringstream functree_calls;
+    inline std::map<std::string, std::string> func_annotations;
+    inline std::ofstream funclog("gmeng-functree.log");
+    inline bool functree_init = false;
+    volatile inline bool functree_enabled = true;
+    volatile inline bool functree_extensive = false;
+    inline std::vector<std::string> func_last(5000);
+    inline std::stringstream functree_calls;
 };
 
 // annotates a function, like information about a function.
-static void _func_annot(const char* func, const char* info) {
+inline void _func_annot(const char* func, const char* info) {
     Gmeng::func_annotations.emplace(func, std::string(info));
 };
 
@@ -32,7 +32,7 @@ static void _func_annot(const char* func, const char* info) {
 
 #define __functree_init__() if (!Gmeng::functree_init) Gmeng::funclog << "-- cleared previous log --\n~~GMENG_FUNCTREE~~\n*** This file is used for diagnostics ***\n", Gmeng::functree_init = true
 /// Gmeng : Internal function tracking.
-static void _functree_vl(char* file, int line, const char* func, const char* pretty_func) {
+inline void _functree_vl(char* file, int line, const char* func, const char* pretty_func) {
     if (!Gmeng::functree_enabled) return;
     if (!Gmeng::functree_init) __functree_init__();
     std::string func_annot = "";

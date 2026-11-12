@@ -66,6 +66,7 @@ namespace Gmeng {
             this->resize( width*scale, height*scale );
         };
 
+        /// returns the texture's units as a uint8_t RGB array.
         virtual uint8_t* rgb_array() override {
             uint8_t* arr = new uint8_t[ this->width * this->height * 4 ];
 
@@ -73,13 +74,19 @@ namespace Gmeng {
                 for ( int x = 0; x < this->width; x++ ) {
                     const auto& unit = this->units[y * this->width + x];
                     const uint32_t& clr = GMENG_COL32( unit.color );
-                    arr[ ( y * this->width ) + x + 0 ] = ( clr >> 16 ) & 0xFF;
-                    arr[ ( y * this->width ) + x + 1 ] = ( clr >>  8 ) & 0xFF;
-                    arr[ ( y * this->width ) + x + 0 ] = ( clr       ) & 0xFF;
-                    arr[ ( y * this->width ) + x + 0 ] = 255;
+                    arr[ (( y * this->width ) + x)*4 + 0 ] = ( clr >> 16 ) & 0xFF;
+                    arr[ (( y * this->width ) + x)*4 + 1 ] = ( clr >>  8 ) & 0xFF;
+                    arr[ (( y * this->width ) + x)*4 + 2 ] = ( clr       ) & 0xFF;
+                    arr[ (( y * this->width ) + x)*4 + 3 ] = 255;
                 };
 
             return arr;
+        };
+
+        virtual const Blob get_resized( float scale ) const {
+            Blob b = *this;
+            b.resize( scale );
+            return b;
         };
 
         bool operator==(const Blob&) const = default;
@@ -151,6 +158,10 @@ namespace Gmeng {
 
         GMENG_INIT_TYPE( width, height, units,
                          collidable, name );
+    };
+    
+    inline texture notxtr = {
+        Blob( 0, 0, {} ), false, std::to_string(0x0FFFF1)
     };
 };
 

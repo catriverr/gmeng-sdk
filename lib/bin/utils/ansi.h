@@ -4,7 +4,7 @@
 #include <vector>
 
 /// splits a text into characters but includes colorcodes in chars.
-static std::vector<std::string> split_with_ansi(const std::string& input)
+inline std::vector<std::string> split_with_ansi(const std::string& input)
 {
     std::vector<std::string> result;
     std::string pending_ansi;
@@ -79,7 +79,7 @@ inline bool is_ansi_start(char c) noexcept
 /// Returns an index to a logical index (index in a string EXCLUDING ansi escape codes)
 /// as a physical index (index in a string INCLUDING ansi escape codes).
 /// If the index cannot be found, `std::string::npos` is returned.
-static size_t logical_to_physical_index(const std::string& s, size_t logical_index)
+inline size_t logical_to_physical_index(const std::string& s, size_t logical_index)
 {
     size_t logical = 0;
     size_t i = 0;
@@ -137,7 +137,7 @@ static size_t logical_to_physical_index(const std::string& s, size_t logical_ind
 /// strips all ANSI escape codes / color codes from a text.
 /// Used for getting the actual length of strings without accounting
 /// for colorcodes.
-static std::string strip_ansi(const std::string& input)
+inline std::string strip_ansi(const std::string& input)
 {
     std::string out;
     out.reserve(input.size());

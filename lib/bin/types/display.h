@@ -156,7 +156,7 @@ namespace Gmeng::Renderer {
                         return this;
                     };
 
-                    inline constexpr uint8_t brightness_extract( uint8_t v, float brightness = 1.0f ) const {
+                    inline uint8_t brightness_extract( uint8_t v, float brightness = 1.0f ) const {
                         return (int)std::clamp( v * brightness, 0.0f, 255.0f );
                     };
 

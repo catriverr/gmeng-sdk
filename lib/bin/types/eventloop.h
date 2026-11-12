@@ -41,7 +41,7 @@ namespace Gmeng {
     /// so no two games can be run at the same time with the same executable.
     typedef struct EventLoop {
       private:
-          inline void init_default_event_hooks();
+          void init_default_event_hooks();
       public:
         /// ID of the GameLoop. Isn't useful within a single program but
         /// it can be used to communicate the instance on multiplayer
@@ -215,6 +215,8 @@ namespace Gmeng {
         /// Ends the EventLoop, setting this->cancelled to true
         void cancel() { this->cancelled = true; };
 
+        void init() { this->init_default_event_hooks(); };
+
         private:
           bool tick_handler = false;
     } EventLoop;
@@ -236,7 +238,12 @@ namespace Gmeng {
 #include "../utils/gm_imgui.h"
 #include "../utils/hexcolors.cc"
 
-inline void Gmeng::EventLoop::init_default_event_hooks() {
+void Gmeng::EventLoop::init_default_event_hooks() {
+
+    static bool setup = false;
+    if ( setup ) return;
+    setup = true;
+
         __functree_call__(Gmeng::EventLoop::init_default_event_hooks);
 #ifndef GMENG_SDL
         IMGUI_CHECKVERSION();

@@ -75,15 +75,11 @@ constexpr std::string_view gmeng_get_term_cursor_name(const cursor_type& shape) 
 }
 
 /// Gmeng : Function to set the mouse cursor icon using the enum
-inline constexpr void gmeng_set_cursor(const cursor_type& shape) {
+inline void gmeng_set_cursor(const cursor_type& shape) {
     std::cout << "\033]22;" << gmeng_get_term_cursor_name(shape) << "\007" << std::flush;
 };
 
 namespace Gmeng {
-    static constexpr void set_pointer_icon(const cursor_type& shape) {
-        gmeng_set_cursor(shape);
-    };
-    static constexpr void reset_pointer_icon() {
-        gmeng_set_cursor( cursor_type::DEFAULT );
-    };
+    inline constexpr void set_pointer_icon(const cursor_type& shape);
+    inline constexpr void reset_pointer_icon();
 };

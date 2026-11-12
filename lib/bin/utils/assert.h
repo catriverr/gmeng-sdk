@@ -26,9 +26,9 @@ namespace Gmeng::Assertions {
         const char* bound;
     } assertable_t;
 
-    static std::map<const char*, vd_assert> list;
+    inline std::map<const char*, vd_assert> list;
 
-    static vd_assert to_assert_t(assertable_t data) {
+    inline vd_assert to_assert_t(assertable_t data) {
         vd_assert obj;
         obj.headers = std::map<string, vd_assert::jWRAP>();
         obj.bound = data.bound;
@@ -36,12 +36,12 @@ namespace Gmeng::Assertions {
         return obj;
     };
 
-    static void set_assert(assertable_t data) {
+    inline void set_assert(assertable_t data) {
         if (!Assertions::list.contains(data.bound)) list.emplace(data.bound, to_assert_t(data));
         Assertions::list.find(data.bound)->second.headers.insert_or_assign(data.header, data.state);
     };
 
-    static vd_assert::jWRAP get_assert(string header, const char* bound) {
+    inline vd_assert::jWRAP get_assert(string header, const char* bound) {
         if ( Gmeng::global.ignore_assert ) return assert_t::ON;
 
         if (!Assertions::list.contains(bound)) return assert_t::NOT_SET;

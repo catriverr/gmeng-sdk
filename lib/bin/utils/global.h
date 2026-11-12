@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -30,7 +31,7 @@
 
 /// Gmeng : Returns a 7-digit random number.
 /// Based on the mersenne twister 19937 generator.
-static int g_mkid() {
+int g_mkid() {
     //__functree_call__(g_mkid);
     std::random_device rd; // random device to seed the generator
     std::mt19937 gen(rd()); // mersenne twister 19937 generator
@@ -40,7 +41,7 @@ static int g_mkid() {
 };
 
 /// Gmeng : Returns the current time (in HH:MM:SS)
-static std::string get_curtime() {
+std::string get_curtime() {
     // Get current time
     std::time_t now = std::time(nullptr);
     std::tm* local_time = std::localtime(&now);
@@ -55,7 +56,7 @@ static std::string get_curtime() {
 };
 
 /// Gmeng : Returns the current date in (MM.DD).
-static std::string get_curdate() {
+std::string get_curdate() {
     // Get current time
     std::time_t now = std::time(nullptr);
     std::tm* local_time = std::localtime(&now);
@@ -75,7 +76,7 @@ static std::string get_curdate() {
 #define v_str std::to_string
 
 /// Returns the thread ID of the current thread as a string.
-inline std::string _uget_thread() {
+std::string _uget_thread() {
     /// __functree_call__(_uget_thread);
     static std::atomic<int> counter(0);
     thread_local int threadId = counter.fetch_add(1);
@@ -88,11 +89,11 @@ namespace Gmeng {
     /// to stream all Logs to the file. Alternatively,
     /// set `GMENG_LOG` to `false` to stop this with:
     /// `#define GMENG_LOG false`.
-    static std::ofstream outfile;
+    std::ofstream outfile;
     /// Logstream. Copy of the `Gmeng::outfile`.
     /// Both game logs and engine logs are available
     /// in this stringstream instance.
-    static std::stringstream logstream;
+    std::stringstream logstream("");
 
     struct __global_object__ {
         std::vector<int> indexes;
@@ -141,11 +142,16 @@ namespace Gmeng {
 
     };
     /// GMENG's global variables
-    static __global_object__ global = {
+    __global_object__ global = {
         .dev_console = true, .debugger = false,
         .log_stout = __GMENG_LOG_TO_COUT__, .dev_mode = false,
         .dont_hold_back = false, .shush = false,
-        .weird_ass = false, .window_control = true,
+        .weird_ass = false,
+#ifdef GMENG_DEBUG
+        .window_control = false,
+#else
+        .window_control = true,
+#endif
         .terminal_has_sgr_pixel_support = false,
         .terminal_has_kgp_pixel_support = false,
         .terminal_has_keyboard_support  = false,
@@ -156,7 +162,7 @@ namespace Gmeng {
 };
 
 /// Joins a string vector with a given delimeter.
-static std::string g_joinStr(const std::vector<std::string>& v, const std::string& delimiter) {
+std::string g_joinStr(const std::vector<std::string>& v, const std::string& delimiter) {
 	std::string result;
     /// don't add the delimeter if there is only one item.
     if ( v.size() == 1 ) return v.at(0);
@@ -171,7 +177,7 @@ static std::string g_joinStr(const std::vector<std::string>& v, const std::strin
 /// Returns the directory in which the current
 /// executable is in. Absolute directory only,
 /// calls realpath().
-static std::string get_executable_directory() {
+std::string get_executable_directory() {
     char rawPath[PATH_MAX];
     uint32_t size = sizeof(rawPath);
 

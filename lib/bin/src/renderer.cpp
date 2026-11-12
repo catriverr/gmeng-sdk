@@ -189,9 +189,6 @@ namespace Gmeng {
     inline const Renderer::Model nomdl = {
         .id=CONSTANTS::vl_nomdl_id
     };
-    inline texture notxtr = {
-        Blob( 0, 0, {} ), false, v_str(CONSTANTS::vl_notxtr_id)
-    };
 
     template<typename v_type>
     struct vd_item {
@@ -230,12 +227,12 @@ namespace Gmeng {
         return Gmeng::notxtr;
     };
     namespace vgm_defaults {
-        v_dictl<Renderer::Model> vg_rdmodels;
-        v_dictl<texture>         vg_textures;
+        inline v_dictl<Renderer::Model> vg_rdmodels;
+        inline v_dictl<texture>         vg_textures;
     };
     /// reads a folder's VGM texture & model files into Gmeng::vgm_defaults::vg_rdmodels & vg_textures
     /// for ease-of-access to textures without having to read them from the disc.
-    inline int _uread_into_vgm(const v_title& folder) {
+    int _uread_into_vgm(const v_title& folder) {
         __functree_call__(Gmeng::_uread_into_vgm);
         // we wait until all textures are in vgm_defaults before we load any models
         // afterwards we loop through the vector and load them into Gmeng::vgm_defaults::vg_rdmodels
@@ -316,7 +313,7 @@ namespace Gmeng {
     };
 
     /// writes values in Gmeng::vgm_defaults::vg_rdmodels & vg_textures into vectors v_mdls and v_txtrs
-    inline void _uwritevgm_to_maps(std::map<v_title, Gmeng::Renderer::Model>& v_mdls, std::map<v_title, Gmeng::texture>& v_txtrs) {
+    void _uwritevgm_to_maps(std::map<v_title, Gmeng::Renderer::Model>& v_mdls, std::map<v_title, Gmeng::texture>& v_txtrs) {
         __functree_call__(Gmeng::_uwritevgm_to_maps);
         for (const auto& mdl : vgm_defaults::vg_rdmodels.v_getrelative()) { v_mdls[mdl.data.name] = mdl.data; };
         for (const auto& txtr : vgm_defaults::vg_textures.v_getrelative()) { v_txtrs[txtr.data.name] = txtr.data; };
@@ -1276,8 +1273,6 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
     /// This utility supports chunk splicing, cubic rendering (with 1x1 square, smaller units
     /// instead of 2x1 rectangle units) for much more size and way better visuals, debug rendering,
     /// continuous and seemless chunk movement, viewpoints.
-    ///
-    /// @coming_soon { entities & players - for now we use models for both. }
     inline std::string get_lvl_view(Level& level_t, vector<vector<Unit>>& trimmed_units, bool cubic_render = true) {
         Renderer::viewpoint& display_vp = level_t.display.viewpoint;
         const int base_width  = level_t.base.lvl_template.width;
@@ -1319,6 +1314,8 @@ std::vector<Gmeng::Renderer::drawpoint> get_radius_displacement(int radius, cons
                         if (unit_at_ij.transparent) continue;
                         /// Get the X and Y coordinates according to the size of the blob.
                         int x = x_start + j, y = y_start + i;
+                        if ( y > level_t.display.camera.h || x > level_t.display.camera.w )
+                            continue;
                         /// Set the unit at(y,x) to the unit_at_ij.
                         trimmed_units[y][x] = unit_at_ij;
                     };

@@ -3,8 +3,8 @@
 #include <cstdint>
 
 
-#define RGB_ASCII_CODE_FG(r, g, b) std::string("\x1b[38;2;"$(r)";"$(g)";"$(b)"m")
-#define RGB_ASCII_CODE_BG(r, g, b) std::string("\x1b[48;2;"$(r)";"$(g)";"$(b)"m")
+#define RGB_ASCII_CODE_FG(r, g, b) std::string("\x1b[38;2;" $(r) ";" $(g) ";" $(b) "m")
+#define RGB_ASCII_CODE_BG(r, g, b) std::string("\x1b[48;2;" $(r) ";" $(g) ";" $(b) "m")
 #define BCOLOR32_TO_ASCII( col32_obj ) RGB_ASCII_CODE_BG( col32_obj.r, col32_obj.g, col32_obj.b )
 #define FCOLOR32_TO_ASCII( col32_obj ) RGB_ASCII_CODE_FG( col32_obj.r, col32_obj.g, col32_obj.b )
 
@@ -30,32 +30,32 @@ namespace Gmeng {
 
     /// Default foreground colorcodes
     /// to each Gmeng::color_t index.
-	static std::string colors[] = {
+	inline std::string colors[] = {
 		"\x1B[37m", "\x1B[34m", "\x1B[32m", "\x1B[36m", "\x1B[31m", "\x1B[35m", "\x1B[33m", "\x1B[30m", "\x1B[37m"
 	};
     /// Default background colorcodes
     /// to each Gmeng::color_t index.
-    static std::string bgcolors[] = {
+    inline std::string bgcolors[] = {
         "\x1B[47m", "\x1B[44m", "\x1B[42m", "\x1B[46m", "\x1B[41m", "\x1B[45m", "\x1B[43m", "\x1B[40m", "\x1B[47m"
     };
     /// Default BOLD foreground colorcodes
     /// to each Gmeng::color_t index.
-    static std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
+    inline std::string bgcolors_bright[] = { // match the 'bold' foreground colors (bright)
         "\x1B[107m", "\x1B[104m", "\x1B[102m", "\x1B[106m", "\x1B[101m", "\x1B[105m", "\x1B[103m", "\x1B[40m", "\x1B[107m"
     };
     /// Colorcodes from ANSI escape code to Gmeng::color_t index.
-	static std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
+	inline std::string colorids[] = { "7", "4", "2", "6", "1", "5", "3", "0" };
     /// Resets all ANSI escape code sequences, effectively setting the color to normal.
-	static std::string resetcolor = "\033[22m\033[0m";
+	inline std::string resetcolor = "\033[22m\033[0m";
     /// ANSI escape code sequence to make text bold.
     /// Must be used before the colorcode, as this will
     /// override it otherwise.
-    static std::string boldcolor = "\033[1m";
+    inline std::string boldcolor = "\033[1m";
 
 
     /// RGB_UINT Colors
     /// use as rgb_colors[ (color_t) ]
-    static int rgb_colors[9][3] = {
+    inline int rgb_colors[9][3] = {
         {255,255,255},
         {131, 165, 152},
         {184, 187, 38},
@@ -145,7 +145,7 @@ namespace Gmeng {
     };
 
     /// converts a color32_t to a uint32_t object
-    inline uint32_t uint32_from_color32(const color32_t& color) {
+    uint32_t uint32_from_color32(const color32_t& color) {
 
         return (static_cast<uint32_t>(color.r) << 16) |
                (static_cast<uint32_t>(color.g) << 8)  |
@@ -153,7 +153,7 @@ namespace Gmeng {
     }
 
     /// converts a Vec3 or color32_t to color_t (legacy color_8)
-    inline color_t conv_rgb_col8(const Vec3& rgb) {
+    color_t conv_rgb_col8(const Vec3& rgb) {
         // Threshold the RGB channels to 0 or 1 based on mid value
         int r = rgb.x > 0.5f ? 1 : 0;
         int g = rgb.y > 0.5f ? 1 : 0;

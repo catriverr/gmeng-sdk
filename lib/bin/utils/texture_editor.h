@@ -12,10 +12,12 @@
 
 #ifndef GMENG_TEXTURE_EDITOR_DECLARATION
 class GmengImGuiTextureEditor {
+  private:
+    Gmeng::texture* tex_ptr = nullptr;
   public:
-    std::string current_filename;
+    std::string current_filename = "$!__NO_FILENAME";
     bool loaded = false;
-    Gmeng::texture tex;
+    Gmeng::texture& tex = Gmeng::notxtr;
     Gmeng::Unit current_brush;
     float brush_color_float[3] = { 1.0f, 1.0f, 1.0f }; // For ImGui ColorEdit3
     std::set<uint32_t> texture_palette;
@@ -30,6 +32,10 @@ class GmengImGuiTextureEditor {
         tex.name = v_str(g_mkid());
         ResizeTexture(8, 8);
     }
+    GmengImGuiTextureEditor(Gmeng::texture& _tex, Gmeng::texture* tex_ptr) {
+        this->tex = _tex;
+        this->tex_ptr = tex_ptr;
+    };
     void ResizeTexture(std::size_t, std::size_t);
     void Save(const std::string& fname);
     void Load(const std::string& fname);
@@ -96,9 +102,19 @@ void GmengImGuiTextureEditor::Draw() {
             current_filename = fileBuf;
         }
 
+        if ( current_filename == "$!__NO_FILENAME" ) ImGui::BeginDisabled();
         if (ImGui::Button("Save")) Save(current_filename);
         ImGui::SameLine();
         if (ImGui::Button("Load")) Load(current_filename);
+        if ( current_filename == "$!__NO_FILENAME" ) ImGui::EndDisabled();
+
+        if ( current_filename == "$!__NO_FILENAME" ) {
+            ImGui::SameLine();
+            if ( ImGui::Button("Apply Changes") ) {
+                *(this->tex_ptr) = this->tex;
+            }
+        };
+
         ImGui::Separator();
 
         // Texture Properties

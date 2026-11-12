@@ -57,10 +57,7 @@ namespace Gmeng {
         /// DO NOT TOUCH, USE OR RUN THIS METHOD IF YOU
         /// ARE NOT AWARE OF WHAT IT WILL DO. YOU WILL BREAK
         /// YOUR ENTITY ID SYSTEM AND FUCK YOUR LEVEL UP.
-        static int incr_id(int value = -1) {
-            if (value == -1) return id_counter++;
-            else return id_counter = value+1;
-        };
+        static int incr_id(int value = -1);
         /// decides whether an entity will be rendered / utilized or not.
         bool active = true;
 
@@ -289,7 +286,7 @@ namespace Gmeng {
     inline std::map<int, std::string> entity_dictionary;
 
     /// returns the name of an entity type from its serialization id.
-    static const std::string get_entity_name( const int serialization_id ) {
+    inline const std::string get_entity_name( const int serialization_id ) {
         if ( entity_dictionary.contains( serialization_id ) )
             return entity_dictionary.at( serialization_id );
         else return "UNKNOWN_ENTITY" + v_str(serialization_id);
@@ -319,6 +316,12 @@ namespace Gmeng {
     static DerivedEntityRegistrar<eclass> derivatory__##eclass( #eclass ); \
     static std::string __derivatory__name__##eclass = derivatory__##eclass.__name; \
     static int __entity_derivatory__id_incr_##eclass = EntityBase::incr_id()
+
+/// Returns the serialization ID of the derived entity class.
+#define GMENG_ENTITYID( eclass ) Entity<eclass>::id
+
+#define GMENG_ENTITY( object_name, cast_to_class, base_object_name ) \
+    cast_to_class* object_name = dynamic_cast<cast_to_class*>( base_object_name )
 
 /// ABSOLUTELY DO NOT USE THIS FOR YOUR ENTITIES I DO NOT KNOW ENOUGH
 /// OF THE ENGLISH LANGUAGE TO PROPERLY EXPLAIN HOW DAMAGING THIS WILL BE
@@ -720,3 +723,10 @@ static int __gmeng_define_lua_entity_method = ([]() -> int {
 })();
 
 #endif
+
+namespace Gmeng {
+    int EntityBase::incr_id(int value) {
+            if (value == -1) return id_counter++;
+            else return id_counter = value+1;
+    };
+};

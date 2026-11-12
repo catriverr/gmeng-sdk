@@ -1,8 +1,6 @@
 #pragma once
-#include "gmeng.h"
+#include "../gmeng.h"
 
-#include "src/textures.cpp"
-#include "src/renderer.cpp"
 #include <algorithm>
 
 /// GMENG EASY ANNOTATIONS

@@ -6,7 +6,7 @@
 
 /// Replaces all occurences of a substring within
 /// a given string to a given substring.
-static std::string str_replace(const std::string& str, const std::string& from, const std::string& to) {
+inline std::string str_replace(const std::string& str, const std::string& from, const std::string& to) {
     // __functree_call__(str_replace);
     std::string result = str; std::size_t start_pos = 0;
     while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
@@ -18,13 +18,13 @@ static std::string str_replace(const std::string& str, const std::string& from, 
 
 /// foregroundcolor text identifiers.
 /// TODO: convert to `char` array.
-static std::vector<std::string> colornames = {
+inline std::vector<std::string> colornames = {
     "w", "b", "g", "c", "r", "p", "y", "0", "_", "o", "1"
     // white blue green cyan red pink yellow black
 };
 
 /// backgroundcolor text identifiers.
-static std::vector<std::string> bgcolornames = {
+inline std::vector<std::string> bgcolornames = {
     "Bw", "Bb", "Bg", "Bc", "Br", "Bp", "By", "B0", "Bw", "B1"
     // white blue green cyan red pink yellow black
 };
@@ -38,7 +38,7 @@ static std::vector<std::string> bgcolornames = {
 /// std::string f_string = "~g~green text ~n~normal text ~b~blue text ...";
 /// std::string formatted = colorformat(f_string);
 /// ```
-static std::string colorformat(const std::string& data, bool append_end_format = true) {
+inline std::string colorformat(const std::string& data, bool append_end_format = true) {
     std::string formatted = data;
     for (int i = 0; i < (sizeof(Gmeng::colors)/sizeof(*Gmeng::colors)); i++) {
         formatted = str_replace(formatted, "~" + colornames[i] + "~", Gmeng::colors[i]);
@@ -69,7 +69,7 @@ static std::string colorformat(const std::string& data, bool append_end_format =
 
 /// Parses string variables (VERSION and BUILD).
 /// str vars are accessed with the `$!__VARIABLE_NAME` syntax.
-static std::string parse_str_vars(const std::string& a) {
+inline std::string parse_str_vars(const std::string& a) {
     std::string res = a;
     replace_all(res, "$!__VERSION", Gmeng::version);
     replace_all(res, "$!__BUILD", GMENG_BUILD_NO);

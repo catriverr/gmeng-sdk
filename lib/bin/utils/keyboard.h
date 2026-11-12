@@ -5,8 +5,6 @@
 
 #include "../strings/contains.cc"
 
-#include <Carbon/Carbon.h>
-#include <CoreGraphics/CGEventTypes.h>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -119,17 +117,23 @@ namespace Gmeng {
         gk_HOME      = 57412,
         gk_END       = 57414,
     };
-
+#if defined(_WIN32)
     /// Returns the 'pressed' state of a given key. Support is only enabled
     /// for this method if the `Kitty Terminal Keyboard Protocol` is supported
     /// by the terminal. Checked via `gmeng_keyboard_init()` and `gmeng_keyboard_deinit()`.
-    inline constexpr const bool& getkey(const KEY& key);
+    inline bool getkey(KEYS key);    
+#else
+    /// Returns the 'pressed' state of a given key. Support is only enabled
+    /// for this method if the `Kitty Terminal Keyboard Protocol` is supported
+    /// by the terminal. Checked via `gmeng_keyboard_init()` and `gmeng_keyboard_deinit()`.
+    inline const bool& getkey(const KEY& key);
+#endif
     /// Gmeng internal key states map. Contains ASCII keycode to pressed state
     /// mappings. This map is updated via the function `gmeng_update_keys()`.
     /// Gmeng's `do_event_loop()` functionality automatically handles everything
     /// for tracking individual keys. users can get key states via `Gmeng::getkey()`.
     /// For a list of mappings to key codes, see the `Gmeng::KEY` enum.
-    static std::unordered_map<int, bool> key_states;
+    inline std::unordered_map<int, bool> key_states;
 };
 
 #define FOR_EACH_GMENG_gk_KEYS(vB) for ( unsigned int vB = gk_KEYS_START; vB < gk_KEYS_START; vB++ )
@@ -144,7 +148,7 @@ inline Gmeng::getkey(KEYS key) {
 
 #include "global.h"
 
-inline constexpr const bool& Gmeng::getkey(const Gmeng::KEY& key) {
+inline const bool& Gmeng::getkey(const Gmeng::KEY& key) {
     return Gmeng::key_states[(int)key];
 };
 

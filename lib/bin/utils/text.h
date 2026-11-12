@@ -16,7 +16,7 @@
 #include <ios>
 
 namespace Gmeng {
-    static std::unordered_map<char, Gmeng::Blob> CHARACTER_FONT_TEXTURES;
+    inline std::unordered_map<char, Gmeng::Blob> CHARACTER_FONT_TEXTURES;
 };
 
 
@@ -113,12 +113,12 @@ constexpr Objects::coord texture_lookup(const char c) {
     return { -1, -1 };
 };
 
-static Gmeng::Blob& gmeng_terminal_font_get_char(char chr) {
+inline Gmeng::Blob& gmeng_terminal_font_get_char(char chr) {
     auto& tx = Gmeng::CHARACTER_FONT_TEXTURES.at( toupper(chr) );
     return tx;
 };
 
-static int gmeng_terminal_font_init( char* path = "assets/term-font" ) {
+inline int gmeng_terminal_font_init( char* path = "assets/term-font" ) {
     __functree_call__( gmeng_terminal_font_init );
     if ( !std::filesystem::exists(path ) ||
          !std::filesystem::is_directory( path ) ) return 1;

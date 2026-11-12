@@ -14,7 +14,7 @@
 #include "ioctl.h"
 #include "log.h"
 
-static std::map<std::string, std::function<void()>> gmeng_warnings =
+inline std::map<std::string, std::function<void()>> gmeng_warnings =
 {
     { "bad_terminal", []() {
         /// TMUX slows down input handling
@@ -84,7 +84,7 @@ static std::map<std::string, std::function<void()>> gmeng_warnings =
 // displays warnings related to functions of the engine.
 // do not use this method for your game. implement your own
 // warning screen mechanisms.
-static void _gmeng_show_warning(std::string warning_, char* filename, int fileline, TRACEFUNC) {
+inline void _gmeng_show_warning(std::string warning_, char* filename, int fileline, TRACEFUNC) {
     printf("\033c"); // clear screen
     auto term_size = get_terminal_size();
     /// print warning tabtitle
@@ -116,7 +116,7 @@ static void _gmeng_show_warning(std::string warning_, char* filename, int fileli
 #define gmeng_show_warning(x) _gmeng_show_warning( x, __FILE__, __LINE__ )
 
 
-static void gm_err(const int& type, const std::string& err_title, TRACEFUNC) {
+inline void gm_err(const int& type, const std::string& err_title, TRACEFUNC) {
     __functree_call__(gm_err);
     _gm_log(func_caller_file, func_caller_line, func_caller, Gmeng::colors[Gmeng::RED] + "ERR! " + Gmeng::resetcolor + err_title);
     switch (type) {

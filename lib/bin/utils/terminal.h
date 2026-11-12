@@ -7,13 +7,13 @@
 
 /// Terminal Utility for raw mode, text drawing, mouse tracking, etc
 namespace Gmeng::TerminalUtil {
-    static void enable_mouse_tracking()  {
+    inline void enable_mouse_tracking()  {
         if ( Gmeng::global.terminal_has_sgr_pixel_support )
             sgr_pixel_enablemouse();
         else // default fallback for 1006h mode (no pixels, inaccurate)
             std::cout << "\033[?1006h\033[?1003h\n" << std::flush;
     };
-    static void disable_mouse_tracking() {
+    inline void disable_mouse_tracking() {
         if ( Gmeng::global.terminal_has_sgr_pixel_support )
             sgr_pixel_disablemouse();
         else { // default fallback for 1006h mode (no pixels, inaccurate)
@@ -23,15 +23,15 @@ namespace Gmeng::TerminalUtil {
         };
     };
 
-    static struct termios orig_termios;
-    static bool already_set = false;
+    inline struct termios orig_termios;
+    inline bool already_set = false;
 
-    static void cleanup() {
+    inline void cleanup() {
         disable_mouse_tracking();
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     };
 
-    static void set_raw_mode(bool state) {
+    inline void set_raw_mode(bool state) {
         if ( Gmeng::global.terminal_has_sgr_pixel_support ) {
             sgr_pixel_enable_rawmode( state );
             return;
@@ -54,7 +54,7 @@ namespace Gmeng::TerminalUtil {
 
     // not a function that can be disabled.
     // I tried.
-    static void set_non_blocking(bool state) {
+    inline void set_non_blocking(bool state) {
         if (state) {
             int flags = fcntl(STDIN_FILENO, F_GETFL);
             flags |= O_NONBLOCK;

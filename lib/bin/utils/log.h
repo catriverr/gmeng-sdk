@@ -48,7 +48,7 @@ static std::string get_filename(string filepath) {
 // Many internal systems, however this function shouldn't be called directly.
 // Use the gm_log() macro for automatic filename, code line and other useful
 // log info to be parsed into your message.
-static void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
+void _gm_log(const char* file_, int line, const char* func, std::string _msg, bool use_endl = true) {
     #if __GMENG_DISABLE_LOG__ == true
         return;
     #endif

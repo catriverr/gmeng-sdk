@@ -65,7 +65,8 @@ inline void Gmeng::Renderer::Display::refresh(Gmeng::Level* level, std::function
                 ImGui_ImplKitty_RenderDrawData(
                     ImGui::GetDrawData(),
                     this->camera.display_map.framebuffer,
-                    this->camera.renderer.width, this->camera.renderer.height
+                    this->camera.renderer.width,
+                    this->camera.renderer.height
                 );
             };
 

@@ -8,7 +8,8 @@
 #include <typeinfo>
 #include <cxxabi.h>
 
-// 1. Demangle helper
+#define GMENG_KEEP __attribute__((used))
+
 inline std::string get_demangled_name(const char* mangledName) {
     int status = 0;
     char* demangled = abi::__cxa_demangle(mangledName, nullptr, nullptr, &status);
@@ -17,7 +18,6 @@ inline std::string get_demangled_name(const char* mangledName) {
     return result;
 }
 
-//
 inline std::vector<std::string> parse_variable_names(const std::string& namesList) {
     std::vector<std::string> names;
     size_t start = 0, end = 0;

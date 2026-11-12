@@ -12,7 +12,7 @@
 #include "global.h"
 #include "setup_class.h"
 
-inline std::string base64_encode(const std::string& in) {
+static std::string base64_encode(const std::string& in) {
     static const char b64_table[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -145,7 +145,7 @@ class term_graphics_renderer {
 
 #include "../strings/contains.cc"
 
-static void gmeng_terminal_graphics_init() {
+inline void gmeng_terminal_graphics_init() {
     char* TERM = getenv("TERM");
     char* TERM_PROG = getenv("TERM_PROGRAM");
 

@@ -74,7 +74,7 @@ namespace Gmeng {
         EVENT_COUNT
     };
 
-    static const std::string event_names[EVENT_COUNT] = {
+    inline const std::string event_names[EVENT_COUNT] = {
         "INIT",
         "UPDATE",
         "FIXED_UPDATE",
@@ -98,7 +98,7 @@ namespace Gmeng {
     };
 
     /// returns the name of a Gmeng::Event as a string
-    static const std::string& get_event_name(const Event& event) {
+    inline const std::string& get_event_name(const Event& event) {
 
         if (event < 0 || event >= EVENT_COUNT) {
             static const std::string unknown = "UNKNOWN";
@@ -109,7 +109,7 @@ namespace Gmeng {
     };
 
     /// returns a list of every event in a vector as a string
-    static string list_events(vector<Event>& events) {
+    inline string list_events(vector<Event>& events) {
         string final;
         for (const auto ev : events) {
             final += get_event_name(ev) + ", ";

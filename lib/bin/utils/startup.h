@@ -14,11 +14,11 @@
 #include "kitty.h"
 
 
-static std::string boolstr(bool x) {
+inline std::string boolstr(bool x) {
     return x ? "true" : "false";
 };
 
-static void init_logc(int ms = 250) {
+inline void init_logc(int ms = 250) {
     __functree_call__(init_logc);
     #if __GMENG_DISABLE_LOG__ == true
         return;
@@ -51,14 +51,14 @@ static void init_logc(int ms = 250) {
     })*/;
 };
 
-static void set_terminal_title(const std::string& title) {
+inline void set_terminal_title(const std::string& title) {
     // \033]0; starts the title sequence
     // \007 (BEL character) ends the sequence
     std::cout << "\033]0;" << title << "\007" << std::flush;
 };
 
 /// Gets the current working directory
-static std::string get_cwd() {
+inline std::string get_cwd() {
     char buffer[PATH_MAX];
 
 #ifdef _WIN32
@@ -87,7 +87,7 @@ static std::string get_cwd() {
 
 
 /// returns the username of the current user
-static std::string get_username() {
+inline std::string get_username() {
     const char* username = nullptr;
 #ifdef _WIN32
     username = getenv("USERNAME");
@@ -154,7 +154,7 @@ inline void apply_argument(const std::string& argument, bool& IS_USING_GMENG_APP
 
 /// returns true if the argument is usable, false if it
 /// is an alias and has been consumed instead.
-inline bool gmeng_check_argument(std::string& argument, bool& profile_c) {
+bool gmeng_check_argument(std::string& argument, bool& profile_c) {
     static std::map<char, std::string> cargument_list = {
         { 'p', "--profile" },
         { 's', "--no-splashscreen" },
@@ -181,7 +181,7 @@ inline bool gmeng_check_argument(std::string& argument, bool& profile_c) {
 };
 
 
-static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
+void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
     __annot__(patch_argv_global, "patches the Gmeng::global variable with the command-line arguments.");
     __functree_call__(patch_argv_global);
 
@@ -216,7 +216,7 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
 
     char *restart_flag = "--GMENG_INTERNAL_RESTARTED_INSTANCE";
 
-    kitty_check_focus(true);
+    if ( Gmeng::global.window_control ) kitty_check_focus(true);
 
     std::vector<char *> v_argv;
     for (int i = 0; i < argc; i++) {
@@ -289,7 +289,7 @@ static void patch_argv_global(int argc, char* argv[], TRACEFUNC) {
 /// This method runs `execvp` from the `unistd.h` library
 /// to replace the current program image in the memory
 /// with a new instance of the current program, in `argv[0]`.
-static int restart_program() {
+inline int restart_program() {
     __annot__(restart_program, "Restarts the current executable.");
     __functree_call__(restart_program);
 

@@ -14,13 +14,13 @@
 #include "../src/objects.cpp"
 
 /// default termios state. Used to disable rawmode.
-static struct termios orig_termios;
+inline struct termios orig_termios;
 
-static int FONT_SIZE_SET_IN_GMENG_KITTY_CONFIG = 18;
+inline int FONT_SIZE_SET_IN_GMENG_KITTY_CONFIG = 18;
 
 /// Returns the width and height of a single character
 /// using the current font in pixel size.
-static Objects::coord get_font_size_values() {
+inline Objects::coord get_font_size_values() {
     struct winsize w;
     // Query the terminal window metrics
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
@@ -40,7 +40,7 @@ static Objects::coord get_font_size_values() {
     };
 };
 
-static Objects::coord get_terminal_size_in_pixels() {
+inline Objects::coord get_terminal_size_in_pixels() {
     Objects::coord font_size_values = get_font_size_values();
     TerminalSize size_row_col = get_terminal_size();
 
@@ -56,7 +56,7 @@ static Objects::coord get_terminal_size_in_pixels() {
 /// SGR-Pixel returns the pixel position of the mouse
 /// within the Terminal, allowing for correct mouse clicks
 /// in Gmeng's cubic_render mode, because it halves screen height.
-static void sgr_pixel_disable_rawmode() {
+inline void sgr_pixel_disable_rawmode() {
     // Restore original terminal settings
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
@@ -67,7 +67,7 @@ static void sgr_pixel_disable_rawmode() {
 /// SGR-Pixel returns the pixel position of the mouse
 /// within the Terminal, allowing for correct mouse clicks
 /// in Gmeng's cubic_render mode, because it halves screen height.
-static void sgr_pixel_enable_rawmode(bool state = true) {
+inline void sgr_pixel_enable_rawmode(bool state = true) {
     if (state == false) {
         sgr_pixel_disable_rawmode();
         return;
@@ -84,7 +84,7 @@ static void sgr_pixel_enable_rawmode(bool state = true) {
 
 /// Enables SGR-Pixel mosue reporting
 /// (chcp \033[?1016h escape code.)
-static void sgr_pixel_enablemouse() {
+inline void sgr_pixel_enablemouse() {
     // ?1004h : Focus tracking (Leaves window, enters window)
     // ?1003h : Any-Event Mouse Tracking (Clicks, Releases, Movement)
     // ?1016h : SGR-Pixel Mode (Outputs raw pixels instead of rows/cols)
@@ -93,7 +93,7 @@ static void sgr_pixel_enablemouse() {
 
 /// Disables SGR-Pixel mosue reporting
 /// (chcp \033[?1003l \033[?1016l escape code.)
-static void sgr_pixel_disablemouse() {
+inline void sgr_pixel_disablemouse() {
     // Turn all modes off
     char msg[] = "\033[?1004l\033[?1003l\033[?1016l";
     write(STDOUT_FILENO, msg, sizeof(msg)-1);
@@ -107,7 +107,7 @@ static void sgr_pixel_disablemouse() {
 /// SGR-Pixel returns the pixel position of the mouse
 /// within the Terminal, allowing for correct mouse clicks
 /// in Gmeng's cubic_render mode, because it halves screen height.
-static bool sgr_pixel_checksupport() {
+inline bool sgr_pixel_checksupport() {
 
     char* term = getenv("TERM");
     char* term_prog = getenv("TERM_PROGRAM");
@@ -169,7 +169,7 @@ static bool sgr_pixel_checksupport() {
     return false;
 }
 
-static int attempt_set_terminal_sgr_support(bool& checker) {
+inline int attempt_set_terminal_sgr_support(bool& checker) {
     gm_log("checking SGR-Pixel support for pixel-based mouse reporting...");
     Gmeng::global.terminal_has_sgr_pixel_support = sgr_pixel_checksupport();
 

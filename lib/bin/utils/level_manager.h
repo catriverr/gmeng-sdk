@@ -22,6 +22,116 @@
 #include "ImGuiColorTextEdit/TextEditor.h"
 #include "routine.h"
 
+struct Gmeng_CustomEntityEditorCommand {
+    int entity_serialization_id;
+
+    std::function<void(Gmeng::EntityBase*)> short_options;
+
+    std::map<std::string, std::function<void(Gmeng::EntityBase*)>> properties;
+};
+
+/// ImGui-based Entity-type specific editor commands. You can register an entity to have
+/// custom editor options by adding to this map with the type's serialization ID and
+/// a function that takes an EntityBase* pointer, cast the object to your derived
+/// type and add ImGui editor commands here. An example can be seen at
+/// `GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS[ -4 ]` which is for `Animated_Entity`.
+///
+/// Example on how to add a custom entity editor:
+/// ```
+/// class SomeDerivedEntity : public Gmeng::Entity<SomeDerivedEntity> {
+///     bool some_option = false;
+/// }; GMENG_ENTITY_SET_ID( SomeDerivedEntity, 10 ); REGISTER_ENTITY_TYPE( SomeDerivedEntity );
+///
+/// GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS[ GMENG_ENTITYID( SomeDerivedEntity ) ] = [](
+///     Gmeng::EntityBase* base_entity_type
+/// ) {
+///     GMENG_ENTITY( derived_entity_type, SomeDerivedEntity, base_entity_type );
+///     ImGui::Checkbox("SOME OPTION", &derived_entity_type->some_option);
+/// };
+/// ```
+static std::map<int, Gmeng_CustomEntityEditorCommand> GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS = {
+    {
+        GMENG_ENTITYID( Animated_Entity ),
+        {
+          GMENG_ENTITYID( Animated_Entity ),
+          [](Gmeng::EntityBase* ent) {
+              GMENG_ENTITY( ent_cast, Gmeng::Animated_Entity, ent );
+
+              static float scale = 1.0f;
+
+              ImGui::SetNextItemWidth(105);
+              ImGui::SliderFloat("SCALE", &scale, 0.05f, 20.0f);
+              ImGui::SameLine();
+              ImGui::PushID( ent_cast->entity_id + 2 );
+
+              if ( ImGui::Button("RESIZE") )
+                  for ( auto& tx : ent_cast->anim_textures )
+                      tx.resize( scale );
+
+              ImGui::PopID();
+          },
+          {
+            {
+                  "tabitems",
+                  [](Gmeng::EntityBase* ent) {
+                    GMENG_ENTITY( ent_cast, Gmeng::Animated_Entity, ent );
+
+                    if (ImGui::BeginTabItem("ANIMATION")) {
+                        auto sz = ImGui::GetContentRegionAvail();
+
+                        unsigned int stride_used = 0;
+                        for ( auto& tx : ent_cast->anim_textures ) {
+                            rgb_texture* rtx = new rgb_texture();
+                              rtx->height = tx.height;
+                              rtx->width  = tx.width;
+                              rtx->pixels = tx.rgb_array();
+
+                            ImTextureID id = (ImTextureID)(intptr_t)rtx;
+                            ImVec2 size    = ImVec2( 
+                                    std::min((float)rtx->width*7,  sz.y),
+                                    std::min((float)rtx->height*7, sz.y)
+                            );
+
+                            if ( stride_used != 0 && stride_used + size.x + 10 < sz.x )
+                                stride_used += size.x + 10, ImGui::SameLine();
+                            else stride_used = size.x + 10, ImGui::Dummy({
+                                    (sz.x - size.x*(sz.x / (size.x + 10)))/2, size.y
+                                }), ImGui::SameLine();
+
+                            ImVec2 pos = ImGui::GetCursorScreenPos();
+                            ImGui::Image(id, size);
+                            if ( ImGui::IsItemHovered() ) {
+                                ImVec2 min_pos = pos;
+                                ImVec2 max_pos = ImVec2(pos.x + size.x, pos.y + size.y);
+                                ImU32 border_color = hex_imu32(#ffaa00);
+                                ImGui::GetWindowDrawList()->AddRect(min_pos, max_pos, border_color, 0.0f, 0, 2.0f); 
+                                ImGui::BeginTooltip();
+                                ImGui_TextAnsi(colorformat(
+
+                                            "~u~TEXTURE INFORMATION~n~"
+                                ).c_str());
+                                ImGui_TextAnsi(colorformat("\t  NAME:\t" + tx.name));
+                                ImGui_TextAnsi(colorformat("\t WIDTH:\t"+ v_str(tx.width)));
+                                ImGui_TextAnsi(colorformat("\tHEIGHT:\t"+v_str(tx.height)));
+                                ImGui::EndTooltip();
+                            };
+                            if ( ImGui::IsItemClicked() ) {
+                                if ( Gmeng::main_event_loop->editors.contains(
+                                    tx.name
+                                ) ) Gmeng::main_event_loop->editors.find( tx.name )
+                                    ->second->is_open = true;
+                                else Gmeng::main_event_loop->editors[tx.name] =
+                                    std::make_unique<GmengImGuiTextureEditor>
+                                        (GmengImGuiTextureEditor(tx, &tx));
+                            };
+                        };
+                        ImGui::EndTabItem();
+                    }
+                }
+            }
+        }
+    }},
+};
 
 inline void ImGui_GmengEntity(Gmeng::EntityBase* selected_entity, Gmeng::EventLoop* ev) {
             if ( selected_entity == nullptr ) return;
@@ -99,15 +209,46 @@ inline void ImGui_GmengEntity(Gmeng::EntityBase* selected_entity, Gmeng::EventLo
 
             ImGui_CenteredText("TYPE-SPECIFIC OPTIONS");
 
+            if ( GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS.contains( selected_entity->get_serialization_id() ) ) {
+                GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS[
+                    selected_entity->get_serialization_id()
+                ].short_options( selected_entity );
+            } else {
+                ImGui_TextAnsi(colorformat(
+                    "~h~~r~none available~n~"
+                ));
+            };
+
             ImGui::EndChild();
 
             static std::unordered_map<int, TextEditor> editors;
 
             ImGui::SameLine();
             
-            ImGui::BeginChild("properties", ImVec2(sz2.x, sz.y * 0.66), ImGuiChildFlags_Borders);
+            ImGui::BeginChild("properties", ImVec2(sz2.x, sz.y * 0.66), ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollbar);
 
             if ( ImGui::BeginTabBar("ENTITY_TABBAR") ) {
+
+                if (ImGui::BeginTabItem("PREVIEW")) {
+                    auto szav = ImGui::GetContentRegionAvail();
+                    ImGui_CenteredText("TEXTURE");
+
+                    rgb_texture* rtx = new rgb_texture();
+                      rtx->height = selected_entity->sprite.height;
+                      rtx->width  = selected_entity->sprite.width;
+                      rtx->pixels = selected_entity->sprite.rgb_array();
+
+                    ImTextureID id = (ImTextureID)(intptr_t)rtx;
+                    ImVec2 size = {
+                        std::min((float)rtx->width*10,  szav.y),
+                        std::min((float)rtx->height*10, szav.y)
+                    };
+                    ImGui::Image(id, size);
+
+
+
+                    ImGui::EndTabItem();
+                };
 
                 if (ImGui::BeginTabItem("ROUTINES")) {
                     ImGui::BeginChild("routines__1", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
@@ -253,9 +394,11 @@ inline void ImGui_GmengEntity(Gmeng::EntityBase* selected_entity, Gmeng::EventLo
                         std::string DEFAULT_SCRIPT_TEXT =
                             "-- entity handle for subroutine " + v_str(new_routine.id) + ".\n"
                             "function entity_handle_" + v_str(new_routine.id) + "(entity)\n"
-                            "\tentity.position.x = 0\n"
-                            "\tentity.position.y = 0\n"
-                            "end\n\n\n"
+                            "\t-- example subroutine code\n"
+                            "\tif gmeng.getkey(gmeng.KEY.gk_A) then\n"
+                            "\t\tentity.position.x = entity.position.x - 1\n"
+                            "\tend\n"
+                            "end\n"
                             "-- do not add any other code beyond this point";
 
                         new_routine.entry_point = "entity_handle_" + v_str(new_routine.id);
@@ -268,10 +411,12 @@ inline void ImGui_GmengEntity(Gmeng::EntityBase* selected_entity, Gmeng::EventLo
                     ImGui::EndTabItem();
                 };
 
-                if (ImGui::BeginTabItem("TEXTURE")) {
-                    ImGui_CenteredText("texture");
-                    ImGui::EndTabItem();
-                };
+
+                if (GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS.contains(
+                        selected_entity->get_serialization_id()
+                   )) GMENG_ENTITY_TYPE_SPECIFIC_EDITOR_COMMANDS[
+                    selected_entity->get_serialization_id()
+                ].properties["tabitems"]( selected_entity );
 
                 ImGui::EndTabBar();
             };

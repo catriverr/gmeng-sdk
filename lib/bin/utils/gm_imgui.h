@@ -73,7 +73,8 @@ inline bool ImGui_ImplKitty_Init() {
 
 inline void ImGui_ImplKitty_Shutdown() {
     if ( g_FontAtlasTexture ) {
-        delete[] g_FontAtlasTexture;
+        delete[] g_FontAtlasTexture->pixels;
+        delete g_FontAtlasTexture;
         g_FontAtlasTexture = nullptr;
     }
 }
@@ -305,7 +306,7 @@ inline bool ImGui_CenteredSelection(
 
     // Prev arrow
     if (ImGui::Button("<", arrow_size)) {
-        current_item--;
+        (*current_item)--;
         if (*current_item < 0) *current_item = item_count-1;
         changed = true;
     }
@@ -317,7 +318,7 @@ inline bool ImGui_CenteredSelection(
 
     // Next arrow
     if (ImGui::Button(">", arrow_size)) {
-        current_item++;
+        (*current_item)++;
         changed = true;
     }
 
