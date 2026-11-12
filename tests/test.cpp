@@ -20,6 +20,9 @@
 #define g_sleep std::this_thread::sleep_for
 #define ms std::chrono::milliseconds
 
+namespace gm = Gmeng;
+namespace gmeng = Gmeng;
+
 using std::endl;
 
 int test_loadtexture() {
