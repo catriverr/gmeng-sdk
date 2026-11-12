@@ -136,7 +136,6 @@ namespace Gmeng_Commandline {
 
 #include "./commands.cc"
 #include "./level_editor.cc"
-#include "./basic_songmaker.cc"
 
 #define __GMENG_COMMANDLINE_IMPORTS__ true
 
