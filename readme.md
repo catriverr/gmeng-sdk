@@ -63,6 +63,10 @@ builds:
     make compile-file-windows filename=<file.cpp> (builds the file defined in filename, for windows target)
     make compile-script filename=<file.cc> (builds the file defined in filename, as a NOBLE shared library script)
 
+
+    make compile-engine (builds the engine as an object file gmeng_engine.o)
+    make with-engine filename=<file.cpp> (links your file with the prebuilt gmeng_engine.o and creates an executable)
+
     make setup (sets up the environment and installs the libraries required for gmeng to function)
     make build (builds the target in Production mode, all scripts in the scripts/src directory and your target will be compiled)
 options:
