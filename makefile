@@ -1,5 +1,5 @@
 # Compiler and flags
-CXX := g++ -DImDrawIdx="unsigned int" -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include
+CXX := g++ -DImDrawIdx="unsigned int" -Xpreprocessor -fopenmp -I$(shell brew --prefix libomp)/include
 LDLIBS := -L/opt/homebrew/opt/libomp/lib -lomp
 CXXWARNINGS := -Wno-deprecated-declarations -Wno-writable-strings -Wno-switch-bool -Wno-format-security
 CXXFLAGS := -Iinclude/sol/include -Linclude/sol/include -Linclude/asio -Iinclude/asio -Linclude -Iinclude --std=gnu++23 -pthread `pkg-config --cflags --libs lua` `pkg-config --libs --cflags libcurl` -fpermissive $(ADD_FLAGS)
@@ -147,7 +147,7 @@ all: lib/bin/out/gmeng
 
 # Rule to build lib/bin/src/index.cpp
 lib/bin/out/gmeng: lib/bin/src/index.cpp
-	$(CXX) lib/bin/src/index.cpp $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(OUTFILE)
+	$(CXX) lib/bin/src/index.cpp $(LDLIBS) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) $(OUTFILE)
 
 # Target for test, builds test.cpp
 test: tests/editor_test.cpp

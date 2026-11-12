@@ -20,7 +20,7 @@ namespace Gmeng {
 };
 
 namespace Gmeng::Renderer {
-        inline void subimage_copy(
+        void subimage_copy(
             const uint8_t* src_image,
             int src_stride_width,
             const Gmeng::Renderer::viewpoint& vp,

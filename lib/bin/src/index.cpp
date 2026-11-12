@@ -1,8 +1,6 @@
 /* modules */
 #define __GMENG_ALLOW_LOG__ true
 
-#include <algorithm>
-#include <iostream>
 #include <string>
 #include <vector>
 
