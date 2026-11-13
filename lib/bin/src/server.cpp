@@ -78,8 +78,14 @@ namespace Gmeng {
     std::string network_serialize_message( const std::string& message, int message_id, int response_of = -1 ) {
         std::string id = v_str(message_id);
 
-        if ( response_of != -1 ) return "R" + v_str(response_of) + network_message_delimeter + id + network_message_delimeter + message;
-        else return id + network_message_delimeter + message + network_message_splitter;
+        if ( response_of != -1 )
+            return "R" + v_str(response_of) +
+                network_message_delimeter + id
+                + network_message_delimeter + message
+                + network_message_splitter;
+
+        else return id + network_message_delimeter + message
+                       + network_message_splitter;
     };
 
     network_message network_parse_message( const std::string& message ) {
@@ -273,8 +279,8 @@ namespace Gmeng {
                             msg.id = v.id; msg.content = v.content;
                             /// callback with the message
                             user_callback(this, msg);
-                            ++it;
                         };
+                        ++it;
                     };
                 }
             };
@@ -297,7 +303,7 @@ namespace Gmeng {
     struct ServerConnection; // type decl
     namespace network_protocol {
         using std::string, std::vector;
-        static CommandSet<int( ServerConnection*, vector<string> )> commands;
+        CommandSet<int( ServerConnection*, vector<string> )> commands;
     };
 
     struct ServerConnection {
@@ -327,13 +333,13 @@ namespace Gmeng {
             std::string serialized_message = Gmeng::network_serialize_message( message, message_id );
 
             std::error_code ec;
+            /// if there is a response callback, register it to the client.
+            if ( on_response != nullptr ) this->response_callbacks[ message_id ] = on_response;
             /// Wait until the socket is writable.
             this->socket->wait(this->socket->wait_write);
             /// asio::write blocks ONLY until the OS buffer accepts the bytes (usually instantaneous),
             /// it does not wait for the network or the server.
             asio::write(*socket, asio::buffer(serialized_message), ec);
-            /// if there is a response callback, register it to the client.
-            if ( on_response != nullptr ) this->response_callbacks[ message_id ] = on_response;
             /// if there is an error, log it.
             if (ec) {
                 gm_log("error writing: " + ec.message());
@@ -389,9 +395,9 @@ namespace Gmeng {
                     /// create the readbuffer for the new data with a size of the available bytes.
                     std::vector<char> read_buffer(bytes_available);
                     /// Read the data on the buffer
-                    socket->read_some( asio::buffer( read_buffer.data(), read_buffer.size() ), ec );
+                    size_t n = socket->read_some( asio::buffer( read_buffer.data(), read_buffer.size() ), ec );
                     /// create the raw message string
-                    std::string raw_message( read_buffer.data() );
+                    std::string raw_message( read_buffer.data(), n );
 
                     /// Messages can be sent too consecutively. To prevent this, when serializing messages
                     /// the gmeng websocket data protocol adds the `network_message_splitter` bytes to the
@@ -447,7 +453,11 @@ namespace Gmeng {
       public:
         /// Connects to a Gmeng GameServer instance at the provided ip address and port.
         /// WARNING: IP_ADDRESS MUST BE AN IP ADDRESS! DOMAINS ARE NOT ACCEPTED.
-        static ServerConnection connect(const std::string& ip_address, unsigned int port = 7388, TRACEFUNC) {
+        static ServerConnection connect(const std::string& ip_address, unsigned int port = 7388, TRACEFUNC); 
+    };
+};
+
+Gmeng::ServerConnection Gmeng::GameClient::connect(const std::string& ip_address, unsigned int port, const char* func_caller, const char* func_caller_file, int func_caller_line) {
             ServerConnection conn;
             conn.context = std::make_shared<asio::io_context>();
             conn.socket = std::make_shared<asio::ip::tcp::socket>(*conn.context);
@@ -476,8 +486,6 @@ namespace Gmeng {
 
             return conn;
         }
-    };
-};
 
 int set_network_protocol_commands() {
     using std::string, std::vector, Gmeng::GameClient;

@@ -19,6 +19,7 @@
 #include "../../../include/imgui/imgui_widgets.cpp"
 
 #include "../gmeng.h"
+#include "server.cpp"
 
 /// COMPATIBILITY FOR EXPORTING TEMPLATE CLASS REFERENCES
 
@@ -40,6 +41,12 @@ GM_FORCE(_f_lvlbase,
     static_cast<void (Gmeng::Renderer::LevelBase::*)(const std::size_t&, const std::size_t&)>(
         &Gmeng::Renderer::LevelBase::resize));
 
+GM_FORCE(_f_respond, &Gmeng::GameServer::ClientMessage::respond);
+GM_FORCE(_f_run_serve, &Gmeng::GameServer::run);
+GM_FORCE(_f_handle_message, &Gmeng::ServerConnection::handle_message);
+GM_FORCE(_f_poll, &Gmeng::ServerConnection::poll);
+GM_FORCE(_f_sc_write, &Gmeng::ServerConnection::write);
+
 __attribute__((used, noinline, optnone))
 void gmeng_force_emit_special_members() {
     Gmeng::color32_t a(uint8_t(1), uint8_t(2), uint8_t(3));
@@ -49,6 +56,10 @@ void gmeng_force_emit_special_members() {
     alignas(Gmeng::EventLoop) char buf[sizeof(Gmeng::EventLoop)];
     reinterpret_cast<Gmeng::EventLoop*>(buf)->~EventLoop();
     (void)a; (void)b; (void)d;
+    Gmeng::GameServer server(7388, 10);
+    Gmeng::ServerConnection connection;
+    Gmeng::GameClient client;
+    Gmeng::GameServer::ClientMessage msg;
 }
 
 static const char* __GMENG_OBJ_BUILD_VERSION_ID = Gmeng::version.c_str();

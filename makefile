@@ -155,7 +155,7 @@ test: tests/editor_test.cpp
 
 # Target for test2, builds tests/test.cpp
 test2: tests/test.cpp
-	$(CXX) tests/test.cpp $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o tests/out/test.o
+	$(CXX) tests/test.cpp $(LDLIBS) $(IMGUI_SRC) $(VERSIONFLAGS) $(CXXFLAGS) -o tests/out/test.o
 
 # Target for building with the debug flag
 debug:

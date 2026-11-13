@@ -438,7 +438,7 @@ namespace Gmeng {
         float progress;
         /// whether the subroutine is an executable or a function.
         /// if set to false, the function becomes accessible from
-        /// other subroutines. If for example a subroutine includes
+    /// other subroutines. If for example a subroutine includes
         /// a utility function like `check_entity_status`, it can
         /// be executed by another subroutine instead.
 ///
@@ -2915,6 +2915,200 @@ extern "C" int gmeng_script_command( Gmeng::EventLoop* );
 extern "C" int gmeng_script_periodic( Gmeng::EventLoop* );
 
 #endif
+
+
+template <typename T>
+struct function_return_type;
+
+template <typename R, typename... Args>
+struct function_return_type<R(Args...)> {
+    using type = R;
+};
+
+template <typename T>
+using function_return_type_t = typename function_return_type<T>::type;
+
+
+namespace Gmeng {
+    template<typename T>
+    class CommandSet {
+      public:
+        struct Command {
+            std::string name;
+            std::function<T> executor;
+        };
+
+        std::map<std::string, Command> commands;
+
+        template<typename... Args>
+        function_return_type_t<T> run( std::string command, Args&&... args);
+
+        CommandSet() = default;
+        CommandSet( std::vector<std::tuple<std::string, std::function<T>>> _commands ) {
+            for ( auto command : _commands ) {
+                Command new_cmd{ std::get<0>(command), std::get<1>(command) };
+                this->commands[ new_cmd.name ] = new_cmd;
+            };
+        };
+    };
+};
+
+
+
+#include <asio/asio.hpp>
+
+namespace Gmeng {
+    struct network_message {
+        int id;
+        int response_of = -1;
+        std::string content;
+    };
+
+    /// serializes a network message
+    extern std::string network_serialize_message( const std::string& message, int message_id, int response_of = -1 );
+
+    extern network_message network_parse_message( const std::string& message );
+
+    class GameServer;
+    extern Gmeng::GameServer* game_server;
+
+    /// Since 13.2.0: Gmeng Networking with Asio
+    /// Game Server for Multiplayer game instances.
+    class GameServer {
+      public:
+        /// Client ID type ( aka unsigned int )
+        using client_id = unsigned int;
+        /// Client instance for the Server.
+        /// Contains its client_id, IP address,
+        /// connection date and num_packets.
+        struct ServerClient : public std::enable_shared_from_this<ServerClient> {
+            /// Socket with the client.
+            std::shared_ptr<asio::ip::tcp::socket> socket;
+            /// Number of packets sent by the client.
+            unsigned int num_packets = 0;
+            /// Time (in date milliseconds) of connection by the client.
+            long long connected_at = GET_TIME();
+            /// ID of the client. Unique for all clients.
+            /// See `g_mkid()` for ID creation logic.
+            client_id id = -1;
+            /// IP address (in string form) of the client.
+            std::string address = "unknown";
+
+            ServerClient() = default;
+            ServerClient( decltype(socket) _socket, decltype(num_packets) _packets,
+                          decltype(connected_at) _connected_at, decltype(id) _id,
+                          decltype(address) _address) : socket(_socket), num_packets(_packets),
+                          connected_at( _connected_at ), id( _id ), address(_address) {};
+            /// Sends a message to the client.
+            /// set `response_of` to a valid message sent by the client to send a response,
+            /// instead of a brand new message. This will fire the `response` callback of that message (client-side).
+            void send_message( const std::string& message, int response_of = -1, int id = g_mkid() );
+
+            std::string info_string();
+        };
+        /// Message from a connected client.
+        /// Contains client information as well its message.
+        struct ClientMessage {
+            /// ID of the message.
+            unsigned int id = g_mkid();
+            /// Client information.
+            ServerClient* client;
+            /// contents of the message.
+            std::string content = "";
+            /// method to respond to the message.
+            void respond( std::string reply_text );
+        };
+        /// TCP server port of the server. Gmeng internally sets this to 7388.
+        /// See `GMENG_DEFAULT_PORT` in `networking.cc` for more information.
+        unsigned int port = 7388;
+        /// maximum number of allowed clients into
+        /// the GameServer instance. default is 10.
+        unsigned int max_clients = 8;
+        /// Asio IO context of the server.
+        /// Handles connectivity as well as the socket streaming.
+        asio::io_context context;
+        /// Asio TCP connection acceptor of the server.
+        /// Accepts incoming clients and manages them.
+        asio::ip::tcp::acceptor acceptor;
+        /// Whether the server is running. When set to false,
+        /// the server will close all active connections and exit.
+        bool active = true;
+        /// default in-game chat stream.
+        std::stringstream chat;
+        /// Clients connected to the server.
+        std::map<client_id, ServerClient> clients;
+
+        GameServer( int _port = 7388, int _max_clients = 10 )
+        : port ( _port ), max_clients( _max_clients ),
+        acceptor( context, asio::ip::tcp::endpoint( asio::ip::tcp::v4(), port ) ) {
+            __functree_call__( Gmeng::GameServer::constructor );
+            /// Multiple server instances in a single
+            /// program is not supported, error out and exit.
+            if ( Gmeng::game_server != nullptr ) {
+                gm_log("gmeng::game_server is not nullptr, exitting...");
+                throw std::runtime_error("a Gmeng::GameServer instance is already present.");
+            };
+
+            gm_log("created a game server instance for port "$(this->port)".");
+            /// set the current server to this instance
+            Gmeng::game_server = this;
+        };
+
+        /// Launches the server. This will create a while loop
+        /// with a callback to the parameter `user_callback`. Best
+        /// to run in its own thread, and use the main program
+        /// thread only for the game updates.
+        void run( const std::function<void( GameServer*, ClientMessage& )>& user_callback );
+    };
+
+    struct ServerConnection;
+
+    namespace network_protocol {
+        using std::string, std::vector;
+        extern CommandSet<int(ServerConnection*, vector<string>)> commands;
+    };
+
+    struct ServerConnection {
+        std::shared_ptr<asio::io_context> context;
+        std::shared_ptr<asio::ip::tcp::socket> socket;
+        bool connected = false;
+        unsigned int client_id = 0;
+
+        std::function<void(network_message&)> message_handler = nullptr;
+
+
+        /// global message handler. this function will handle all messages received
+        /// by the client. this includes responses to messages sent by the client as well.
+        void handle_message( decltype(message_handler) _message_handler );
+
+        std::map<int, decltype(message_handler)> response_callbacks;
+
+        /// Sends a message instantly. Doesn't block.
+        /// If on_response is provided, it fires the next time the server sends data.
+        void write(const std::string& message, decltype(message_handler) on_response = nullptr);
+
+        /// Handles Gmeng websocket data protocol messages.
+        void handle_protocol( const network_message& message );
+
+        /// creates a message loop. This is a blocking function, so
+        /// it is recommended to run this method in a seperate thread.
+        /// See `Gmeng::_ucreate_thread` for information about threading with Gmeng.
+        void poll();
+
+        void disconnect();
+        
+    };
+
+    /// Since 13.2.0: Gmeng Networking with Asio
+    /// Game Client for Multiplayer game instances.
+    class GameClient {
+      public:
+        /// Connects to a Gmeng GameServer instance at the provided ip address and port.
+        /// WARNING: IP_ADDRESS MUST BE AN IP ADDRESS! DOMAINS ARE NOT ACCEPTED.
+        static ServerConnection connect(const std::string& ip_address, unsigned int port = 7388, TRACEFUNC);
+    };
+};
+
 
 /// Runs the developer console for Gmeng.
 /// This utility is for Terminal-mode only.
